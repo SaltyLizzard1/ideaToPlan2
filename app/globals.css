@@ -1,26 +1,56 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Gold scale — matched to logo (dark→bright mirrors the bar chart) */
+  --color-gold-deep:   #6B4C08; /* bar 1 / deepest bronze */
+  --color-gold-dark:   #8B6914; /* Idea text / tagline / borders */
+  --color-gold-warm:   #C9A030; /* bar 2 / To text / rule line */
+  --color-gold-mid:    #E8C84A; /* sparkle arms */
+  --color-gold-bright: #F5D020; /* bar 3 / Plan text — the payoff */
+  --color-gold-light:  #F5E070; /* sparkle / subtle highlights */
+  --color-gold-pale:   #FFF8B0; /* sparkle diagonals / near-white gold */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-cream:    #FBF6E4;
+  --color-hero-bg:  #0D1117;
+
+  --font-cinzel: var(--font-cinzel);
+  --font-serif:  var(--font-cormorant);
+  --font-sans:   var(--font-inter);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  background: #ffffff;
+  color: #171717;
 }
+
+.font-serif {
+  font-family: var(--font-cormorant), Georgia, serif;
+}
+
+/* Gradient sweeps deep→bright, matching logo bar progression */
+.gold-gradient {
+  background: linear-gradient(135deg, #6B4C08 0%, #C9A030 35%, #F5D020 60%, #E8C84A 80%, #6B4C08 100%);
+}
+
+.gold-gradient-text {
+  background: linear-gradient(135deg, #8B6914 0%, #C9A030 35%, #F5D020 65%, #E8C84A 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gold-border {
+  border: 1.5px solid var(--color-gold-dark);
+}
+
+/* Utility classes for logo color steps */
+.text-gold-deep   { color: var(--color-gold-deep); }
+.text-gold-dark   { color: var(--color-gold-dark); }
+.text-gold-warm   { color: var(--color-gold-warm); }
+.text-gold-bright { color: var(--color-gold-bright); }
+
+.bg-gold-deep   { background-color: var(--color-gold-deep); }
+.bg-gold-dark   { background-color: var(--color-gold-dark); }
+.bg-gold-warm   { background-color: var(--color-gold-warm); }
+.bg-gold-bright { background-color: var(--color-gold-bright); }
