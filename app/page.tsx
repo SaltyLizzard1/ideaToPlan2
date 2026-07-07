@@ -5,7 +5,6 @@ import Hero from "@/components/Hero";
 import HowItWorks from "@/components/HowItWorks";
 import Quiz from "@/components/Quiz";
 import IdeaToPlan from "@/components/IdeaToPlan";
-import Testimonials from "@/components/Testimonials";
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -45,8 +44,6 @@ export default function Home() {
         </div>
         <Quiz onMatchSelected={handleMatchSelected} />
       </section>
-
-      <Testimonials />
 
       <div id="pricing" ref={ideaToPlanRef} style={{ scrollMarginTop: "64px" }}>
         <IdeaToPlan prefillIdea={prefillIdea} />
