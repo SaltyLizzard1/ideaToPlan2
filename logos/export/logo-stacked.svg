@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+<defs>
+  <filter id="sparkle-glow" x="-200%" y="-200%" width="500%" height="500%">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="outer"/>
+    <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="inner"/>
+    <feMerge>
+      <feMergeNode in="outer"/>
+      <feMergeNode in="inner"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+</defs>
+<g id="icon">
+  <rect x="118" y="193" width="44" height="77"  fill="#6B4C08" rx="3"/>
+  <rect x="178" y="147" width="44" height="123" fill="#C9A030" rx="3"/>
+  <rect x="238" y="101" width="44" height="169" fill="#F5D020" rx="3"/>
+  <g transform="translate(260, 75)" filter="url(#sparkle-glow)">
+    <polygon points="0,-28 3,-4 0,28 -3,-4" fill="#F5E070"/>
+    <polygon points="-28,0 -4,3 28,0 -4,-3" fill="#F5E070"/>
+    <g transform="rotate(45)">
+      <polygon points="0,-17 2,-3 0,17 -2,-3" fill="#FFF8B0"/>
+      <polygon points="-17,0 -3,2 17,0 -3,-2" fill="#FFF8B0"/>
+    </g>
+    <circle cx="0" cy="0" r="3.5" fill="#FFFFFF"/>
+  </g>
+</g>
+<g id="wordmark">
+  <text x="200" y="318" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" dominant-baseline="auto">
+    <tspan font-weight="700" fill="#8B6914">Idea</tspan><tspan font-weight="400" fill="#C9A030" dx="4">To</tspan><tspan font-weight="700" fill="#F5D020" dx="4">Plan</tspan>
+  </text>
+</g>
+</svg>

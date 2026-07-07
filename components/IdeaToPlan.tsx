@@ -194,11 +194,11 @@ export default function IdeaToPlan({
   return (
     <section
       id="idea-to-plan"
-      className="pt-8 pb-14 md:pt-10 md:pb-20"
+      className="pt-16 pb-14 md:pt-20 md:pb-20"
       style={{ background: "#FEFCF5" }}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-6">
+        <div className="text-center mb-10">
           <span
             className="inline-block text-xs sm:text-sm font-bold px-5 py-2 rounded-full uppercase tracking-widest shadow-md mb-4"
             style={GOLD_BUTTON_STYLE}
@@ -209,7 +209,7 @@ export default function IdeaToPlan({
             className="text-4xl md:text-5xl font-serif font-bold mb-4"
             style={{ color: "#0D1117" }}
           >
-            Turn Your Business Idea Into a Real Plan in 72 Hours
+            Turn Your Business Idea Into an Actionable Plan in 72 Hours
           </h2>
           <p
             className="text-base font-medium mb-4 max-w-2xl mx-auto"
@@ -223,7 +223,7 @@ export default function IdeaToPlan({
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 mb-10">
+        <div className="grid md:grid-cols-3 gap-8 mb-12">
           {processSteps.map((step, index) => (
             <div key={index} className="text-center">
               <div

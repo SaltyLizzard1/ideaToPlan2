@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512">
+
+  <!-- Background -->
+  <rect width="1024" height="512" fill="#FFFFFF"/>
+
+  <!-- Icon: Ascending Steps -->
+  <g id="icon">
+
+    <!-- Bar 1: shortest, darkest gold -->
+    <!-- Centered around x=190, bars span roughly x=80 to x=300 -->
+    <!-- Bar widths: 50px each, gaps: 20px -->
+    <!-- Bar 1: x=80, Bar 2: x=150, Bar 3: x=220 -->
+    <!-- Heights: Bar1=100, Bar2=160, Bar3=220 -->
+    <!-- Bottom baseline: y=370 -->
+
+    <!-- Bar 1 (shortest): #8B6914 -->
+    <rect x="80" y="270" width="52" height="100" fill="#8B6914" rx="4"/>
+
+    <!-- Bar 2 (medium): #C9A030 -->
+    <rect x="152" y="210" width="52" height="160" fill="#C9A030" rx="4"/>
+
+    <!-- Bar 3 (tallest): #E8C84A -->
+    <rect x="224" y="150" width="52" height="220" fill="#E8C84A" rx="4"/>
+
+    <!-- Sparkle above tallest bar -->
+    <!-- Center of tallest bar top: x=250, y=150 -->
+    <!-- 4-pointed star sparkle at cx=250, cy=118 -->
+    <g transform="translate(250, 116)">
+      <!-- Vertical arm -->
+      <polygon points="0,-26 5,-5 0,26 -5,-5" fill="#F5E070"/>
+      <!-- Horizontal arm -->
+      <polygon points="-26,0 -5,5 26,0 -5,-5" fill="#F5E070"/>
+    </g>
+
+  </g>
+
+  <!-- Wordmark: IdeaToPlan -->
+  <g id="wordmark">
+    <text
+      x="340"
+      y="278"
+      font-family="Georgia, 'Times New Roman', serif"
+      font-size="78"
+      font-weight="bold"
+      fill="#0D1117"
+      text-anchor="start"
+      dominant-baseline="middle"
+    >IdeaToPlan</text>
+  </g>
+
+  <!-- Tagline -->
+  <g id="tagline">
+    <text
+      x="345"
+      y="332"
+      font-family="Arial, Helvetica, sans-serif"
+      font-size="20"
+      font-weight="normal"
+      fill="#8B6914"
+      text-anchor="start"
+      dominant-baseline="middle"
+      letter-spacing="4"
+    >START YOUR BUSINESS TODAY</text>
+  </g>
+
+</svg>

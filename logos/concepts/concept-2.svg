@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512">
+
+  <g id="icon">
+    <circle cx="220" cy="256" r="160" fill="none" stroke="#E8C84A" stroke-width="10"/>
+    <line x1="220" y1="96" x2="220" y2="118" stroke="#8B6914" stroke-width="6" stroke-linecap="round"/>
+    <line x1="220" y1="394" x2="220" y2="416" stroke="#8B6914" stroke-width="6" stroke-linecap="round"/>
+    <line x1="380" y1="256" x2="358" y2="256" stroke="#8B6914" stroke-width="6" stroke-linecap="round"/>
+    <line x1="60" y1="256" x2="82" y2="256" stroke="#8B6914" stroke-width="6" stroke-linecap="round"/>
+    <polygon points="220,150 260,256 249,285 191,227" fill="#E8C84A"/>
+    <polygon points="180,256 220,362 249,285 191,227" fill="#0D1117"/>
+    <circle cx="220" cy="256" r="10" fill="#E8C84A"/>
+  </g>
+
+  <g id="wordmark">
+    <text
+      x="430"
+      y="275"
+      font-family="Georgia, 'Times New Roman', serif"
+      font-size="78"
+      fill="#0D1117"
+      text-anchor="start"
+    >IdeaToPlan</text>
+  </g>
+
+  <g id="tagline">
+    <text
+      x="435"
+      y="320"
+      font-family="Arial, Helvetica, sans-serif"
+      font-size="20"
+      fill="#8B6914"
+      text-anchor="start"
+      letter-spacing="4"
+    >START YOUR BUSINESS TODAY</text>
+  </g>
+
+</svg>

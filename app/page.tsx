@@ -22,9 +22,9 @@ export default function Home() {
   return (
     <main>
       <Hero />
-      <HowItWorks />
+      <div id="how-it-works" style={{ scrollMarginTop: "64px" }}><HowItWorks /></div>
 
-      <section id="quiz" className="py-12 px-4" style={{ background: "#F9FAFB" }}>
+      <section id="quiz" className="py-12 px-4" style={{ background: "#F9FAFB", scrollMarginTop: "64px" }}>
         <div className="max-w-3xl mx-auto text-center mb-8">
           <p
             className="text-xs font-sans tracking-[0.2em] uppercase mb-2"
@@ -48,7 +48,7 @@ export default function Home() {
 
       <Testimonials />
 
-      <div ref={ideaToPlanRef}>
+      <div id="pricing" ref={ideaToPlanRef} style={{ scrollMarginTop: "64px" }}>
         <IdeaToPlan prefillIdea={prefillIdea} />
       </div>
 

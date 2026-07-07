@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/submit-idea/route.ts": {
+      "maxDuration": 180
+    }
+  }
+}

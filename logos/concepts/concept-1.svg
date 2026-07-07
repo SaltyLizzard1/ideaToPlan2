@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512">
+
+  <!-- Icon: dark circle containing diamond + arrow + grid -->
+  <g id="icon">
+    <!-- Dark background circle -->
+    <circle cx="140" cy="256" r="180" fill="#0D1117"/>
+
+    <!-- Diamond / rhombus (spark / idea) — centered left of icon -->
+    <!-- Diamond points: top, right, bottom, left — roughly at cx=90, cy=256, width=80, height=100 -->
+    <polygon
+      points="90,176 150,256 90,336 30,256"
+      fill="#E8C84A"
+    />
+    <!-- Inner diamond highlight for depth at small sizes -->
+    <polygon
+      points="90,204 122,256 90,308 58,256"
+      fill="#F5E070"
+    />
+
+    <!-- Arrow connecting diamond to grid: a thick rightward arrow from x=158 to x=185 -->
+    <!-- Arrow shaft -->
+    <rect x="158" y="249" width="30" height="14" fill="#C9A030" rx="2"/>
+    <!-- Arrow head -->
+    <polygon points="188,237 210,256 188,275" fill="#C9A030"/>
+
+    <!-- 3x3 grid (blueprint/plan) — upper-left of grid at x=218, centered vertically -->
+    <!-- Grid is 9 cells, 3 columns x 3 rows, each cell 26x26, gap 5 -->
+    <!-- Total grid width: 3*26 + 2*5 = 88, height: 88 -->
+    <!-- Center grid at x=218+(88/2)=262, y=256 -->
+    <!-- Grid starts at x=218, y=212 -->
+
+    <!-- Row 1 -->
+    <rect x="218" y="212" width="24" height="24" fill="#E8C84A" rx="3"/>
+    <rect x="249" y="212" width="24" height="24" fill="#E8C84A" rx="3"/>
+    <rect x="280" y="212" width="24" height="24" fill="#E8C84A" rx="3"/>
+
+    <!-- Row 2 -->
+    <rect x="218" y="243" width="24" height="24" fill="#C9A030" rx="3"/>
+    <rect x="249" y="243" width="24" height="24" fill="#E8C84A" rx="3"/>
+    <rect x="280" y="243" width="24" height="24" fill="#C9A030" rx="3"/>
+
+    <!-- Row 3 -->
+    <rect x="218" y="274" width="24" height="24" fill="#C9A030" rx="3"/>
+    <rect x="249" y="274" width="24" height="24" fill="#C9A030" rx="3"/>
+    <rect x="280" y="274" width="24" height="24" fill="#E8C84A" rx="3"/>
+  </g>
+
+  <!-- Wordmark: "IdeaToPlan" in serif, dark ink -->
+  <g id="wordmark">
+    <text
+      x="360"
+      y="278"
+      font-family="Georgia, 'Times New Roman', serif"
+      font-size="78"
+      font-weight="400"
+      fill="#0D1117"
+      letter-spacing="-1"
+    >IdeaToPlan</text>
+  </g>
+
+  <!-- Tagline: "START YOUR BUSINESS TODAY" in spaced caps -->
+  <g id="tagline">
+    <text
+      x="362"
+      y="322"
+      font-family="Arial, Helvetica, sans-serif"
+      font-size="18"
+      font-weight="400"
+      fill="#8B6914"
+      letter-spacing="5"
+    >START YOUR BUSINESS TODAY</text>
+  </g>
+
+</svg>

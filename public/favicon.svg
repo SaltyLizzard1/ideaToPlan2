@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs>
+  <filter id="sparkle-glow" x="-200%" y="-200%" width="500%" height="500%">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="outer"/>
+    <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="inner"/>
+    <feMerge>
+      <feMergeNode in="outer"/>
+      <feMergeNode in="inner"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+</defs>
+<g id="icon">
+  <rect x="138" y="304" width="64" height="100" fill="#6B4C08" rx="5"/>
+  <rect x="224" y="239" width="64" height="165" fill="#C9A030" rx="5"/>
+  <rect x="310" y="174" width="64" height="230" fill="#F5D020" rx="5"/>
+  <g transform="translate(342, 144)" filter="url(#sparkle-glow)">
+    <polygon points="0,-36 3,-4 0,36 -3,-4" fill="#F5E070"/>
+    <polygon points="-36,0 -4,3 36,0 -4,-3" fill="#F5E070"/>
+    <g transform="rotate(45)">
+      <polygon points="0,-22 2,-3 0,22 -2,-3" fill="#FFF8B0"/>
+      <polygon points="-22,0 -3,2 22,0 -3,-2" fill="#FFF8B0"/>
+    </g>
+    <circle cx="0" cy="0" r="4" fill="#FFFFFF"/>
+  </g>
+</g>
+</svg>

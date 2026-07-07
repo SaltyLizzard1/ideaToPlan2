@@ -69,9 +69,9 @@ export default function HowItWorks() {
   ];
 
   return (
-    <section className="py-24 px-6 bg-white">
+    <section className="py-14 px-6 bg-white">
       <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-16">
+        <div className="text-center mb-10">
           <p
             className="text-xs font-sans tracking-[0.2em] uppercase mb-3"
             style={{ color: "#C9A030" }}

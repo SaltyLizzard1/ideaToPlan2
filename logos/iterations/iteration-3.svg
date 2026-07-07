@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512">
+  <rect width="1024" height="512" fill="#FFFFFF"/>
+  <g id="icon">
+    <rect x="80" y="270" width="52" height="100" fill="#8B6914" rx="4"/>
+    <rect x="152" y="210" width="52" height="160" fill="#C9A030" rx="4"/>
+    <rect x="224" y="150" width="52" height="220" fill="#E8C84A" rx="4"/>
+    <g transform="translate(250, 116)">
+      <polygon points="0,-26 5,-5 0,26 -5,-5" fill="#F5E070"/>
+      <polygon points="-26,0 -5,5 26,0 -5,-5" fill="#F5E070"/>
+    </g>
+  </g>
+  <g id="wordmark">
+    <text x="350" y="220" font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif" font-size="80" font-weight="900" fill="#0D1117" letter-spacing="8">IDEA</text>
+    <text x="350" y="310" font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif" font-size="80" font-weight="900" fill="#C9A030" letter-spacing="8">TO PLAN</text>
+  </g>
+  <g id="tagline">
+    <text x="355" y="355" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#8B6914" letter-spacing="4">Your Skills. Your Business.</text>
+  </g>
+</svg>

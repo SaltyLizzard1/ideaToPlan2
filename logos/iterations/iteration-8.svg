@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512">
+<rect width="1024" height="512" fill="#FFFFFF"/>
+<g id="icon">
+  <rect x="80" y="270" width="52" height="100" fill="#8B6914" rx="4"/>
+  <rect x="152" y="210" width="52" height="160" fill="#C9A030" rx="4"/>
+  <rect x="224" y="150" width="52" height="220" fill="#E8C84A" rx="4"/>
+  <g transform="translate(250, 116)">
+    <polygon points="0,-26 5,-5 0,26 -5,-5" fill="#F5E070"/>
+    <polygon points="-26,0 -5,5 26,0 -5,-5" fill="#F5E070"/>
+  </g>
+</g>
+<g id="wordmark">
+  <!-- Progressive sizing: each word grows taller, colors match the bars -->
+  <text y="375" font-family="'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif" text-anchor="start">
+    <tspan x="355" font-size="44" fill="#8B6914">Idea</tspan><tspan font-size="70" fill="#C9A030" dx="8">To</tspan><tspan font-size="108" fill="#E8C84A" dx="10">Plan</tspan>
+  </text>
+</g>
+<g id="tagline">
+  <text x="358" y="415" font-family="'Palatino Linotype', Georgia, serif" font-size="16" font-style="italic" fill="#8B6914" letter-spacing="3">Shape your future. Start today.</text>
+</g>
+</svg>

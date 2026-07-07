@@ -10,6 +10,7 @@
     </feMerge>
   </filter>
 </defs>
+<rect width="1024" height="512" fill="#FFFFFF"/>
 <g id="icon">
   <rect x="80" y="300" width="52" height="100" fill="#6B4C08" rx="4"/>
   <rect x="152" y="240" width="52" height="160" fill="#C9A030" rx="4"/>
@@ -28,6 +29,7 @@
   <text y="364" font-family="Georgia, 'Times New Roman', serif" text-anchor="start">
     <tspan x="315" font-size="68" font-weight="700" fill="#8B6914">Idea</tspan><tspan font-size="96" font-weight="400" fill="#C9A030" dx="10">To</tspan><tspan font-size="132" font-weight="700" fill="#F5D020" dx="6">Plan</tspan>
   </text>
+  <line x1="315" y1="380" x2="875" y2="380" stroke="#C9A030" stroke-width="1.5"/>
 </g>
 <g id="tagline">
   <text x="317" y="400" font-family="Georgia, 'Times New Roman', serif" font-size="22" font-style="italic" fill="#8B6914" letter-spacing="3">Shape your future. Start today.</text>

@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512">
+  <!--
+    IdeaToPlan — Concept 4: "The Golden Key"
+
+    Key geometry (drawn upright, then rotated -45° around icon center 190,256):
+      Bow center:    (190, 196)
+      Bow outer r:   70  → top (190,126), bottom (190,266)
+      Bow inner r:   36  → top (190,160), bottom (190,232)
+      Shaft:         x=175..207 (w=32), y=260..378
+      Tooth A:       x=207..241 (w=34), y=297..323 (h=26)
+      Tooth B:       x=207..251 (w=44), y=337..363 (h=26)
+
+    Donut path uses two-semicircle technique per subpath for full-circle arcs.
+    Outer subpath drawn clockwise, inner subpath drawn counter-clockwise,
+    combined with fill-rule="evenodd" to punch the hole.
+  -->
+
+  <g id="icon" transform="rotate(-45 190 256)">
+
+    <!--
+      Donut bow — evenodd fill punches inner circle out of outer circle.
+      Outer circle (r=70): two CW semicircles
+        Right half: arc from (190,126) to (190,266) sweeping right
+        Left  half: arc from (190,266) to (190,126) sweeping left
+      Inner circle (r=36): two CCW semicircles (opposite sweep to create hole)
+        Right half: arc from (190,160) to (190,232) sweeping LEFT (sweep=0)
+        Left  half: arc from (190,232) to (190,160) sweeping RIGHT (sweep=0... wait)
+      Actually with evenodd the winding doesn't matter — just two closed subpaths.
+    -->
+    <path
+      fill="#E8C84A"
+      fill-rule="evenodd"
+      d="
+        M 190,126
+        A 70,70 0 0 1 190,266
+        A 70,70 0 0 1 190,126
+        Z
+        M 190,160
+        A 36,36 0 0 0 190,232
+        A 36,36 0 0 0 190,160
+        Z
+      "
+    />
+
+    <!-- Shaft -->
+    <rect x="175" y="260" width="32" height="118" rx="4" fill="#E8C84A"/>
+
+    <!-- Tooth A (upper) -->
+    <rect x="207" y="296" width="34" height="26" rx="3" fill="#E8C84A"/>
+
+    <!-- Tooth B (lower) -->
+    <rect x="207" y="336" width="44" height="26" rx="3" fill="#E8C84A"/>
+
+    <!-- Depth accents — dark gold shadows -->
+    <!-- Inner ring of bow -->
+    <path
+      fill="none"
+      stroke="#8B6914"
+      stroke-width="5"
+      d="
+        M 190,160
+        A 36,36 0 0 0 190,232
+        A 36,36 0 0 0 190,160
+        Z
+      "
+    />
+    <!-- Outer ring of bow -->
+    <path
+      fill="none"
+      stroke="#8B6914"
+      stroke-width="4"
+      d="
+        M 190,126
+        A 70,70 0 0 1 190,266
+        A 70,70 0 0 1 190,126
+        Z
+      "
+    />
+    <!-- Shaft bottom cap shadow -->
+    <rect x="175" y="368" width="32" height="10" rx="3" fill="#8B6914"/>
+    <!-- Tooth A underside -->
+    <rect x="207" y="317" width="34" height="5" rx="2" fill="#8B6914"/>
+    <!-- Tooth B underside -->
+    <rect x="207" y="357" width="44" height="5" rx="2" fill="#8B6914"/>
+
+  </g>
+
+  <!-- Wordmark -->
+  <g id="wordmark">
+    <text
+      x="390"
+      y="240"
+      font-family="Georgia, 'Times New Roman', serif"
+      font-size="76"
+      fill="#0D1117"
+      text-anchor="start"
+      dominant-baseline="auto"
+    >IdeaToPlan</text>
+  </g>
+
+  <!-- Tagline -->
+  <g id="tagline">
+    <text
+      x="396"
+      y="320"
+      font-family="Arial, Helvetica, sans-serif"
+      font-size="16"
+      fill="#8B6914"
+      text-anchor="start"
+      letter-spacing="4"
+    >START YOUR BUSINESS TODAY</text>
+  </g>
+
+</svg>

@@ -10,11 +10,13 @@
     </feMerge>
   </filter>
 </defs>
+<rect width="1024" height="512" fill="#FFFFFF"/>
 <g id="icon">
-  <rect x="80" y="300" width="52" height="100" fill="#6B4C08" rx="4"/>
-  <rect x="152" y="240" width="52" height="160" fill="#C9A030" rx="4"/>
-  <rect x="224" y="180" width="52" height="220" fill="#F5D020" rx="4"/>
-  <g transform="translate(250, 140)" filter="url(#sparkle-glow)">
+  <rect x="44"  y="340" width="52" height="60"  fill="#4A3206" rx="4"/>
+  <rect x="116" y="300" width="52" height="100" fill="#6B4C08" rx="4"/>
+  <rect x="188" y="240" width="52" height="160" fill="#C9A030" rx="4"/>
+  <rect x="260" y="180" width="52" height="220" fill="#F5D020" rx="4"/>
+  <g transform="translate(286, 140)" filter="url(#sparkle-glow)">
     <polygon points="0,-36 3,-4 0,36 -3,-4" fill="#F5E070"/>
     <polygon points="-36,0 -4,3 36,0 -4,-3" fill="#F5E070"/>
     <g transform="rotate(45)">
@@ -26,10 +28,11 @@
 </g>
 <g id="wordmark">
   <text y="364" font-family="Georgia, 'Times New Roman', serif" text-anchor="start">
-    <tspan x="315" font-size="68" font-weight="700" fill="#8B6914">Idea</tspan><tspan font-size="96" font-weight="400" fill="#C9A030" dx="10">To</tspan><tspan font-size="132" font-weight="700" fill="#F5D020" dx="6">Plan</tspan>
+    <tspan x="340" font-size="68" font-weight="700" fill="#8B6914">Idea</tspan><tspan font-size="96" font-weight="400" fill="#C9A030" dx="10">To</tspan><tspan font-size="132" font-weight="700" fill="#F5D020" dx="6">Plan</tspan>
   </text>
+  <line x1="340" y1="380" x2="900" y2="380" stroke="#C9A030" stroke-width="1.5"/>
 </g>
 <g id="tagline">
-  <text x="317" y="400" font-family="Georgia, 'Times New Roman', serif" font-size="22" font-style="italic" fill="#8B6914" letter-spacing="3">Shape your future. Start today.</text>
+  <text x="342" y="400" font-family="Georgia, 'Times New Roman', serif" font-size="22" font-style="italic" fill="#8B6914" letter-spacing="3">Shape your future. Start today.</text>
 </g>
 </svg>
