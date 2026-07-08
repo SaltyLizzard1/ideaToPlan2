@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 const NAV_LINKS = [
@@ -92,16 +94,19 @@ export default function Footer() {
           © {new Date().getFullYear()} IdeaToPlan. All rights reserved.
         </p>
         <div className="flex gap-5">
-          {["Privacy Policy", "Terms of Service"].map((item) => (
+          {[
+            { label: "Privacy Policy", href: "/privacy" },
+            { label: "Terms of Service", href: "/terms" },
+          ].map(({ label, href }) => (
             <Link
-              key={item}
-              href="#"
+              key={href}
+              href={href}
               className="font-sans text-xs"
               style={{ color: "#374151" }}
               onMouseEnter={e => (e.currentTarget.style.color = "#6B7280")}
               onMouseLeave={e => (e.currentTarget.style.color = "#374151")}
             >
-              {item}
+              {label}
             </Link>
           ))}
         </div>
