@@ -63,7 +63,7 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <span className="font-semibold text-gray-900">Skills assessment answers</span> —
-                your responses to the five-question quiz
+                your responses to the five-question assessment
               </li>
               <li>
                 <span className="font-semibold text-gray-900">Email list opt-in</span> — your
@@ -75,13 +75,13 @@ export default function PrivacyPage() {
 
           <Section title="2. How We Use Your Information">
             <p>
-              We use your information to deliver what you asked for: generating your quiz results,
+              We use your information to deliver what you asked for: generating your assessment results,
               building and delivering your business plan, and communicating with you about your
               order. If you subscribed to updates, we send you emails you can unsubscribe from at
               any time. We do not sell your personal information to anyone.
             </p>
             <p>
-              Quiz responses and business idea submissions are processed with the help of AI
+              Assessment responses and business idea submissions are processed with the help of AI
               language models to generate your results and plans. A human reviews every business
               plan before delivery.
             </p>

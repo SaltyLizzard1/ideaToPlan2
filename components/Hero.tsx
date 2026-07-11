@@ -1,8 +1,8 @@
 "use client";
 
 export default function Hero() {
-  const scrollToQuiz = () => {
-    document.getElementById("quiz")?.scrollIntoView({ behavior: "smooth" });
+  const scrollToAssessment = () => {
+    document.getElementById("assessment")?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
@@ -10,8 +10,8 @@ export default function Hero() {
       className="relative flex flex-col items-center justify-center text-center overflow-x-hidden"
       style={{
         background: "#0D1117",
-        minHeight: "calc(100svh - 64px)",
-        padding: "40px 24px 28px",
+        minHeight: "calc(100svh - 80px)",
+        padding: "28px 24px 24px",
         backgroundImage:
           "radial-gradient(circle, rgba(201,160,48,0.06) 1px, transparent 1px)",
         backgroundSize: "32px 32px",
@@ -44,7 +44,7 @@ export default function Hero() {
         style={{
           maxWidth: "900px",
           width: "100%",
-          gap: "clamp(20px, 2.6vw, 30px)",
+          gap: "clamp(14px, 2vw, 22px)",
         }}
       >
         {/* Eyebrow */}
@@ -65,12 +65,12 @@ export default function Hero() {
           className="font-serif font-bold"
           style={{
             color: "#FBF6E3",
-            fontSize: "clamp(2.4rem, 5vw, 4.5rem)",
+            fontSize: "clamp(2.2rem, 4.5vw, 4rem)",
             lineHeight: 1.15,
           }}
         >
-          Find the Business You&apos;re<br className="hidden sm:block" />{" "}
-          <span className="gold-gradient-text">Qualified to Build</span>
+          Turn What You&apos;re Good At Into<br className="hidden sm:block" />{" "}
+          a Business You <span className="gold-gradient-text">Love</span>
         </h1>
 
         {/* Subheadline */}
@@ -78,9 +78,10 @@ export default function Hero() {
           className="font-sans"
           style={{
             color: "#cfc9b8",
-            fontSize: "clamp(1rem, 1.5vw, 1.2rem)",
+            fontSize: "clamp(0.95rem, 1.35vw, 1.1rem)",
             lineHeight: 1.65,
             maxWidth: "620px",
+            marginTop: "-8px",
           }}
         >
           A 5-minute assessment matches your skills and experience to 7 viable business ideas.
@@ -121,13 +122,13 @@ export default function Hero() {
         >
           <span>⚡ 72-hour delivery guarantee</span>
           <span style={{ color: "#374151" }}>·</span>
-          <span>✦ Human-reviewed Plans</span>
+          <span>✦ Human-reviewed plans</span>
         </div>
 
         {/* CTA block */}
         <div className="flex flex-col items-center" style={{ gap: "12px" }}>
           <button
-            onClick={scrollToQuiz}
+            onClick={scrollToAssessment}
             className="gold-gradient gold-border inline-flex items-center gap-2 rounded-full font-sans font-semibold cursor-pointer"
             style={{
               color: "#2D1A00",

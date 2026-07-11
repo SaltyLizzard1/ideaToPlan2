@@ -16,11 +16,11 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  const handleQuiz = () => {
+  const handleAssessment = () => {
     if (pathname === "/") {
-      document.getElementById("quiz")?.scrollIntoView({ behavior: "smooth" });
+      document.getElementById("assessment")?.scrollIntoView({ behavior: "smooth" });
     } else {
-      window.location.href = "/#quiz";
+      window.location.href = "/#assessment";
     }
     setMenuOpen(true);
   };
@@ -69,7 +69,7 @@ export default function Header() {
 
       {/* Desktop CTA */}
       <button
-        onClick={handleQuiz}
+        onClick={handleAssessment}
         className="hidden md:inline-flex items-center gap-2 rounded-full font-sans font-semibold text-sm cursor-pointer gold-gradient gold-border shrink-0"
         style={{
           color: "#2D1A00",
@@ -80,7 +80,7 @@ export default function Header() {
         onMouseEnter={e => (e.currentTarget.style.filter = "brightness(1.1)")}
         onMouseLeave={e => (e.currentTarget.style.filter = "brightness(1)")}
       >
-        Take the Quiz
+        Take the Assessment
       </button>
 
       {/* Mobile hamburger */}
@@ -140,7 +140,7 @@ export default function Header() {
             </Link>
           ))}
           <button
-            onClick={handleQuiz}
+            onClick={handleAssessment}
             className="gold-gradient gold-border rounded-full font-sans font-semibold text-sm cursor-pointer"
             style={{
               color: "#2D1A00",
@@ -148,7 +148,7 @@ export default function Header() {
               boxShadow: "0 8px 32px rgba(139,105,20,0.35)",
             }}
           >
-            Take the Quiz
+            Take the Assessment
           </button>
         </div>
       )}

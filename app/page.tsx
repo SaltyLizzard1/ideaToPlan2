@@ -23,7 +23,7 @@ export default function Home() {
       <Hero />
       <div id="how-it-works" style={{ scrollMarginTop: "80px" }}><HowItWorks /></div>
 
-      <section id="quiz" className="py-12 px-4" style={{ background: "#F9FAFB", scrollMarginTop: "80px" }}>
+      <section id="assessment" className="py-12 px-4" style={{ background: "#F9FAFB", scrollMarginTop: "80px" }}>
         <div className="max-w-3xl mx-auto text-center mb-8">
           <p
             className="text-xs font-sans tracking-[0.2em] uppercase mb-2"

@@ -331,8 +331,8 @@ export default function IdeaToPlan({
           <div className="text-center mb-6">
             <div className="inline-block bg-amber-50 border border-amber-300 rounded-xl px-6 py-3">
               <p className="text-amber-800 font-semibold text-sm">
-                Special introductory offer — no payment upfront. You receive your plan,
-                we talk it through, and you pay only if you love it.
+                Special introductory offer — plans start at $25. Delivered within
+                72 hours, and we walk you through it together.
               </p>
             </div>
           </div>
@@ -399,7 +399,7 @@ export default function IdeaToPlan({
                     through it, and go from there.
                   </p>
                   <p className="text-gray-500 text-sm">
-                    No payment until you love it. Check your inbox — and spam, just in case.
+                    Check your inbox — and spam, just in case.
                   </p>
                   <button
                     onClick={closeForm}
@@ -777,7 +777,7 @@ export default function IdeaToPlan({
                         Plan type <span className="text-red-500">*</span>
                       </label>
                       <p className="text-xs text-gray-500 mb-3">
-                        No payment required until after your plan is delivered.
+                        Delivered within 72 hours. Expedited 48-hour delivery is available.
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {PLAN_OPTIONS.map((opt) =>
@@ -861,7 +861,7 @@ export default function IdeaToPlan({
                     </button>
 
                     <p className="text-center text-xs text-gray-400">
-                      No payment now. We&apos;ll be in touch within 48 hours to review your
+                      We&apos;ll be in touch within 48 hours to review your
                       plan together.
                     </p>
                   </form>

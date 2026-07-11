@@ -121,7 +121,7 @@ export default function HowItWorks() {
         <div className="text-center mt-12">
           <button
             onClick={() =>
-              document.getElementById("quiz")?.scrollIntoView({ behavior: "smooth" })
+              document.getElementById("assessment")?.scrollIntoView({ behavior: "smooth" })
             }
             className="gold-gradient gold-border inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-sans font-semibold text-sm transition-opacity hover:opacity-90 cursor-pointer"
             style={{ color: "#2D1A00" }}
