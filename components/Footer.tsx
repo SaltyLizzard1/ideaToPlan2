@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import AnimatedLogo from "@/components/AnimatedLogo";
 
 const NAV_LINKS = [
   { label: "How It Works", href: "/#how-it-works" },
@@ -11,22 +12,27 @@ const NAV_LINKS = [
 
 export default function Footer() {
   return (
-    <footer style={{ background: "#0D1117", borderTop: "1px solid rgba(201,160,48,0.12)" }}>
+    <footer style={{ background: "#0d0d0f", borderTop: "1px solid rgba(201,160,48,0.18)" }}>
       <div
-        className="mx-auto flex flex-col md:flex-row items-center md:items-start justify-between gap-8"
-        style={{ maxWidth: "1200px", padding: "3rem 2rem 2rem" }}
+        className="mx-auto flex flex-col md:flex-row items-center md:items-start justify-between gap-6"
+        style={{ maxWidth: "1200px", padding: "2rem 2rem 1.25rem" }}
       >
         {/* Brand */}
         <div className="flex flex-col items-center md:items-start gap-2">
-          <img src="/logo.svg" alt="IdeaToPlan" style={{ width: "140px", height: "auto" }} />
-          <p className="font-sans text-sm" style={{ color: "#6B7280" }}>
+          <span style={{ display: "block", width: "150px" }}>
+            <AnimatedLogo showTagline={false} animate={false} className="w-full h-auto" />
+          </span>
+          <p className="font-sans text-sm" style={{ color: "#cfc9b8" }}>
             It&apos;s never been easier to start your own business.
           </p>
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-col items-center md:items-start gap-3">
-          <p className="font-sans text-xs uppercase tracking-widest" style={{ color: "#C9A030", letterSpacing: "0.18em" }}>
+        <nav className="flex flex-col items-center md:items-start gap-2">
+          <p
+            className="font-sans text-xs uppercase tracking-widest"
+            style={{ color: "#E8C84A", letterSpacing: "0.18em" }}
+          >
             Navigate
           </p>
           {NAV_LINKS.map((link) => (
@@ -34,9 +40,9 @@ export default function Footer() {
               key={link.href}
               href={link.href}
               className="font-sans text-sm transition-colors"
-              style={{ color: "#6B7280" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "#C9A030")}
-              onMouseLeave={e => (e.currentTarget.style.color = "#6B7280")}
+              style={{ color: "#cfc9b8" }}
+              onMouseEnter={e => (e.currentTarget.style.color = "#FBF6E3")}
+              onMouseLeave={e => (e.currentTarget.style.color = "#cfc9b8")}
             >
               {link.label}
             </Link>
@@ -44,37 +50,45 @@ export default function Footer() {
         </nav>
 
         {/* Services */}
-        <div className="flex flex-col items-center md:items-start gap-3">
-          <p className="font-sans text-xs uppercase tracking-widest" style={{ color: "#C9A030", letterSpacing: "0.18em" }}>
+        <div className="flex flex-col items-center md:items-start gap-2">
+          <p
+            className="font-sans text-xs uppercase tracking-widest"
+            style={{ color: "#E8C84A", letterSpacing: "0.18em" }}
+          >
             Services
           </p>
-          {["Skills Assessment", "Business Matching", "Business Plans", "Visa-Ready Plans"].map((item) => (
-            <span key={item} className="font-sans text-sm" style={{ color: "#6B7280" }}>
-              {item}
-            </span>
-          ))}
+          {["Skills Assessment", "Business Matching", "Business Plans", "Visa-Ready Plans"].map(
+            (item) => (
+              <span key={item} className="font-sans text-sm" style={{ color: "#cfc9b8" }}>
+                {item}
+              </span>
+            )
+          )}
         </div>
 
         {/* Contact */}
-        <div className="flex flex-col items-center md:items-start gap-3">
-          <p className="font-sans text-xs uppercase tracking-widest" style={{ color: "#C9A030", letterSpacing: "0.18em" }}>
+        <div className="flex flex-col items-center md:items-start gap-2">
+          <p
+            className="font-sans text-xs uppercase tracking-widest"
+            style={{ color: "#E8C84A", letterSpacing: "0.18em" }}
+          >
             Contact
           </p>
           <Link
             href="/contact"
             className="font-sans text-sm"
-            style={{ color: "#6B7280" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "#C9A030")}
-            onMouseLeave={e => (e.currentTarget.style.color = "#6B7280")}
+            style={{ color: "#cfc9b8" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "#FBF6E3")}
+            onMouseLeave={e => (e.currentTarget.style.color = "#cfc9b8")}
           >
             Get in touch
           </Link>
           <a
             href="mailto:ideatoplanincome@gmail.com"
             className="font-sans text-sm"
-            style={{ color: "#6B7280" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "#C9A030")}
-            onMouseLeave={e => (e.currentTarget.style.color = "#6B7280")}
+            style={{ color: "#cfc9b8" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "#FBF6E3")}
+            onMouseLeave={e => (e.currentTarget.style.color = "#cfc9b8")}
           >
             ideatoplanincome@gmail.com
           </a>
@@ -86,11 +100,11 @@ export default function Footer() {
         className="mx-auto flex flex-col sm:flex-row items-center justify-between gap-2"
         style={{
           maxWidth: "1200px",
-          padding: "1rem 2rem",
+          padding: "0.75rem 2rem",
           borderTop: "1px solid rgba(201,160,48,0.08)",
         }}
       >
-        <p className="font-sans text-xs" style={{ color: "#374151" }}>
+        <p className="font-sans text-xs" style={{ color: "#a89f8a" }}>
           © {new Date().getFullYear()} IdeaToPlan. All rights reserved.
         </p>
         <div className="flex gap-5">
@@ -102,9 +116,9 @@ export default function Footer() {
               key={href}
               href={href}
               className="font-sans text-xs"
-              style={{ color: "#374151" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "#6B7280")}
-              onMouseLeave={e => (e.currentTarget.style.color = "#374151")}
+              style={{ color: "#a89f8a" }}
+              onMouseEnter={e => (e.currentTarget.style.color = "#FBF6E3")}
+              onMouseLeave={e => (e.currentTarget.style.color = "#a89f8a")}
             >
               {label}
             </Link>

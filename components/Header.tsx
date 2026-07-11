@@ -22,25 +22,33 @@ export default function Header() {
     } else {
       window.location.href = "/#quiz";
     }
-    setMenuOpen(false);
+    setMenuOpen(true);
   };
 
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between"
       style={{
-        background: "rgba(13,17,23,0.92)",
-        backdropFilter: "blur(12px)",
-        borderBottom: "1px solid rgba(201,160,48,0.12)",
+        background: "linear-gradient(90deg, #0d0d0f 0%, #1d1707 35%, #241c08 50%, #1d1707 65%, #0d0d0f 100%)",
         padding: "0 2rem",
-        height: "64px",
+        height: "80px",
       }}
     >
-      {/* Logo */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: "2px",
+          background: "linear-gradient(90deg, transparent 0%, #8B6914 20%, #E8C84A 50%, #8B6914 80%, transparent 100%)",
+        }}
+      />
+      {/* Logo — icon-only on homepage, wordmark on subpages */}
       <Link href="/" className="shrink-0">
-        <span style={{ display: "block", width: "clamp(110px, 12vw, 150px)" }}>
-            <AnimatedLogo showTagline={false} className="w-full h-auto" />
-          </span>
+        <span style={{ display: "block", width: "clamp(130px, 13vw, 170px)" }}>
+          <AnimatedLogo key={pathname} showTagline={false} animate={true} className="w-full h-auto" />
+        </span>
       </Link>
 
       {/* Desktop nav */}
@@ -50,9 +58,9 @@ export default function Header() {
             key={link.href}
             href={link.href}
             className="font-sans text-sm transition-colors"
-            style={{ color: "#9CA3AF" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "#C9A030")}
-            onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+            style={{ color: "#cfc9b8" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "#E8C84A")}
+            onMouseLeave={e => (e.currentTarget.style.color = "#cfc9b8")}
           >
             {link.label}
           </Link>
@@ -66,6 +74,7 @@ export default function Header() {
         style={{
           color: "#2D1A00",
           padding: "0.5rem 1.4rem",
+          boxShadow: "0 8px 32px rgba(139,105,20,0.35)",
           transition: "filter 0.15s ease",
         }}
         onMouseEnter={e => (e.currentTarget.style.filter = "brightness(1.1)")}
@@ -87,7 +96,7 @@ export default function Header() {
             style={{
               width: "22px",
               height: "2px",
-              background: "#C9A030",
+              background: "#E8C84A",
               transformOrigin: "center",
               transform:
                 menuOpen
@@ -104,18 +113,27 @@ export default function Header() {
       {/* Mobile menu */}
       {menuOpen && (
         <div
-          className="absolute top-[64px] left-0 right-0 flex flex-col items-center gap-5 py-6 md:hidden"
+          className="absolute top-[80px] left-0 right-0 flex flex-col items-center gap-5 py-6 md:hidden"
           style={{
-            background: "rgba(13,17,23,0.97)",
-            borderBottom: "1px solid rgba(201,160,48,0.12)",
+            background: "#14100a",
           }}
         >
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: "2px",
+              background: "linear-gradient(90deg, transparent 0%, #8B6914 20%, #E8C84A 50%, #8B6914 80%, transparent 100%)",
+            }}
+          />
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className="font-sans text-base"
-              style={{ color: "#D1D5DB" }}
+              style={{ color: "#FBF6E3" }}
               onClick={() => setMenuOpen(false)}
             >
               {link.label}
@@ -124,7 +142,11 @@ export default function Header() {
           <button
             onClick={handleQuiz}
             className="gold-gradient gold-border rounded-full font-sans font-semibold text-sm cursor-pointer"
-            style={{ color: "#2D1A00", padding: "0.6rem 1.75rem" }}
+            style={{
+              color: "#2D1A00",
+              padding: "0.6rem 1.75rem",
+              boxShadow: "0 8px 32px rgba(139,105,20,0.35)",
+            }}
           >
             Take the Quiz
           </button>

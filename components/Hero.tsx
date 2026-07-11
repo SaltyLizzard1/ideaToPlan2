@@ -7,68 +7,91 @@ export default function Hero() {
 
   return (
     <section
-      className="relative flex flex-col items-center text-center overflow-x-hidden"
+      className="relative flex flex-col items-center justify-center text-center overflow-x-hidden"
       style={{
         background: "#0D1117",
-        height: "calc(100svh - 64px)",
+        minHeight: "calc(100svh - 64px)",
         padding: "40px 24px 28px",
-        /* subtle dot grid for depth */
         backgroundImage:
           "radial-gradient(circle, rgba(201,160,48,0.06) 1px, transparent 1px)",
         backgroundSize: "32px 32px",
       }}
     >
       {/* Layered glow — ambient + tight spot behind headline */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: "radial-gradient(ellipse 80% 60% at 50% 20%, rgba(197,152,28,0.11) 0%, transparent 65%)",
-      }} />
-      <div className="absolute pointer-events-none" style={{
-        top: "30%", left: "50%", transform: "translateX(-50%)",
-        width: "600px", height: "300px",
-        background: "radial-gradient(ellipse, rgba(245,208,32,0.07) 0%, transparent 70%)",
-        filter: "blur(40px)",
-      }} />
-
-      {/* Tagline */}
-      <p
-        className="relative shrink-0 font-sans uppercase font-semibold"
+      <div
+        className="absolute inset-0 pointer-events-none"
         style={{
-          color: "#C9A030",
-          letterSpacing: "0.28em",
-          fontSize: "clamp(0.65rem, 1vw, 0.85rem)",
-          marginBottom: "18px",
-          textShadow: "0 0 20px rgba(201,160,48,0.4)",
+          background:
+            "radial-gradient(ellipse 80% 60% at 50% 30%, rgba(197,152,28,0.11) 0%, transparent 65%)",
+        }}
+      />
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          top: "28%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "600px",
+          height: "300px",
+          background: "radial-gradient(ellipse, rgba(245,208,32,0.07) 0%, transparent 70%)",
+          filter: "blur(40px)",
+        }}
+      />
+
+      {/* Content stack */}
+      <div
+        className="relative flex flex-col items-center"
+        style={{
+          maxWidth: "900px",
+          width: "100%",
+          gap: "clamp(20px, 2.6vw, 30px)",
         }}
       >
-        Skills Assessment&nbsp;&nbsp;<span style={{ color: "#F5D020" }}>•</span>&nbsp;&nbsp;Business Matching&nbsp;&nbsp;<span style={{ color: "#F5D020" }}>•</span>&nbsp;&nbsp;Professional Plans
-      </p>
-
-      {/* Body */}
-      <div className="relative flex flex-col items-center w-full" style={{ maxWidth: "1100px", flex: 1 }}>
+        {/* Eyebrow */}
+        <p
+          className="font-sans uppercase font-semibold"
+          style={{
+            color: "#C9A030",
+            letterSpacing: "0.28em",
+            fontSize: "clamp(0.65rem, 1vw, 0.85rem)",
+            textShadow: "0 0 20px rgba(201,160,48,0.4)",
+          }}
+        >
+          Skills Assessment&nbsp;&nbsp;<span style={{ color: "#F5D020" }}>•</span>&nbsp;&nbsp;Business Matching&nbsp;&nbsp;<span style={{ color: "#F5D020" }}>•</span>&nbsp;&nbsp;Professional Plans
+        </p>
 
         {/* Headline */}
         <h1
           className="font-serif font-bold"
-          style={{ color: "#F5F0E8", fontSize: "clamp(1.9rem, 4vw, 3.8rem)", lineHeight: 1.15, marginBottom: "20px" }}
+          style={{
+            color: "#FBF6E3",
+            fontSize: "clamp(2.4rem, 5vw, 4.5rem)",
+            lineHeight: 1.15,
+          }}
         >
-          Stop Guessing. Discover the Business<br className="hidden sm:block" />{" "}
-          You&apos;re <span className="gold-gradient-text">Built For</span>
+          Find the Business You&apos;re<br className="hidden sm:block" />{" "}
+          <span className="gold-gradient-text">Qualified to Build</span>
         </h1>
 
-        {/* Subheadline — split into two punchy lines */}
+        {/* Subheadline */}
         <p
           className="font-sans"
-          style={{ color: "#9CA3AF", fontSize: "clamp(0.9rem, 1.3vw, 1.05rem)", lineHeight: 1.6, marginBottom: "28px", maxWidth: "640px" }}
+          style={{
+            color: "#cfc9b8",
+            fontSize: "clamp(1rem, 1.5vw, 1.2rem)",
+            lineHeight: 1.65,
+            maxWidth: "620px",
+          }}
         >
-          Answer 5 questions. Get 7 business matches tailored to your strengths.
+          A 5-minute assessment matches your skills and experience to 7 viable business ideas.
           <br />
-          Turn your top pick into a professional, investor-ready plan — in 72 hours.
+          Choose one, and we build the plan — strategy, financials, and next steps — ready for investors or your bank.
         </p>
 
-        {/* Bullets — card style */}
+        {/* Feature bullets — card style */}
         <div
           className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 font-sans"
-          style={{ marginBottom: "16px", fontSize: "clamp(0.8rem, 1.1vw, 0.875rem)" }}
+          style={{ fontSize: "clamp(0.8rem, 1.1vw, 0.875rem)" }}
         >
           {[
             "Personalized matches that actually fit you",
@@ -94,17 +117,15 @@ export default function Hero() {
         {/* Delivery line */}
         <div
           className="flex flex-row flex-wrap justify-center gap-x-4 gap-y-1 font-sans"
-          style={{ fontSize: "clamp(0.7rem, 1vw, 0.8rem)", color: "#C9A030", marginBottom: "0", letterSpacing: "0.02em" }}
+          style={{ fontSize: "clamp(0.7rem, 1vw, 0.8rem)", color: "#C9A030", letterSpacing: "0.02em" }}
         >
           <span>⚡ 72-hour delivery guarantee</span>
           <span style={{ color: "#374151" }}>·</span>
           <span>✦ Human-reviewed Plans</span>
-          <span style={{ color: "#374151" }}>·</span>
-          <span>Plans from $25</span>
         </div>
 
-        {/* CTA */}
-        <div className="flex flex-col items-center" style={{ marginTop: "auto", gap: "10px", paddingBottom: "4px" }}>
+        {/* CTA block */}
+        <div className="flex flex-col items-center" style={{ gap: "12px" }}>
           <button
             onClick={scrollToQuiz}
             className="gold-gradient gold-border inline-flex items-center gap-2 rounded-full font-sans font-semibold cursor-pointer"
@@ -128,17 +149,25 @@ export default function Hero() {
               b.style.boxShadow = "0 0 28px rgba(197,152,28,0.25)";
             }}
           >
-            Discover Your Match
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            Start My Assessment
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
           </button>
 
-          <p className="font-sans" style={{ color: "#6B7280", fontSize: "0.78rem" }}>
+          <p className="font-sans" style={{ color: "#a89f8a", fontSize: "0.85rem" }}>
             Free&nbsp;&nbsp;•&nbsp;&nbsp;5 minutes&nbsp;&nbsp;•&nbsp;&nbsp;No sign-up required
           </p>
         </div>
-
       </div>
     </section>
   );
