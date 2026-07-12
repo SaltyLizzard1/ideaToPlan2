@@ -23,7 +23,33 @@
   --font-serif:  var(--font-cormorant);
   --font-sans:   var(--font-inter);
 }
+/* ===== IdeaToPlan design tokens ===== */
+:root {
+  /* Backgrounds */
+  --i2p-dark: #0D1117;
+  --i2p-cream: #FEFCF5;
+  --i2p-cream-card: #FBF6E4;
+  --i2p-cream-border: #F0E8CC;
 
+  /* Gold scale — three roles */
+  --i2p-gold-deep: #8B6914;
+  --i2p-gold: #C9A030;
+  --i2p-gold-bright: #F5D020;
+
+  /* Text on dark */
+  --i2p-text-on-dark: #FBF6E3;
+  --i2p-text-on-dark-body: #cfc9b8;
+  --i2p-text-on-dark-dim: #a89f8a;
+
+  /* Text on cream */
+  --i2p-ink: #0D1117;
+  --i2p-ink-body: #57503F;
+  --i2p-ink-dim: #8A8270;
+
+  /* Semantic */
+  --i2p-error: #B3261E;
+  --i2p-success: #3D6B35;
+}
 body {
   font-family: var(--font-inter), system-ui, sans-serif;
   background: var(--color-black-warm);
@@ -46,9 +72,80 @@ body {
   background-clip: text;
 }
 
+@keyframes gold-shimmer-text {
+  0%   { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+.gold-gradient-text--animated {
+  background: linear-gradient(
+    135deg,
+    #8B6914 0%,
+    #C9A030 20%,
+    #F5D020 40%,
+    #E8C84A 50%,
+    #F5D020 60%,
+    #C9A030 80%,
+    #8B6914 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gold-shimmer-text 5s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gold-gradient-text--animated {
+    animation: none;
+    background-size: 100% 100%;
+  }
+}
+
 /* CTA border — dark anchor on the bright gradient */
 .gold-border {
   border: 1.5px solid #2D1A00;
+}
+
+/* Primary CTA shimmer — gold sweeps left-to-right on hover */
+.cta-shimmer {
+  background: linear-gradient(
+    90deg,
+    #8B6914 0%,
+    #C9A030 20%,
+    #F5D020 38%,
+    #E8C84A 50%,
+    #F5D020 62%,
+    #C9A030 80%,
+    #8B6914 100%
+  );
+  background-size: 200% 100%;
+  background-position: 0% center;
+  transition: background-position 600ms ease-in-out;
+}
+.cta-shimmer:hover {
+  background-position: 100% center;
+}
+
+/* Scroll-triggered reveal — class applied client-side only */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 500ms ease-out, transform 500ms ease-out;
+}
+.scroll-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Interactive card hover lift */
+.card-hover-lift {
+  cursor: pointer;
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+}
+.card-hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
 }
 
 /* Section background utility — warm pulse */

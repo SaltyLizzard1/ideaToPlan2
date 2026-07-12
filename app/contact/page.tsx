@@ -26,7 +26,7 @@ export default function ContactPage() {
         </p>
         <a
           href="mailto:ideatoplanincome@gmail.com"
-          className="gold-gradient gold-border inline-flex items-center gap-2 rounded-full font-sans font-semibold"
+          className="cta-shimmer gold-border inline-flex items-center gap-2 rounded-full font-sans font-semibold"
           style={{
             color: "#2D1A00",
             fontSize: "1.05rem",

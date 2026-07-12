@@ -121,16 +121,10 @@ const LOADING_DURATION_MS = 75000;
 const GOLD_GRADIENT =
   "linear-gradient(135deg, #6B4C08 0%, #C9A030 35%, #F5D020 60%, #E8C84A 80%, #6B4C08 100%)";
 
-const GOLD_BUTTON_STYLE = {
-  background: GOLD_GRADIENT,
-  color: "#2D1A00",
-  border: "1.5px solid #7A5C0A",
-} as const;
-
 const SATURATION_COLORS: Record<Match["saturation"], string> = {
-  Low: "bg-emerald-100 text-emerald-800",
-  Medium: "bg-yellow-100 text-yellow-800",
-  High: "bg-red-100 text-red-800",
+  Low: "bg-[#EFF3EA] text-[var(--i2p-success)]",
+  Medium: "bg-white text-[var(--i2p-gold-deep)] border border-[var(--i2p-cream-border)]",
+  High: "bg-[#F9ECEB] text-[var(--i2p-error)]",
 };
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -152,15 +146,15 @@ function Pill({
       onClick={onClick}
       disabled={disabled && !selected}
       className={[
-        "px-4 py-2 rounded-full border text-sm font-medium transition-all",
+        "px-4 py-2 rounded-full border text-sm font-medium transition-all duration-150",
         selected
-          ? "border-[#7A5C0A] shadow-sm bg-[#E8C84A] text-[#2D1A00]"
+          ? "gold-gradient border-[#B8922A] text-[#2D1A00] font-semibold"
           : disabled
-          ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
-          : "bg-white border-gray-300 text-gray-700 hover:border-[#C9A030] hover:text-[#8B6914]",
+          ? "bg-[var(--i2p-cream-border)] border-[var(--i2p-cream-border)] text-[var(--i2p-ink-dim)] cursor-not-allowed"
+          : "bg-[#FFFEF9] border-[#D9CFAF] text-[var(--i2p-ink-body)] hover:border-[var(--i2p-gold)] hover:shadow-sm",
       ].join(" ")}
     >
-      {label}
+      {selected ? "✓ " : ""}{label}
     </button>
   );
 }
@@ -183,10 +177,10 @@ function EitherOrPair({
         type="button"
         onClick={() => onChange(label)}
         className={[
-          "flex-1 py-5 px-4 rounded-xl border-2 text-sm font-semibold transition-all text-center",
+          "flex-1 py-5 px-4 rounded-xl border-2 text-sm font-semibold transition-all text-center card-hover-lift",
           active
             ? "border-[#C9A030] bg-[#FBF6E4] text-[#5C4206] shadow"
-            : "border-gray-200 bg-white text-gray-600 hover:border-[#E8C84A]",
+            : "border-[#D9CFAF] bg-white text-[var(--i2p-ink-body)] hover:border-[var(--i2p-gold)] hover:shadow-sm",
         ].join(" ")}
       >
         {label}
@@ -197,7 +191,7 @@ function EitherOrPair({
   return (
     <div className="flex gap-3 items-center">
       {card(optionA)}
-      <span className="text-gray-400 text-xs font-bold shrink-0">OR</span>
+      <span className="text-[var(--i2p-ink-dim)] text-xs font-bold shrink-0">OR</span>
       {card(optionB)}
     </div>
   );
@@ -205,13 +199,13 @@ function EitherOrPair({
 
 function MatchCard({ match, index }: { match: Match; index: number }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div className="bg-white rounded-2xl border border-[var(--i2p-cream-border)] shadow-sm p-6">
       <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
         <div>
-          <span className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1 block">
+          <span className="text-xs font-semibold uppercase tracking-wide text-[var(--i2p-ink-dim)] mb-1 block">
             {match.category}
           </span>
-          <h3 className="text-xl font-bold text-gray-900">
+          <h3 className="text-xl font-bold text-[var(--i2p-ink)]">
             {index + 1}. {match.title}
           </h3>
         </div>
@@ -224,22 +218,22 @@ function MatchCard({ match, index }: { match: Match; index: number }) {
         </span>
       </div>
 
-      <p className="text-gray-700 mb-3 leading-relaxed">{match.description}</p>
+      <p className="text-[var(--i2p-ink-body)] mb-3 leading-relaxed">{match.description}</p>
 
-      <p className="text-sm italic text-emerald-700 mb-4 bg-emerald-50 rounded-lg px-4 py-2">
+      <p className="text-sm italic text-[var(--i2p-success)] mb-4 bg-[#EFF3EA] rounded-lg px-4 py-2">
         {match.whyYou}
       </p>
 
       <div className="flex items-center gap-2 mb-4">
-        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        <span className="text-xs font-semibold text-[var(--i2p-ink-dim)] uppercase tracking-wide">
           Income range:
         </span>
-        <span className="text-sm font-bold text-gray-800">{match.incomeRange}</span>
+        <span className="text-sm font-bold text-[var(--i2p-ink)]">{match.incomeRange}</span>
       </div>
 
       {match.uniqueAngle && (
         <div className="bg-[#FBF6E4] border border-[#EBD9A0] rounded-lg px-4 py-3 mb-4">
-          <p className="text-xs font-semibold text-[#8B6914] uppercase tracking-wide mb-1">
+          <p className="text-xs font-semibold text-[var(--i2p-gold-deep)] uppercase tracking-wide mb-1">
             Your unique angle
           </p>
           <p className="text-sm text-[#5C4206]">{match.uniqueAngle}</p>
@@ -247,13 +241,13 @@ function MatchCard({ match, index }: { match: Match; index: number }) {
       )}
 
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+        <p className="text-xs font-semibold text-[var(--i2p-ink-dim)] uppercase tracking-wide mb-2">
           First steps
         </p>
         <ol className="space-y-1">
           {match.firstSteps.map((step, i) => (
-            <li key={i} className="flex gap-2 text-sm text-gray-700">
-              <span className="font-bold shrink-0" style={{ color: "#8B6914" }}>
+            <li key={i} className="flex gap-2 text-sm text-[var(--i2p-ink-body)]">
+              <span className="font-bold shrink-0" style={{ color: "var(--i2p-gold-deep)" }}>
                 {i + 1}.
               </span>
               {step}
@@ -262,14 +256,14 @@ function MatchCard({ match, index }: { match: Match; index: number }) {
         </ol>
       </div>
 
-      <p className="text-xs text-gray-400 mt-3">{match.saturationNote}</p>
+      <p className="text-xs text-[var(--i2p-ink-dim)] mt-3">{match.saturationNote}</p>
     </div>
   );
 }
 
 function ProgressBar({ step, total }: { step: number; total: number }) {
   return (
-    <div className="w-full bg-gray-100 rounded-full h-1.5 mb-8">
+    <div className="w-full bg-[var(--i2p-cream-border)] rounded-full h-1.5 mb-8">
       <div
         className="h-1.5 rounded-full transition-all duration-500"
         style={{ width: `${(step / total) * 100}%`, backgroundImage: GOLD_GRADIENT }}
@@ -431,8 +425,11 @@ export default function Quiz({
     if (step === 1) {
       return (
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">Your hard skills</h2>
-          <p className="text-gray-500 mb-6 text-sm">
+          <p className="text-[11px] font-sans font-semibold uppercase tracking-[0.24em] text-[var(--i2p-gold-deep)] mb-1">
+            Step 1 of 5
+          </p>
+          <h2 className="font-serif font-bold text-[28px] text-[var(--i2p-ink)] mb-1">Your hard skills</h2>
+          <p className="text-[var(--i2p-ink-dim)] mb-6 text-sm">
             Select everything that applies — be generous.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -453,10 +450,13 @@ export default function Quiz({
     if (step === 2) {
       return (
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">Your soft skills</h2>
-          <p className="text-gray-500 mb-6 text-sm">
+          <p className="text-[11px] font-sans font-semibold uppercase tracking-[0.24em] text-[var(--i2p-gold-deep)] mb-1">
+            Step 2 of 5
+          </p>
+          <h2 className="font-serif font-bold text-[28px] text-[var(--i2p-ink)] mb-1">Your soft skills</h2>
+          <p className="text-[var(--i2p-ink-dim)] mb-6 text-sm">
             Pick your top 5.{" "}
-            <span className="font-semibold" style={{ color: "#8B6914" }}>
+            <span className="font-semibold" style={{ color: "var(--i2p-gold-deep)" }}>
               {form.softSkills.length}/5 selected
             </span>
           </p>
@@ -478,8 +478,11 @@ export default function Quiz({
     if (step === 3) {
       return (
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">How you like to work</h2>
-          <p className="text-gray-500 mb-6 text-sm">Pick one from each pair.</p>
+          <p className="text-[11px] font-sans font-semibold uppercase tracking-[0.24em] text-[var(--i2p-gold-deep)] mb-1">
+            Step 3 of 5
+          </p>
+          <h2 className="font-serif font-bold text-[28px] text-[var(--i2p-ink)] mb-1">How you like to work</h2>
+          <p className="text-[var(--i2p-ink-dim)] mb-6 text-sm">Pick one from each pair.</p>
           <div className="space-y-4">
             {WORK_STYLE_PAIRS.map((pair, i) => (
               <EitherOrPair
@@ -504,10 +507,13 @@ export default function Quiz({
     if (step === 4) {
       return (
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">What matters most</h2>
-          <p className="text-gray-500 mb-6 text-sm">
+          <p className="text-[11px] font-sans font-semibold uppercase tracking-[0.24em] text-[var(--i2p-gold-deep)] mb-1">
+            Step 4 of 5
+          </p>
+          <h2 className="font-serif font-bold text-[28px] text-[var(--i2p-ink)] mb-1">What matters most</h2>
+          <p className="text-[var(--i2p-ink-dim)] mb-6 text-sm">
             Pick your top 3.{" "}
-            <span className="font-semibold" style={{ color: "#8B6914" }}>
+            <span className="font-semibold" style={{ color: "var(--i2p-gold-deep)" }}>
               {form.values.length}/3 selected
             </span>
           </p>
@@ -529,14 +535,17 @@ export default function Quiz({
     if (step === 5) {
       return (
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">The practical part</h2>
-          <p className="text-gray-500 mb-6 text-sm">
+          <p className="text-[11px] font-sans font-semibold uppercase tracking-[0.24em] text-[var(--i2p-gold-deep)] mb-1">
+            Step 5 of 5
+          </p>
+          <h2 className="font-serif font-bold text-[28px] text-[var(--i2p-ink)] mb-1">The practical part</h2>
+          <p className="text-[var(--i2p-ink-dim)] mb-6 text-sm">
             Realistic expectations make better matches.
           </p>
 
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-[var(--i2p-ink-body)] mb-2">
                 Hours available per week
               </label>
               <div className="flex flex-wrap gap-2">
@@ -553,7 +562,7 @@ export default function Quiz({
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-[var(--i2p-ink-body)] mb-2">
                 Monthly income target
               </label>
               <div className="flex flex-wrap gap-2">
@@ -571,7 +580,7 @@ export default function Quiz({
           </div>
 
           {error && (
-            <p className="mt-4 text-sm text-red-600 bg-red-50 px-4 py-2 rounded-lg">
+            <p className="mt-4 text-sm text-[var(--i2p-error)] bg-[#F9ECEB] px-4 py-2 rounded-lg">
               {error}
             </p>
           )}
@@ -590,18 +599,18 @@ export default function Quiz({
         <div className="text-center max-w-sm w-full">
           <Loader2
             className="w-10 h-10 animate-spin mx-auto mb-6"
-            style={{ color: "#8B6914" }}
+            style={{ color: "var(--i2p-gold-deep)" }}
           />
-          <p className="text-lg font-semibold text-gray-800 transition-all duration-500 min-h-[3.5rem] flex items-center justify-center">
+          <p className="text-lg font-semibold text-[var(--i2p-ink)] transition-all duration-500 min-h-[3.5rem] flex items-center justify-center">
             {LOADING_MESSAGES[loadingMsgIndex]}
           </p>
-          <div className="w-full h-2 bg-gray-200 rounded-full mt-4 overflow-hidden">
+          <div className="w-full h-2 bg-[var(--i2p-cream-border)] rounded-full mt-4 overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-300 ease-out"
               style={{ width: `${progress}%`, backgroundImage: GOLD_GRADIENT }}
             />
           </div>
-          <p className="text-sm text-gray-500 mt-3">
+          <p className="text-sm text-[var(--i2p-ink-dim)] mt-3">
             This takes about 60–90 seconds — we&apos;re building something tailored to you
           </p>
         </div>
@@ -616,10 +625,10 @@ export default function Quiz({
 
     return (
       <div ref={topRef} className="max-w-2xl mx-auto px-4 py-10">
-        <h2 className="text-3xl font-bold text-gray-900 mb-1">
+        <h2 className="font-serif font-bold text-[28px] text-[var(--i2p-ink)] mb-1">
           Your business matches
         </h2>
-        <p className="text-gray-500 mb-8 text-sm">
+        <p className="text-[var(--i2p-ink-dim)] mb-8 text-sm">
           Based on your skills, values, and lifestyle goals — here are your top 7 paths.
         </p>
 
@@ -638,11 +647,11 @@ export default function Quiz({
 
           {locked && (
             <div className="absolute inset-0 flex items-start justify-center pt-8">
-              <div className="bg-white rounded-2xl shadow-xl p-8 mx-4 w-full max-w-md text-center border border-gray-100">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
+              <div className="bg-white rounded-2xl shadow-xl p-8 mx-4 w-full max-w-md text-center border border-[var(--i2p-cream-border)]">
+                <h3 className="text-xl font-bold text-[var(--i2p-ink)] mb-2">
                   Unlock your full results
                 </h3>
-                <p className="text-gray-500 text-sm mb-6">
+                <p className="text-[var(--i2p-ink-dim)] text-sm mb-6">
                   Enter your email to reveal all 7 matches — no spam, unsubscribe any time.
                 </p>
                 <form onSubmit={submitEmail} className="space-y-3">
@@ -652,19 +661,19 @@ export default function Quiz({
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="your@email.com"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
+                    className="w-full px-4 py-3 border border-[var(--i2p-cream-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--i2p-gold)]"
                   />
                   <button
                     type="submit"
                     disabled={emailLoading}
-                    className="w-full py-3 font-semibold rounded-lg transition-all hover:brightness-105 disabled:opacity-60"
-                    style={GOLD_BUTTON_STYLE}
+                    className="w-full py-3 cta-shimmer gold-border font-semibold rounded-lg disabled:opacity-60"
+                    style={{ color: "#2D1A00" }}
                   >
                     {emailLoading ? "Revealing..." : "Reveal my matches"}
                   </button>
                 </form>
                 {emailError && (
-                  <p className="mt-3 text-sm text-red-600">{emailError}</p>
+                  <p className="mt-3 text-sm text-[var(--i2p-error)]">{emailError}</p>
                 )}
               </div>
             </div>
@@ -673,18 +682,18 @@ export default function Quiz({
 
         {/* IdeaToPlan upsell — visible after email unlock */}
         {!locked && matches.length > 0 && (
-          <div className="mt-10 rounded-2xl p-8 text-center border border-emerald-100 bg-emerald-50">
-            <p className="text-lg font-bold text-emerald-900 mb-2">
+          <div className="mt-10 rounded-2xl p-8 text-center border border-[#D8E2D0] bg-[#EFF3EA]">
+            <p className="text-lg font-bold text-[var(--i2p-success)] mb-2">
               Ready to turn <em>{matches[0].title}</em> into a real business?
             </p>
-            <p className="text-sm text-gray-600 mb-5">
+            <p className="text-sm text-[var(--i2p-ink-body)] mb-5">
               Get a done-for-you professional business plan — ready for investors,
               lenders, or your own roadmap.
             </p>
             <button
               onClick={() => onMatchSelected?.(matches[0].title)}
-              className="inline-block px-8 py-3 font-semibold rounded-lg transition-all hover:brightness-105 cursor-pointer"
-              style={GOLD_BUTTON_STYLE}
+              className="inline-block px-8 py-3 cta-shimmer gold-border font-semibold rounded-lg cursor-pointer"
+              style={{ color: "#2D1A00" }}
             >
               Build my business plan →
             </button>
@@ -700,16 +709,17 @@ export default function Quiz({
 
   return (
     <div ref={topRef} className="max-w-xl mx-auto px-4 py-10">
-      <h2 className="text-3xl font-bold text-gray-900 mb-1">
+      <h2 className="font-serif font-bold text-3xl text-[var(--i2p-ink)] mb-2">
         Find your perfect business idea
       </h2>
-      <p className="text-gray-500 mb-6 text-sm">
+      <div className="gold-gradient rounded-full mb-4" style={{ width: "64px", height: "3px" }} />
+      <p className="text-[var(--i2p-ink-dim)] mb-6 text-sm">
         Answer 5 quick questions. Get 7 matched ideas tailored to your skills and lifestyle.
       </p>
 
       <ProgressBar step={step} total={TOTAL_STEPS} />
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 mb-6">
+      <div className="bg-white rounded-2xl shadow-md border border-[var(--i2p-cream-border)] border-t-2 border-t-[var(--i2p-gold)] p-6 md:p-8 mb-6">
         {renderStep()}
       </div>
 
@@ -718,7 +728,7 @@ export default function Quiz({
           <button
             type="button"
             onClick={() => setStep((s) => s - 1)}
-            className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 font-medium"
+            className="inline-flex items-center gap-2 text-sm text-[var(--i2p-ink-dim)] hover:text-[var(--i2p-ink)] font-medium"
           >
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
@@ -731,8 +741,8 @@ export default function Quiz({
             type="button"
             disabled={!canAdvance()}
             onClick={() => setStep((s) => s + 1)}
-            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all hover:brightness-105 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={GOLD_BUTTON_STYLE}
+            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg cta-shimmer gold-border disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ color: "#2D1A00" }}
           >
             Next <ArrowRight className="w-4 h-4" />
           </button>
@@ -742,12 +752,12 @@ export default function Quiz({
               type="button"
               disabled={!canAdvance()}
               onClick={submitQuiz}
-              className="px-8 py-3 font-semibold rounded-lg transition-all hover:brightness-105 disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
-              style={GOLD_BUTTON_STYLE}
+              className="px-8 py-3 font-semibold rounded-lg cta-shimmer gold-border disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+              style={{ color: "#2D1A00" }}
             >
               Show me my matches
             </button>
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-[var(--i2p-ink-dim)] mt-2">
               Then turn your top match into a full business plan
             </p>
           </div>

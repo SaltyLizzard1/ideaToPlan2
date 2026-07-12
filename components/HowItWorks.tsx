@@ -123,7 +123,7 @@ export default function HowItWorks() {
             onClick={() =>
               document.getElementById("assessment")?.scrollIntoView({ behavior: "smooth" })
             }
-            className="gold-gradient gold-border inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-sans font-semibold text-sm transition-opacity hover:opacity-90 cursor-pointer"
+            className="cta-shimmer gold-border inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-sans font-semibold text-sm cursor-pointer"
             style={{ color: "#2D1A00" }}
           >
             Start the Assessment

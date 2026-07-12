@@ -70,7 +70,7 @@ export default function Hero() {
           }}
         >
           Turn What You&apos;re Good At Into<br className="hidden sm:block" />{" "}
-          a Business You <span className="gold-gradient-text">Love</span>
+          a Business You <span className="gold-gradient-text--animated">Love</span>
         </h1>
 
         {/* Subheadline */}
@@ -129,25 +129,12 @@ export default function Hero() {
         <div className="flex flex-col items-center" style={{ gap: "12px" }}>
           <button
             onClick={scrollToAssessment}
-            className="gold-gradient gold-border inline-flex items-center gap-2 rounded-full font-sans font-semibold cursor-pointer"
+            className="cta-shimmer gold-border inline-flex items-center gap-2 rounded-full font-sans font-semibold cursor-pointer"
             style={{
               color: "#2D1A00",
               fontSize: "clamp(1rem, 1.4vw, 1.1rem)",
               padding: "0.9rem 2.75rem",
               boxShadow: "0 0 28px rgba(197,152,28,0.25)",
-              transition: "transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease",
-            }}
-            onMouseEnter={e => {
-              const b = e.currentTarget as HTMLButtonElement;
-              b.style.transform = "scale(1.04)";
-              b.style.filter = "brightness(1.1)";
-              b.style.boxShadow = "0 0 40px rgba(197,152,28,0.4)";
-            }}
-            onMouseLeave={e => {
-              const b = e.currentTarget as HTMLButtonElement;
-              b.style.transform = "scale(1)";
-              b.style.filter = "brightness(1)";
-              b.style.boxShadow = "0 0 28px rgba(197,152,28,0.25)";
             }}
           >
             Start My Assessment

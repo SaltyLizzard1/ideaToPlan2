@@ -70,15 +70,12 @@ export default function Header() {
       {/* Desktop CTA */}
       <button
         onClick={handleAssessment}
-        className="hidden md:inline-flex items-center gap-2 rounded-full font-sans font-semibold text-sm cursor-pointer gold-gradient gold-border shrink-0"
+        className="hidden md:inline-flex items-center gap-2 rounded-full font-sans font-semibold text-sm cursor-pointer cta-shimmer gold-border shrink-0"
         style={{
           color: "#2D1A00",
           padding: "0.5rem 1.4rem",
           boxShadow: "0 8px 32px rgba(139,105,20,0.35)",
-          transition: "filter 0.15s ease",
         }}
-        onMouseEnter={e => (e.currentTarget.style.filter = "brightness(1.1)")}
-        onMouseLeave={e => (e.currentTarget.style.filter = "brightness(1)")}
       >
         Take the Assessment
       </button>
@@ -141,7 +138,7 @@ export default function Header() {
           ))}
           <button
             onClick={handleAssessment}
-            className="gold-gradient gold-border rounded-full font-sans font-semibold text-sm cursor-pointer"
+            className="cta-shimmer gold-border rounded-full font-sans font-semibold text-sm cursor-pointer"
             style={{
               color: "#2D1A00",
               padding: "0.6rem 1.75rem",

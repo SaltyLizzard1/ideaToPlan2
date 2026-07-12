@@ -116,7 +116,6 @@ const GOLD_GRADIENT =
   'linear-gradient(135deg, #8B6914 0%, #E8C84A 35%, #F5E070 55%, #C9A030 75%, #8B6914 100%)';
 
 const GOLD_BUTTON_STYLE = {
-  background: GOLD_GRADIENT,
   color: '#2D1A00',
   border: '1.5px solid #7A5C0A',
 } as const;
@@ -179,7 +178,7 @@ function EitherOrPair({
         type="button"
         onClick={() => onChange(label)}
         className={[
-          'flex-1 py-5 px-4 rounded-xl border-2 text-sm font-semibold transition-all text-center',
+          'flex-1 py-5 px-4 rounded-xl border-2 text-sm font-semibold transition-all text-center card-hover-lift',
           active
             ? 'border-[#C9A030] bg-[#FBF6E4] text-[#5C4206] shadow'
             : 'border-gray-200 bg-white text-gray-600 hover:border-[#E8C84A]',
@@ -616,7 +615,7 @@ export default function QuizPage() {
                     <button
                       type="submit"
                       disabled={emailLoading}
-                      className="w-full py-3 font-semibold rounded-lg transition-all hover:brightness-105 disabled:opacity-60"
+                      className="w-full py-3 font-semibold rounded-lg cta-shimmer disabled:opacity-60"
                       style={GOLD_BUTTON_STYLE}
                     >
                       {emailLoading ? 'Revealing...' : 'Reveal my matches'}
@@ -640,7 +639,7 @@ export default function QuizPage() {
               </p>
               <a
                 href="/"
-                className="inline-block px-8 py-3 font-semibold rounded-lg transition-all hover:brightness-105"
+                className="inline-block px-8 py-3 font-semibold rounded-lg cta-shimmer"
                 style={GOLD_BUTTON_STYLE}
               >
                 Get your free business plan →
@@ -693,7 +692,7 @@ export default function QuizPage() {
               type="button"
               disabled={!canAdvance()}
               onClick={() => setStep((s) => s + 1)}
-              className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all hover:brightness-105 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg cta-shimmer disabled:opacity-40 disabled:cursor-not-allowed"
               style={GOLD_BUTTON_STYLE}
             >
               Next <ArrowRight className="w-4 h-4" />
@@ -704,7 +703,7 @@ export default function QuizPage() {
                 type="button"
                 disabled={!canAdvance()}
                 onClick={submitQuiz}
-                className="px-8 py-3 font-semibold rounded-lg transition-all hover:brightness-105 disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+                className="px-8 py-3 font-semibold rounded-lg cta-shimmer disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
                 style={GOLD_BUTTON_STYLE}
               >
                 Show me my matches

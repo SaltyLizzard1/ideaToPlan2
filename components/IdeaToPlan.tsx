@@ -111,6 +111,11 @@ const GOLD_BUTTON_STYLE = {
   border: "1.5px solid #7A5C0A",
 } as const;
 
+const GOLD_BUTTON_TEXT_STYLE = {
+  color: "#2D1A00",
+  border: "1.5px solid #7A5C0A",
+} as const;
+
 const INPUT_CLASS =
   "w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9A030] transition";
 
@@ -348,8 +353,8 @@ export default function IdeaToPlan({
                 }));
                 setShowForm(true);
               }}
-              className="px-10 py-4 text-lg font-semibold rounded-lg transition-all transform hover:scale-105 shadow-lg hover:brightness-105"
-              style={GOLD_BUTTON_STYLE}
+              className="px-10 py-4 text-lg font-semibold rounded-lg cta-shimmer shadow-lg"
+              style={GOLD_BUTTON_TEXT_STYLE}
             >
               Share Your Idea
             </button>
@@ -403,8 +408,8 @@ export default function IdeaToPlan({
                   </p>
                   <button
                     onClick={closeForm}
-                    className="mt-6 px-8 py-3 font-semibold rounded-lg transition-all hover:brightness-105"
-                    style={GOLD_BUTTON_STYLE}
+                    className="mt-6 px-8 py-3 font-semibold rounded-lg cta-shimmer"
+                    style={GOLD_BUTTON_TEXT_STYLE}
                   >
                     Close
                   </button>
@@ -803,7 +808,7 @@ export default function IdeaToPlan({
                           ) : (
                             <label
                               key={opt.value}
-                              className={`flex flex-col cursor-pointer border-2 rounded-xl p-4 text-left transition-all h-full ${
+                              className={`flex flex-col cursor-pointer border-2 rounded-xl p-4 text-left transition-all h-full card-hover-lift ${
                                 form.planType === opt.value
                                   ? "ring-1"
                                   : "border-gray-200 bg-white"
@@ -847,8 +852,8 @@ export default function IdeaToPlan({
                     <button
                       type="submit"
                       disabled={status === "loading"}
-                      className="w-full py-4 text-lg font-semibold rounded-lg transition-all shadow-md flex items-center justify-center gap-2 hover:brightness-105 disabled:opacity-50"
-                      style={GOLD_BUTTON_STYLE}
+                      className="w-full py-4 text-lg font-semibold rounded-lg cta-shimmer shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                      style={GOLD_BUTTON_TEXT_STYLE}
                     >
                       {status === "loading" ? (
                         <>
