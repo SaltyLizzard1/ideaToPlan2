@@ -45,7 +45,7 @@ const SAMPLE_PAGES: SamplePage[] = [
       {
         k: "labeled",
         label: "Days 31–60:",
-        text: "Paid tier at $8/mo · First workshop: 12 seats, $35 · 400 free subscribers",
+        text: "Skills Assessment live · first traffic channel running · 3-email welcome sequence",
       },
       {
         k: "labeled",
@@ -236,6 +236,45 @@ export default function SamplePlanExcerpts() {
     >
       <div className="max-w-4xl mx-auto">
 
+        {/* Founder preface */}
+        <div className="text-center mb-16 max-w-2xl mx-auto">
+          <p
+            className="font-sans text-xs uppercase tracking-[0.2em] mb-5"
+            style={{ color: "#C9A030" }}
+          >
+            Who This Is For
+          </p>
+          <h2
+            className="font-serif font-bold mb-6"
+            style={{
+              color: "#FBF6E3",
+              fontSize: "clamp(1.6rem, 3.5vw, 2.6rem)",
+              lineHeight: 1.2,
+            }}
+          >
+            Most people know what they want.<br className="hidden sm:block" />{" "}
+            I talk to people who don&apos;t.
+          </h2>
+          <p
+            className="font-sans text-base leading-relaxed mb-8"
+            style={{ color: "#cfc9b8", maxWidth: "600px", margin: "0 auto 2rem" }}
+          >
+            If you&apos;re still figuring out whether change is even possible for you, you&apos;re exactly who this was built for. No business background required, no idea required — that&apos;s what the assessment is for.
+          </p>
+          <div className="font-sans text-sm" style={{ color: "#a89f8a" }}>
+            <p>I built IdeaToPlan using IdeaToPlan. The sample plan below is my own.</p>
+            <p
+              className="font-serif italic mt-1"
+              style={{ color: "#FBF6E3", fontSize: "0.95rem" }}
+            >
+              — Elizabeth, Founder
+            </p>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div style={{ height: "1px", background: "rgba(201,160,48,0.15)", marginBottom: "3rem" }} />
+
         {/* Section heading */}
         <div className="text-center mb-14">
           <p
@@ -244,12 +283,12 @@ export default function SamplePlanExcerpts() {
           >
             Sample Output
           </p>
-          <h2
-            className="font-serif font-bold text-4xl sm:text-5xl mb-3"
+          <h3
+            className="font-serif font-bold text-3xl sm:text-4xl mb-3"
             style={{ color: "#FBF6E3" }}
           >
             Inside Every Plan
-          </h2>
+          </h3>
           <p className="font-sans text-base" style={{ color: "#cfc9b8" }}>
             An excerpt from a Growth plan: structured, specific, and ready to act on.
           </p>
@@ -339,6 +378,29 @@ export default function SamplePlanExcerpts() {
         >
           Excerpt from a sample Growth plan&nbsp;&nbsp;·&nbsp;&nbsp;Hover or tap to explore
         </p>
+
+        {/* CTA */}
+        <div className="text-center mt-10">
+          <a
+            href="/assessment"
+            className="cta-shimmer gold-border inline-flex items-center gap-2 px-8 py-4 rounded-full font-sans font-semibold text-base cursor-pointer"
+            style={{ color: "#2D1A00" }}
+          >
+            Find Out What You&apos;re Built to Do
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </a>
+        </div>
 
       </div>
     </section>
