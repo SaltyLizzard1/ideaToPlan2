@@ -45,7 +45,7 @@ const SAMPLE_PAGES: SamplePage[] = [
       {
         k: "labeled",
         label: "Days 31–60:",
-        text: "Paid tier at $8/mo · First workshop — 12 seats, $35 · 400 free subscribers",
+        text: "Paid tier at $8/mo · First workshop: 12 seats, $35 · 400 free subscribers",
       },
       {
         k: "labeled",
@@ -61,7 +61,7 @@ const SAMPLE_PAGES: SamplePage[] = [
       {
         k: "labeled",
         label: "S:",
-        text: "Zero inventory, zero location costs — travel generates the content",
+        text: "Zero inventory, zero location costs. Travel generates the content.",
       },
       { k: "labeled", label: "W:", text: "No audience at launch" },
       { k: "labeled", label: "O:", text: "Every destination is a new content season" },
@@ -76,12 +76,12 @@ const SAMPLE_PAGES: SamplePage[] = [
       {
         k: "labeled",
         label: "Start here:",
-        text: "Register the LLC and open a business bank account before anything else — one afternoon, done remotely",
+        text: "Register the LLC and open a business bank account before anything else. One afternoon, done remotely.",
       },
       {
         k: "labeled",
         label: "Tools:",
-        text: "Substack (newsletter) · Stripe (payments) · Zoom (workshops) — all free to start",
+        text: "Substack (newsletter) · Stripe (payments) · Zoom (workshops). All free to start.",
       },
       {
         k: "labeled",
@@ -91,7 +91,7 @@ const SAMPLE_PAGES: SamplePage[] = [
       {
         k: "labeled",
         label: "Avoid:",
-        text: "Building a custom website first — validate with the newsletter, upgrade later",
+        text: "Building a custom website first. Validate with the newsletter, upgrade later.",
       },
     ],
   },
@@ -99,9 +99,8 @@ const SAMPLE_PAGES: SamplePage[] = [
 
 // ── Fan geometry ───────────────────────────────────────────────────────────
 
-// Ascending z-index left→right so each card layers on top of its left neighbor.
-// This naturally keeps SWOT (index 2) above Roadmap (index 1) in resting state.
-const RESTING_Z = [4, 7, 10, 13] as const;
+// SWOT (index 2) is given the highest resting z so it layers above both neighbors.
+const RESTING_Z = [4, 7, 13, 10] as const;
 
 const DESKTOP = {
   cardW: 215,
@@ -191,7 +190,7 @@ export default function SamplePlanExcerpts() {
   const anyFocused = focusedId !== null;
 
   function getCardStyle(index: number, isFocused: boolean): CSSProperties {
-    const defaultZ = index === 1 ? 10 : 5;
+    const defaultZ = RESTING_Z[index];
     const rot = geo.rotations[index];
 
     if (prefersReduced) {
@@ -209,7 +208,7 @@ export default function SamplePlanExcerpts() {
     if (isFocused) {
       return {
         transform: "rotate(0deg) scale(1.15) translateY(-12px)",
-        boxShadow: "0 20px 40px rgba(0,0,0,0.14)",
+        boxShadow: "0 20px 48px rgba(0,0,0,0.55)",
         opacity: 1,
         zIndex: 50,
         transition,
@@ -218,7 +217,7 @@ export default function SamplePlanExcerpts() {
 
     return {
       transform: `rotate(${rot}deg)`,
-      boxShadow: "0 4px 16px rgba(0,0,0,0.07)",
+      boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
       opacity: anyFocused ? 0.7 : 1,
       zIndex: defaultZ,
       transition,
@@ -226,7 +225,15 @@ export default function SamplePlanExcerpts() {
   }
 
   return (
-    <section className="py-16 px-6" style={{ background: "#FEFCF5" }}>
+    <section
+      className="py-16 px-6"
+      style={{
+        background: "#0D1117",
+        backgroundImage:
+          "radial-gradient(circle, rgba(201,160,48,0.06) 1px, transparent 1px)",
+        backgroundSize: "32px 32px",
+      }}
+    >
       <div className="max-w-4xl mx-auto">
 
         {/* Section heading */}
@@ -239,12 +246,12 @@ export default function SamplePlanExcerpts() {
           </p>
           <h2
             className="font-serif font-bold text-4xl sm:text-5xl mb-3"
-            style={{ color: "#0D1117" }}
+            style={{ color: "#FBF6E3" }}
           >
-            See What You&apos;ll Get
+            Inside Every Plan
           </h2>
-          <p className="font-sans text-base" style={{ color: "#8B6914" }}>
-            A real excerpt from one of our Growth plans — structured, specific, and ready to act on.
+          <p className="font-sans text-base" style={{ color: "#cfc9b8" }}>
+            An excerpt from a Growth plan: structured, specific, and ready to act on.
           </p>
         </div>
 
@@ -328,7 +335,7 @@ export default function SamplePlanExcerpts() {
         {/* Caption */}
         <p
           className="text-center font-sans text-xs mt-10"
-          style={{ color: "var(--i2p-ink-dim)" }}
+          style={{ color: "#a89f8a" }}
         >
           Excerpt from a sample Growth plan&nbsp;&nbsp;·&nbsp;&nbsp;Hover or tap to explore
         </p>

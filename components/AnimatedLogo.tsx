@@ -30,7 +30,7 @@ export default function AnimatedLogo({
       viewBox={viewBox}
       className={className}
       role="img"
-      aria-label="IdeaToPlan — Shape your future. Start today."
+      aria-label="IdeaToPlan: Shape your future. Start today."
     >
       <defs>
         <filter id={filterId} x="-200%" y="-200%" width="500%" height="500%">

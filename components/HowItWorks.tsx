@@ -99,7 +99,7 @@ export default function HowItWorks() {
       step: "02",
       title: "Receive 7 Personalized Matches",
       description:
-        "Our AI analyzes your profile and returns seven business ideas matched to your unique combination of skills, values, and lifestyle — with income ranges and first steps.",
+        "Our AI analyzes your profile and returns seven business ideas matched to your unique combination of skills, values, and lifestyle, with income ranges and first steps.",
     },
     {
       icon: (
@@ -122,7 +122,7 @@ export default function HowItWorks() {
       step: "03",
       title: "Build Your Business Plan",
       description:
-        "Love your top match? Submit it to IdeaToPlan and we'll deliver a done-for-you professional business plan — ready for investors, lenders, or your own roadmap.",
+        "Love your top match? Submit it to IdeaToPlan and we'll deliver a done-for-you professional business plan, ready for investors, lenders, or your own roadmap.",
     },
   ];
 
@@ -266,9 +266,7 @@ export default function HowItWorks() {
             style={{ position: "relative", zIndex: 1 }}
           >
             <button
-              onClick={() =>
-                document.getElementById("assessment")?.scrollIntoView({ behavior: "smooth" })
-              }
+              onClick={() => { window.location.href = "/assessment"; }}
               className="cta-shimmer gold-border inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-sans font-semibold text-sm cursor-pointer"
               style={{ color: "#2D1A00" }}
             >

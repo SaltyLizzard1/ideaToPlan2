@@ -2,7 +2,7 @@
 
 export default function Hero() {
   const scrollToAssessment = () => {
-    document.getElementById("assessment")?.scrollIntoView({ behavior: "smooth" });
+    window.location.href = "/assessment";
   };
 
   return (
@@ -86,7 +86,7 @@ export default function Hero() {
         >
           A 5-minute assessment matches your skills and experience to 7 viable business ideas.
           <br />
-          Choose one, and we build the plan — strategy, financials, and next steps — ready for investors or your bank.
+          Choose one, and we build the plan: strategy, financials, and next steps, ready for investors or your bank.
         </p>
 
         {/* Feature bullets — card style */}

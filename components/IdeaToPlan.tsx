@@ -90,7 +90,7 @@ const PLAN_OPTIONS: PlanOption[] = [
     title: "Growth",
     price: "$50",
     description:
-      "Everything in Starter plus deeper competitor and positioning analysis — who else is solving this, how you stand out, and clearer differentiation for pitches or strategy.",
+      "Everything in Starter plus deeper competitor and positioning analysis: who else is solving this, how you stand out, and clearer differentiation for pitches or strategy.",
   },
   {
     value: "Visa / Immigration",
@@ -152,7 +152,7 @@ export default function IdeaToPlan({
       icon: Rocket,
       title: "Get Your Plan",
       description:
-        "Get your polished, ready-to-use PDF plan in 72 hours — or faster if you're on a deadline",
+        "Get your polished, ready-to-use PDF plan in 72 hours, or faster if you're on a deadline",
     },
   ];
 
@@ -336,7 +336,7 @@ export default function IdeaToPlan({
           <div className="text-center mb-6">
             <div className="inline-block bg-amber-50 border border-amber-300 rounded-xl px-6 py-3">
               <p className="text-amber-800 font-semibold text-sm">
-                Special introductory offer — plans start at $25. Delivered within
+                Special introductory offer: plans start at $25. Delivered within
                 72 hours, and we walk you through it together.
               </p>
             </div>
@@ -404,7 +404,7 @@ export default function IdeaToPlan({
                     through it, and go from there.
                   </p>
                   <p className="text-gray-500 text-sm">
-                    Check your inbox — and spam, just in case.
+                    Check your inbox and spam, just in case.
                   </p>
                   <button
                     onClick={closeForm}
@@ -506,7 +506,7 @@ export default function IdeaToPlan({
                           name="location"
                           value={form.location}
                           onChange={handleChange}
-                          placeholder="City, State — or Online/Location-independent"
+                          placeholder="City, State or Online/Location-independent"
                           className={INPUT_CLASS}
                         />
                       </div>
@@ -521,7 +521,7 @@ export default function IdeaToPlan({
                           name="currentRevenue"
                           value={form.currentRevenue}
                           onChange={handleChange}
-                          placeholder="e.g. $150,000 — leave blank if pre-revenue"
+                          placeholder="e.g. $150,000, leave blank if pre-revenue"
                           className={INPUT_CLASS}
                         />
                       </div>
@@ -533,7 +533,7 @@ export default function IdeaToPlan({
                           name="yearsInBusiness"
                           value={form.yearsInBusiness}
                           onChange={handleChange}
-                          placeholder="e.g. 5 years — leave blank if new"
+                          placeholder="e.g. 5 years, leave blank if new"
                           className={INPUT_CLASS}
                         />
                       </div>

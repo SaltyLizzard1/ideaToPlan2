@@ -49,7 +49,7 @@ export default function MaintenancePage() {
           className="font-sans mb-8"
           style={{ color: "#9CA3AF", fontSize: "1.05rem", lineHeight: 1.75 }}
         >
-          IdeaToPlan is undergoing a quick update. We&apos;ll be back shortly — usually within a
+          IdeaToPlan is undergoing a quick update. We&apos;ll be back shortly, usually within a
           few hours. Thank you for your patience.
         </p>
 

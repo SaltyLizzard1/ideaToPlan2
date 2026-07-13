@@ -86,7 +86,7 @@ const VALUES = [
   "Financial stability",
   "Learning & growing constantly",
   "Making a big impact",
-  "Autonomy — no boss",
+  "Autonomy (no boss)",
   "Recognition & status",
   "Community & belonging",
 ];
@@ -113,7 +113,7 @@ const LOADING_MESSAGES = [
   "Checking which markets are crowded and which are open...",
   "Finding your unique angle in each one...",
   "Writing your personalised first steps...",
-  "Almost there — putting it all together...",
+  "Almost there, putting it all together...",
 ];
 
 const LOADING_DURATION_MS = 75000;
@@ -274,7 +274,7 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export default function Quiz({
+export default function Assessment({
   onMatchSelected,
 }: {
   onMatchSelected?: (idea: string) => void;
@@ -355,14 +355,14 @@ export default function Quiz({
     return false;
   }
 
-  async function submitQuiz() {
+  async function submitAssessment() {
     setStage("loading");
     setError("");
 
     const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL;
 
     if (!webhookUrl) {
-      setError("Quiz service is not configured yet. Check back soon!");
+      setError("Assessment service is not configured yet. Check back soon!");
       setStage("form");
       return;
     }
@@ -393,7 +393,7 @@ export default function Quiz({
       setMatches(parsed);
       setStage("results");
     } catch (err) {
-      console.error("Quiz error:", err);
+      console.error("Assessment error:", err);
       setError("Something went wrong fetching your results. Please try again.");
       setStage("form");
       setStep(5);
@@ -430,7 +430,7 @@ export default function Quiz({
           </p>
           <h2 className="font-serif font-bold text-[28px] text-[var(--i2p-ink)] mb-1">Your hard skills</h2>
           <p className="text-[var(--i2p-ink-dim)] mb-6 text-sm">
-            Select everything that applies — be generous.
+            Select everything that applies. Be generous.
           </p>
           <div className="flex flex-wrap gap-2">
             {HARD_SKILLS.map((s) => (
@@ -611,7 +611,7 @@ export default function Quiz({
             />
           </div>
           <p className="text-sm text-[var(--i2p-ink-dim)] mt-3">
-            This takes about 60–90 seconds — we&apos;re building something tailored to you
+            This takes about 60–90 seconds. We&apos;re building something tailored to you.
           </p>
         </div>
       </div>
@@ -629,7 +629,7 @@ export default function Quiz({
           Your business matches
         </h2>
         <p className="text-[var(--i2p-ink-dim)] mb-8 text-sm">
-          Based on your skills, values, and lifestyle goals — here are your top 7 paths.
+          Based on your skills, values, and lifestyle goals: here are your top 7 paths.
         </p>
 
         <div className="mb-4">
@@ -652,7 +652,7 @@ export default function Quiz({
                   Unlock your full results
                 </h3>
                 <p className="text-[var(--i2p-ink-dim)] text-sm mb-6">
-                  Enter your email to reveal all 7 matches — no spam, unsubscribe any time.
+                  Enter your email to reveal all 7 matches. No spam, unsubscribe any time.
                 </p>
                 <form onSubmit={submitEmail} className="space-y-3">
                   <input
@@ -687,7 +687,7 @@ export default function Quiz({
               Ready to turn <em>{matches[0].title}</em> into a real business?
             </p>
             <p className="text-sm text-[var(--i2p-ink-body)] mb-5">
-              Get a done-for-you professional business plan — ready for investors,
+              Get a done-for-you professional business plan, ready for investors,
               lenders, or your own roadmap.
             </p>
             <button
@@ -747,7 +747,7 @@ export default function Quiz({
             <button
               type="button"
               disabled={!canAdvance()}
-              onClick={submitQuiz}
+              onClick={submitAssessment}
               className="px-8 py-3 font-semibold rounded-lg cta-shimmer gold-border disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
               style={{ color: "#2D1A00" }}
             >

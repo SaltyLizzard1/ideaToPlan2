@@ -21,8 +21,8 @@ export default function AboutPage() {
           className="font-sans leading-relaxed mb-5"
           style={{ color: "#D0D0D0", fontSize: "1.05rem", lineHeight: 1.75 }}
         >
-          IdeaToPlan was built for people who know they want something different — a career change,
-          a side hustle, a new chapter — but aren&apos;t sure where to start. We combine a
+          IdeaToPlan was built for people who know they want something different: a career change,
+          a side hustle, a new chapter, but aren&apos;t sure where to start. We combine a
           proven skills assessment methodology with professional business plan writing to give
           you both clarity and momentum.
         </p>
@@ -32,7 +32,7 @@ export default function AboutPage() {
         >
           Our plans are used by first-time founders, corporate escapees, digital nomads, and
           visa applicants who need investor-ready documentation. Every plan is AI-assisted and
-          human-reviewed — delivered in 72 hours.
+          human-reviewed and delivered in 72 hours.
         </p>
       </section>
     </main>

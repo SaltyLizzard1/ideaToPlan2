@@ -22,7 +22,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "IdeaToPlan — Start Your Business Today",
+  title: "IdeaToPlan: Start Your Business Today",
   description:
     "Take the free skills assessment inspired by What Color Is Your Parachute? and discover the business you're actually built to run. Turn your top match into a real business plan.",
   icons: {
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     apple: { url: "/apple-touch-icon.png", sizes: "180x180" },
   },
   openGraph: {
-    title: "IdeaToPlan — It's Never Been Easier to Start Your Own Business",
+    title: "IdeaToPlan: It's Never Been Easier to Start Your Own Business",
     description:
       "Discover the business you're built to run. Free skills assessment + done-for-you business plans.",
     url: "https://ideatoplan.to",

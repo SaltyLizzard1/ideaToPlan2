@@ -86,7 +86,7 @@ const VALUES = [
   'Financial stability',
   'Learning & growing constantly',
   'Making a big impact',
-  'Autonomy — no boss',
+  'Autonomy (no boss)',
   'Recognition & status',
   'Community & belonging',
 ];
@@ -107,7 +107,7 @@ const LOADING_MESSAGES = [
   'Checking which markets are crowded and which are open...',
   'Finding your unique angle in each one...',
   'Writing your personalised first steps...',
-  'Almost there — putting it all together...',
+  'Almost there, putting it all together...',
 ];
 
 const LOADING_DURATION_MS = 75000;
@@ -267,9 +267,9 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
   );
 }
 
-// ── Main Quiz component ────────────────────────────────────────────────────
+// ── Main Assessment component ──────────────────────────────────────────────
 
-export default function QuizPage() {
+export default function AssessmentPage() {
   const [stage, setStage] = useState<Stage>('form');
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>({
@@ -341,11 +341,12 @@ export default function QuizPage() {
     return false;
   }
 
-  async function submitQuiz() {
+  async function submitAssessment() {
     setStage('loading');
     setError('');
 
     try {
+      // Route path kept as /api/quiz — this is an external-facing API contract used by the backend pipeline
       const res = await fetch('/api/quiz', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -369,7 +370,7 @@ export default function QuizPage() {
       setMatches(parsed);
       setStage('results');
     } catch (err) {
-      console.error('Quiz error:', err);
+      console.error('Assessment error:', err);
       setError('Something went wrong fetching your results. Please try again.');
       setStage('form');
       setStep(5);
@@ -403,7 +404,7 @@ export default function QuizPage() {
       return (
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Your hard skills</h2>
-          <p className="text-gray-500 mb-6 text-sm">Select everything that applies — be generous.</p>
+          <p className="text-gray-500 mb-6 text-sm">Select everything that applies. Be generous.</p>
           <div className="flex flex-wrap gap-2">
             {HARD_SKILLS.map((s) => (
               <Pill
@@ -558,7 +559,7 @@ export default function QuizPage() {
             />
           </div>
           <p className="text-sm text-gray-500 mt-3">
-            This takes about 60–90 seconds — we&apos;re building something tailored to you
+            This takes about 60–90 seconds. We&apos;re building something tailored to you.
           </p>
         </div>
       </div>
@@ -580,7 +581,7 @@ export default function QuizPage() {
 
           <h1 className="text-3xl font-bold text-gray-900 mb-1">Your online work matches</h1>
           <p className="text-gray-500 mb-8 text-sm">
-            Based on your skills, values, and lifestyle goals — here are your top 7 paths.
+            Based on your skills, values, and lifestyle goals: here are your top 7 paths.
           </p>
 
           <div className="mb-4">
@@ -601,7 +602,7 @@ export default function QuizPage() {
                 <div className="bg-white rounded-2xl shadow-xl p-8 mx-4 w-full max-w-md text-center border border-gray-100">
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Unlock your full results</h3>
                   <p className="text-gray-500 text-sm mb-6">
-                    Enter your email to reveal all 7 matches — no spam, unsubscribe any time.
+                    Enter your email to reveal all 7 matches. No spam, unsubscribe any time.
                   </p>
                   <form onSubmit={submitEmail} className="space-y-3">
                     <input
@@ -635,7 +636,7 @@ export default function QuizPage() {
                 Ready to build a business around your top match?
               </p>
               <p className="text-sm text-gray-600 mb-5">
-                Turn it into a full business plan — market research, revenue model, 90-day action plan, and more.
+                Turn it into a full business plan: market research, revenue model, 90-day action plan, and more.
               </p>
               <a
                 href="/"
@@ -702,7 +703,7 @@ export default function QuizPage() {
               <button
                 type="button"
                 disabled={!canAdvance()}
-                onClick={submitQuiz}
+                onClick={submitAssessment}
                 className="px-8 py-3 font-semibold rounded-lg cta-shimmer disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
                 style={GOLD_BUTTON_STYLE}
               >

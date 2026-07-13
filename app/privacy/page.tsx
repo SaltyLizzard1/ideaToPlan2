@@ -21,7 +21,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Processor({ name, role, href }: { name: string; role: string; href: string }) {
   return (
     <p>
-      <span className="font-semibold text-gray-900">{name}</span> — {role}{' '}
+      <span className="font-semibold text-gray-900">{name}</span>: {role}{' '}
       <a
         href={href}
         target="_blank"
@@ -48,25 +48,25 @@ export default function PrivacyPage() {
             <p>We collect information you choose to share when using ideatoplan.to:</p>
             <ul className="list-disc pl-6 space-y-2">
               <li>
-                <span className="font-semibold text-gray-900">Contact information</span> — your
+                <span className="font-semibold text-gray-900">Contact information</span>: your
                 full name and email address
               </li>
               <li>
-                <span className="font-semibold text-gray-900">Business idea details</span> —
+                <span className="font-semibold text-gray-900">Business idea details</span>:
                 description, target audience, problem statement, industry, location, revenue model,
                 differentiation, and startup budget
               </li>
               <li>
-                <span className="font-semibold text-gray-900">Plan-specific details</span> —
+                <span className="font-semibold text-gray-900">Plan-specific details</span>:
                 founder background, funding ask, use of funds, current traction, exit vision, and
                 loan details where applicable
               </li>
               <li>
-                <span className="font-semibold text-gray-900">Skills assessment answers</span> —
+                <span className="font-semibold text-gray-900">Skills assessment answers</span>:
                 your responses to the five-question assessment
               </li>
               <li>
-                <span className="font-semibold text-gray-900">Email list opt-in</span> — your
+                <span className="font-semibold text-gray-900">Email list opt-in</span>: your
                 address if you subscribe for updates
               </li>
             </ul>
@@ -141,7 +141,7 @@ export default function PrivacyPage() {
 
           <Section title="5. Data Retention">
             <p>
-              We keep your information only as long as needed to provide the service — typically
+              We keep your information only as long as needed to provide the service, typically
               no longer than 12 months after your last interaction. Email subscribers are kept
               until they unsubscribe.
             </p>
