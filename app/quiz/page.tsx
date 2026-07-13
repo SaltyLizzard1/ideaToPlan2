@@ -150,7 +150,7 @@ function Pill({
           ? 'border-[#7A5C0A] shadow-sm bg-[#E8C84A] text-[#2D1A00]'
           : disabled
           ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-          : 'bg-white border-gray-300 text-gray-700 hover:border-[#C9A030] hover:text-[#8B6914]',
+          : 'bg-white border-gray-300 text-gray-700 hover:border-[#C9A030] hover:text-[#8B6914] pill-hover-lift',
       ].join(' ')}
     >
       {label}

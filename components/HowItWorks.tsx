@@ -1,4 +1,62 @@
+"use client";
+
+import { useRef, useEffect, useState, CSSProperties } from "react";
+
 export default function HowItWorks() {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const [initialized, setInitialized] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [prefersReduced, setPrefersReduced] = useState(false);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setPrefersReduced(reduced);
+    setInitialized(true);
+
+    if (reduced) {
+      setRevealed(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setRevealed(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+
+    if (sectionRef.current) observer.observe(sectionRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  function getRevealStyle(i: number): CSSProperties {
+    if (!initialized || prefersReduced) return {};
+    return {
+      opacity: revealed ? 1 : 0,
+      transform: revealed ? "translateY(0)" : "translateY(20px)",
+      transition: "opacity 500ms ease-out, transform 500ms ease-out",
+      transitionDelay: revealed ? `${i * 150}ms` : "0ms",
+    };
+  }
+
+  function getWrapperStyle(i: number): CSSProperties {
+    const isHovered = hoveredIndex === i && revealed;
+    const base: CSSProperties = {
+      cursor: "pointer",
+      transition: "transform 150ms ease-out, box-shadow 150ms ease-out",
+    };
+    if (prefersReduced || !isHovered) return base;
+    return {
+      ...base,
+      transform: "translateY(-4px) scale(1.02)",
+      boxShadow: "0 12px 24px rgba(0,0,0,0.08)",
+    };
+  }
+
   const steps = [
     {
       icon: (
@@ -69,8 +127,10 @@ export default function HowItWorks() {
   ];
 
   return (
-    <section className="py-14 px-6 bg-white">
+    <section ref={sectionRef} className="py-14 px-6 bg-white">
       <div className="max-w-5xl mx-auto">
+
+        {/* Section heading — unchanged */}
         <div className="text-center mb-10">
           <p
             className="text-xs font-sans tracking-[0.2em] uppercase mb-3"
@@ -86,60 +146,148 @@ export default function HowItWorks() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {steps.map((s, i) => (
-            <div
-              key={i}
-              className="flex flex-col items-start p-8 rounded-2xl border relative"
-              style={{ borderColor: "#F0E8CC", background: "#FEFCF5" }}
-            >
-              <span
-                className="absolute top-6 right-6 font-serif text-5xl font-bold leading-none select-none"
-                style={{ color: "#F0E8CC" }}
-              >
-                {s.step}
-              </span>
-              <div
-                className="mb-5 p-3 rounded-xl"
-                style={{ background: "#FBF6E4", color: "#8B6914" }}
-              >
-                {s.icon}
-              </div>
-              <h3
-                className="font-serif text-xl font-semibold mb-3"
-                style={{ color: "#0D1117" }}
-              >
-                {s.title}
-              </h3>
-              <p className="font-sans text-sm leading-relaxed" style={{ color: "#4B5563" }}>
-                {s.description}
-              </p>
-            </div>
-          ))}
-        </div>
+        {/* Relative wrapper: contains grid (with connectors) + button */}
+        <div className="relative">
 
-        <div className="text-center mt-12">
-          <button
-            onClick={() =>
-              document.getElementById("assessment")?.scrollIntoView({ behavior: "smooth" })
-            }
-            className="cta-shimmer gold-border inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-sans font-semibold text-sm cursor-pointer"
-            style={{ color: "#2D1A00" }}
+          {/* ── Cards grid — also the positioning context for connector lines ── */}
+          {/*
+            Connector lines live inside the grid so percentage-based top values
+            are relative to the grid height (number area + card area), not the
+            outer wrapper (which includes the button below).
+
+            H-line: top = 50% of grid + half of number-label height (≈20px)
+                        = card vertical midpoint
+            V-line: same top, height = remaining 50% of grid + drop to button center
+                        = calc(50% + 52px) where 52px ≈ mt-12(48px) + half-button(~24px) - line_start_offset(~20px)
+
+            z-index: -1 keeps lines behind grid items (normal-flow flex children
+            paint above z:-1 positioned siblings within the same stacking context).
+          */}
+          <div
+            className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch"
+            style={{ position: "relative", zIndex: 1 }}
           >
-            Start the Assessment
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+
+            {/* ── Horizontal connector line (desktop only) ── */}
+            <div
+              aria-hidden="true"
+              className="hidden md:block absolute"
+              style={{
+                top: "calc(50% + 20px)",
+                left: 0,
+                right: 0,
+                height: "1px",
+                background: "#C9A030",
+                zIndex: -1,
+                transformOrigin: "left center",
+                transform: revealed ? "scaleX(1)" : "scaleX(0)",
+                transition: prefersReduced ? "none" : "transform 800ms ease-out",
+              }}
+            />
+
+            {/* ── Vertical connector line (desktop only) ── */}
+            <div
+              aria-hidden="true"
+              className="hidden md:block absolute"
+              style={{
+                left: "calc(50% - 0.5px)",
+                top: "calc(50% + 20px)",
+                width: "1px",
+                height: "calc(50% + 52px)",
+                background: "#C9A030",
+                zIndex: -1,
+                transformOrigin: "top center",
+                transform: revealed ? "scaleY(1)" : "scaleY(0)",
+                transition: prefersReduced ? "none" : "transform 300ms ease-out",
+                transitionDelay: revealed && !prefersReduced ? "800ms" : "0ms",
+              }}
+            />
+
+            {steps.map((s, i) => (
+              <div
+                key={i}
+                className="flex flex-col"
+                onMouseEnter={() => setHoveredIndex(i)}
+                onMouseLeave={() => setHoveredIndex(null)}
+                style={getWrapperStyle(i)}
+              >
+                {/* Step number — above the card, outside the border */}
+                <p
+                  className="font-serif font-bold"
+                  style={{
+                    fontSize: "clamp(24px, 2.5vw, 30px)",
+                    color: "#8B6914",
+                    marginBottom: "10px",
+                    lineHeight: 1,
+                  }}
+                >
+                  {s.step}
+                </p>
+
+                {/* Card — flex-1 so all cards stretch to the tallest */}
+                <div
+                  className="flex flex-col items-start p-6 rounded-2xl border w-full flex-1"
+                  style={{
+                    borderColor: "rgba(201, 160, 48, 0.6)",
+                    background: "#FEFCF5",
+                    ...getRevealStyle(i),
+                  }}
+                >
+                  {/* icon version — kept for possible revert */}
+                  {/*
+                  <div
+                    className="mb-5 p-3 rounded-xl"
+                    style={{ background: "#FBF6E4", color: "#8B6914" }}
+                  >
+                    {s.icon}
+                  </div>
+                  */}
+
+                  <h3
+                    className="font-serif text-xl font-semibold mb-3"
+                    style={{ color: "#0D1117" }}
+                  >
+                    {s.title}
+                  </h3>
+                  <p
+                    className="font-sans text-sm leading-relaxed"
+                    style={{ color: "#4B5563" }}
+                  >
+                    {s.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Button ───────────────────────────────────────────────────── */}
+          <div
+            className="text-center mt-12"
+            style={{ position: "relative", zIndex: 1 }}
+          >
+            <button
+              onClick={() =>
+                document.getElementById("assessment")?.scrollIntoView({ behavior: "smooth" })
+              }
+              className="cta-shimmer gold-border inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-sans font-semibold text-sm cursor-pointer"
+              style={{ color: "#2D1A00" }}
             >
-              <path d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          </button>
+              Start the Assessment
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+
         </div>
       </div>
     </section>

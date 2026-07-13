@@ -708,14 +708,10 @@ export default function Quiz({
   const TOTAL_STEPS = 5;
 
   return (
-    <div ref={topRef} className="max-w-xl mx-auto px-4 py-10">
-      <h2 className="font-serif font-bold text-3xl text-[var(--i2p-ink)] mb-2">
-        Find your perfect business idea
+    <div ref={topRef} className="max-w-xl mx-auto px-4 pt-2 pb-10">
+      <h2 className="font-serif font-bold text-3xl text-[var(--i2p-ink)] mb-5">
+        Your Skills Assessment
       </h2>
-      <div className="gold-gradient rounded-full mb-4" style={{ width: "64px", height: "3px" }} />
-      <p className="text-[var(--i2p-ink-dim)] mb-6 text-sm">
-        Answer 5 quick questions. Get 7 matched ideas tailored to your skills and lifestyle.
-      </p>
 
       <ProgressBar step={step} total={TOTAL_STEPS} />
 

@@ -7,6 +7,7 @@ import Quiz from "@/components/Quiz";
 import IdeaToPlan from "@/components/IdeaToPlan";
 import Footer from "@/components/Footer";
 import ScrollReveal from "@/components/ScrollReveal";
+import SamplePlanExcerpts from "@/components/SamplePlanExcerpts";
 
 export default function Home() {
   const [prefillIdea, setPrefillIdea] = useState<string | undefined>();
@@ -39,7 +40,7 @@ export default function Home() {
               className="font-serif text-4xl sm:text-5xl font-bold mb-3"
               style={{ color: "#0D1117" }}
             >
-              What Are You Built to Build?
+              What Are You Built to Do?
             </h2>
             <p className="font-sans text-gray-500 text-lg">
               Answer five quick questions and discover 7 business ideas matched to your
@@ -49,6 +50,8 @@ export default function Home() {
           <Quiz onMatchSelected={handleMatchSelected} />
         </section>
       </ScrollReveal>
+
+      <ScrollReveal><SamplePlanExcerpts /></ScrollReveal>
 
       <div id="pricing" ref={ideaToPlanRef} style={{ scrollMarginTop: "80px" }}>
         <ScrollReveal><IdeaToPlan prefillIdea={prefillIdea} /></ScrollReveal>

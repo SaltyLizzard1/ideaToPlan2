@@ -246,7 +246,7 @@ export default function IdeaToPlan({
         <div className="mb-8">
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             {/* Starter */}
-            <div className="border-2 border-gray-200 rounded-2xl p-6 bg-white shadow-sm flex flex-col">
+            <div className="border-2 border-gray-200 rounded-2xl p-6 bg-white shadow-sm flex flex-col card-hover-lift">
               <h3 className="text-xl font-bold text-gray-900 mb-1">Starter</h3>
               <p className="font-bold text-2xl mb-1" style={{ color: "#8B6914" }}>
                 $25
@@ -273,7 +273,7 @@ export default function IdeaToPlan({
 
             {/* Growth — Most Popular */}
             <div
-              className="border-2 rounded-2xl p-6 shadow-lg flex flex-col relative"
+              className="border-2 rounded-2xl p-6 shadow-lg flex flex-col relative card-hover-lift"
               style={{ borderColor: "#C9A030", background: "#FBF6E4" }}
             >
               <div
@@ -307,7 +307,7 @@ export default function IdeaToPlan({
             </div>
 
             {/* Visa / Immigration */}
-            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 bg-gray-50/80 shadow-sm flex flex-col relative opacity-95">
+            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 bg-gray-50/80 shadow-sm flex flex-col relative opacity-95 card-hover-lift">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-100 text-amber-900 text-xs font-bold px-4 py-1 rounded-full border border-amber-200">
                 Coming soon
               </div>
