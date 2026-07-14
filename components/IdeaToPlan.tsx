@@ -9,7 +9,7 @@ import {
   AlertCircle,
   Loader,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type FormData = {
   fullName: string;
@@ -53,7 +53,7 @@ const initialForm: FormData = {
   differentiation: "",
   budget: "",
   planGoal: "",
-  planType: "Starter",
+  planType: "",
   expedited24h: "no",
   founderBackground: "",
   fundingAsk: "",
@@ -102,9 +102,16 @@ const PLAN_OPTIONS: PlanOption[] = [
   },
 ];
 
+// LIVE links - uncomment for production launch
+// const STRIPE_LINKS: Record<string, string> = {
+//   Starter: 'https://buy.stripe.com/7sY00kb2Hf7ugmb6J4b7y02',
+//   Growth: 'https://buy.stripe.com/7sY28s8UzaRe9XN3wSb7y03',
+// };
+
+// TEST links - active for local rehearsal
 const STRIPE_LINKS: Record<string, string> = {
-  Starter: "https://buy.stripe.com/7sY00kb2Hf7ugmb6J4b7y02",
-  Growth: "https://buy.stripe.com/7sY28s8UzaRe9XN3wSb7y03",
+  Starter: 'https://buy.stripe.com/test_14A8wI5GDgf6ekc1oa4Ja03',
+  Growth: 'https://buy.stripe.com/test_5kQ3co2ur4wogsk3wi4Ja02',
 };
 
 const GOLD_GRADIENT =
@@ -122,7 +129,7 @@ const GOLD_BUTTON_TEXT_STYLE = {
 } as const;
 
 const INPUT_CLASS =
-  "w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9A030] transition";
+  "w-full border border-[#E8E4DB] rounded-lg px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9A030] transition";
 
 export default function IdeaToPlan() {
   const [showForm, setShowForm] = useState(false);
@@ -133,6 +140,10 @@ export default function IdeaToPlan() {
   const [redirecting, setRedirecting] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [paymentError, setPaymentError] = useState("");
+  const [planSelected, setPlanSelected] = useState(false);
+  const [pulsing, setPulsing] = useState(false);
+  const [showPrefillNote, setShowPrefillNote] = useState(false);
+  const cardsRef = useRef<HTMLDivElement>(null);
 
   // On return from Stripe, verify the session and open the modal
   useEffect(() => {
@@ -150,12 +161,30 @@ export default function IdeaToPlan() {
       .then((data) => {
         if (data.paid) {
           setStripeSessionId(sessionId);
+
+          let prefillIdea = "";
+          try {
+            const raw = sessionStorage.getItem("i2p_prefill_idea");
+            if (raw) {
+              const p = JSON.parse(raw);
+              const parts: string[] = [];
+              if (p.title) parts.push(p.title + ".");
+              if (p.description) parts.push(p.description);
+              if (p.uniqueAngle) parts.push("My angle: " + p.uniqueAngle);
+              prefillIdea = parts.join(" ");
+            }
+          } catch {}
+
           setForm((prev) => ({
             ...prev,
             planType: data.planType ?? prev.planType,
             email: prev.email || data.email || "",
+            ...(prefillIdea && !prev.businessIdea ? { businessIdea: prefillIdea } : {}),
           }));
+
+          if (prefillIdea) setShowPrefillNote(true);
           setShowForm(true);
+          window.scrollTo({ top: 0 });
           history.replaceState(null, "", window.location.pathname);
         } else {
           setPaymentError(
@@ -185,7 +214,7 @@ export default function IdeaToPlan() {
       icon: Rocket,
       title: "Get Your Plan",
       description:
-        "Get your polished, ready-to-use PDF plan in 72 hours, or faster if you're on a deadline",
+        "Get your polished, ready-to-use PDF plan, delivered within 72 hours. Need it faster? Just ask.",
     },
   ];
 
@@ -215,6 +244,7 @@ export default function IdeaToPlan() {
         body: JSON.stringify({ ...form, stripeSessionId }),
       });
       setStatus("success");
+      sessionStorage.removeItem("i2p_prefill_idea");
       setForm(initialForm);
     } catch (err: unknown) {
       console.error(err);
@@ -229,6 +259,12 @@ export default function IdeaToPlan() {
     const link = STRIPE_LINKS[plan] ?? STRIPE_LINKS["Starter"];
     setRedirecting(true);
     window.location.href = link;
+  };
+
+  const handleGetStarted = () => {
+    cardsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setPulsing(true);
+    setTimeout(() => setPulsing(false), 900);
   };
 
   const isDirty = () =>
@@ -248,7 +284,7 @@ export default function IdeaToPlan() {
     <section
       id="idea-to-plan"
       className="pt-16 pb-14 md:pt-20 md:pb-20"
-      style={{ background: "#FEFCF5" }}
+      style={{ background: "#FDFCF9" }}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
@@ -266,7 +302,7 @@ export default function IdeaToPlan() {
           </h2>
           <p
             className="text-base font-medium mb-4 max-w-2xl mx-auto"
-            style={{ color: "#8B6914" }}
+            style={{ color: "#0D1117" }}
           >
             A done-for-you business planning service built for founders who are ready to
             move. Fast turnaround. Real plans. No fluff.
@@ -281,7 +317,7 @@ export default function IdeaToPlan() {
             <div key={index} className="text-center">
               <div
                 className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-6"
-                style={{ background: "#FBF6E4", color: "#8B6914" }}
+                style={{ background: "white", color: "#0D1117" }}
               >
                 <step.icon className="w-8 h-8" />
               </div>
@@ -292,23 +328,23 @@ export default function IdeaToPlan() {
         </div>
 
         <div className="mb-8">
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <div
+            ref={cardsRef}
+            className="grid md:grid-cols-3 gap-6 mb-8 rounded-2xl transition-all duration-300"
+            style={pulsing ? { outline: "2px solid #C9A030", outlineOffset: "6px" } : undefined}
+          >
             {/* Starter */}
             <div
-              className={`border-2 rounded-2xl p-6 bg-white shadow-sm flex flex-col card-hover-lift cursor-pointer transition-all ${
+              className={`border rounded-2xl p-6 shadow-sm flex flex-col card-hover-lift cursor-pointer transition-all ${
                 form.planType === "Starter"
-                  ? "ring-1"
-                  : "border-gray-200"
+                  ? "border-[#C9A030]"
+                  : "border-[#E8E4DB] bg-white"
               }`}
-              style={
-                form.planType === "Starter"
-                  ? { borderColor: "#C9A030", background: "#FBF6E4", boxShadow: "0 0 0 1px rgba(201,160,48,0.3)" }
-                  : undefined
-              }
-              onClick={() => setForm((prev) => ({ ...prev, planType: "Starter" }))}
+              style={form.planType === "Starter" ? { background: "#FDFBF4" } : undefined}
+              onClick={() => { setForm((prev) => ({ ...prev, planType: "Starter" })); setPlanSelected(true); }}
             >
               <h3 className="text-xl font-bold text-gray-900 mb-1">Starter</h3>
-              <p className="font-bold text-2xl mb-1" style={{ color: "#8B6914" }}>
+              <p className="font-bold text-2xl mb-1" style={{ color: "#0D1117" }}>
                 $25
               </p>
               <p className="text-sm text-gray-500 mb-4">
@@ -322,7 +358,7 @@ export default function IdeaToPlan() {
                   "Professional PDF delivered in 72 hours",
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <span className="font-bold mt-0.5" style={{ color: "#8B6914" }}>
+                    <span className="font-bold mt-0.5" style={{ color: "#0D1117" }}>
                       ✓
                     </span>
                     {item}
@@ -333,15 +369,13 @@ export default function IdeaToPlan() {
 
             {/* Growth — Most Popular */}
             <div
-              className={`border-2 rounded-2xl p-6 shadow-lg flex flex-col relative card-hover-lift cursor-pointer transition-all ${
-                form.planType === "Growth" ? "ring-1" : ""
+              className={`border rounded-2xl p-6 shadow-sm flex flex-col relative card-hover-lift cursor-pointer transition-all ${
+                form.planType === "Growth"
+                  ? "border-[#C9A030]"
+                  : "border-[#E8E4DB] bg-white"
               }`}
-              style={{
-                borderColor: "#C9A030",
-                background: form.planType === "Growth" ? "#F5EDD0" : "#FBF6E4",
-                boxShadow: form.planType === "Growth" ? "0 0 0 1px rgba(201,160,48,0.5)" : undefined,
-              }}
-              onClick={() => setForm((prev) => ({ ...prev, planType: "Growth" }))}
+              style={form.planType === "Growth" ? { background: "#FDFBF4" } : undefined}
+              onClick={() => { setForm((prev) => ({ ...prev, planType: "Growth" })); setPlanSelected(true); }}
             >
               <div
                 className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-4 py-1 rounded-full"
@@ -350,7 +384,7 @@ export default function IdeaToPlan() {
                 Most Popular
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-1">Growth</h3>
-              <p className="font-bold text-2xl mb-1" style={{ color: "#8B6914" }}>
+              <p className="font-bold text-2xl mb-1" style={{ color: "#0D1117" }}>
                 $50
               </p>
               <p className="text-sm text-gray-500 mb-4">
@@ -364,7 +398,7 @@ export default function IdeaToPlan() {
                   "Viability verdict with go/no-go assessment",
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <span className="font-bold mt-0.5" style={{ color: "#8B6914" }}>
+                    <span className="font-bold mt-0.5" style={{ color: "#0D1117" }}>
                       ✓
                     </span>
                     {item}
@@ -374,8 +408,8 @@ export default function IdeaToPlan() {
             </div>
 
             {/* Visa / Immigration */}
-            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 bg-gray-50/80 shadow-sm flex flex-col relative opacity-95 card-hover-lift">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-100 text-amber-900 text-xs font-bold px-4 py-1 rounded-full border border-amber-200">
+            <div className="border border-dashed border-[#E8E4DB] rounded-2xl p-6 bg-white shadow-sm flex flex-col relative opacity-95 card-hover-lift">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gray-100 text-gray-500 text-xs font-bold px-4 py-1 rounded-full border border-gray-200">
                 Coming soon
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-1">Visa / Immigration</h3>
@@ -400,14 +434,10 @@ export default function IdeaToPlan() {
             </div>
           </div>
 
-          <div className="text-center mb-6">
-            <div className="inline-block bg-amber-50 border border-amber-300 rounded-xl px-6 py-3">
-              <p className="text-amber-800 font-semibold text-sm">
-                Special introductory offer: plans start at $25. Delivered within
-                72 hours, and we walk you through it together.
-              </p>
-            </div>
-          </div>
+          <p className="text-center text-sm font-medium mb-6" style={{ color: "#6B6B66" }}>
+            Special introductory offer: plans start at $25. Delivered within
+            72 hours, and we walk you through it together.
+          </p>
 
           {/* Payment error from failed verification */}
           {paymentError && (
@@ -420,13 +450,13 @@ export default function IdeaToPlan() {
           <div className="text-center">
             {verifying ? (
               <div className="flex flex-col items-center gap-2 py-4">
-                <Loader className="w-6 h-6 animate-spin" style={{ color: "#8B6914" }} />
+                <Loader className="w-6 h-6 animate-spin" style={{ color: "#0D1117" }} />
                 <p className="text-sm text-gray-500">Verifying your payment...</p>
               </div>
             ) : (
               <>
                 <button
-                  onClick={handlePaymentCTA}
+                  onClick={planSelected ? handlePaymentCTA : handleGetStarted}
                   disabled={redirecting}
                   className="px-10 py-4 text-lg font-semibold rounded-lg cta-shimmer shadow-lg flex items-center gap-2 mx-auto disabled:opacity-60"
                   style={GOLD_BUTTON_TEXT_STYLE}
@@ -436,17 +466,22 @@ export default function IdeaToPlan() {
                       <Loader className="w-5 h-5 animate-spin" />
                       Redirecting to payment...
                     </>
-                  ) : (
+                  ) : planSelected ? (
                     <>
-                      Continue to Payment
-                      <span className="text-sm font-normal opacity-75">
-                        ({form.planType === "Visa / Immigration" ? "Starter" : form.planType})
+                      Build My Plan
+                      <span className="font-normal opacity-75">
+                        · {form.planType === "Growth" ? "$50" : "$25"}
                       </span>
                     </>
+                  ) : (
+                    "Build My Plan"
                   )}
                 </button>
-                <p className="text-xs text-gray-400 mt-2">
-                  You&apos;ll complete payment first, then fill in your idea details.
+                <p
+                  className="text-center mt-3 mx-auto"
+                  style={{ color: "#6B6B66", fontSize: "13px", maxWidth: "560px" }}
+                >
+                  After payment: a 3&ndash;5 minute form about your idea (bank loan and investor plans ask for financials), then your plan is delivered within 72 hours, and we schedule your walkthrough call.
                 </p>
               </>
             )}
@@ -461,7 +496,7 @@ export default function IdeaToPlan() {
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div
               className="flex items-center justify-between px-6 py-4 border-b"
-              style={{ borderColor: "#EBD9A0" }}
+              style={{ borderColor: "#E8E4DB" }}
             >
               <div>
                 <h3 className="text-lg font-bold" style={{ color: "#0D1117" }}>
@@ -547,6 +582,21 @@ export default function IdeaToPlan() {
                       <label className="block text-sm font-semibold text-gray-700 mb-1">
                         Describe your business idea <span className="text-red-500">*</span>
                       </label>
+                      {showPrefillNote && (
+                        <div className="flex items-center justify-between mb-2 px-1">
+                          <span className="text-xs" style={{ color: "#6B6B66" }}>
+                            Pre-filled from your assessment match — edit freely.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowPrefillNote(false)}
+                            className="text-xs ml-3 opacity-50 hover:opacity-100 transition-opacity"
+                            style={{ color: "#6B6B66" }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
                       <textarea
                         name="businessIdea"
                         value={form.businessIdea}
@@ -712,8 +762,8 @@ export default function IdeaToPlan() {
                       <div
                         className="space-y-4 rounded-xl p-4"
                         style={{
-                          border: "1px solid #EBD9A0",
-                          background: "#FBF6E4",
+                          border: "1px solid #E8E4DB",
+                          background: "white",
                         }}
                       >
                         <p className="text-sm font-semibold" style={{ color: "#5C4206" }}>
@@ -791,8 +841,8 @@ export default function IdeaToPlan() {
                       <div
                         className="space-y-4 rounded-xl p-4"
                         style={{
-                          border: "1px solid #EBD9A0",
-                          background: "#FBF6E4",
+                          border: "1px solid #E8E4DB",
+                          background: "white",
                         }}
                       >
                         <p className="text-sm font-semibold" style={{ color: "#5C4206" }}>
@@ -873,7 +923,7 @@ export default function IdeaToPlan() {
                       </label>
                       <div
                         className="flex items-center gap-3 px-4 py-3 rounded-lg border"
-                        style={{ borderColor: "#C9A030", background: "#FBF6E4" }}
+                        style={{ borderColor: "#C9A030", background: "white" }}
                       >
                         <span
                           className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"

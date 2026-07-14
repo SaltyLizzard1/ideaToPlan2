@@ -29,7 +29,7 @@ export default function Header() {
     <header
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between"
       style={{
-        background: "linear-gradient(90deg, #0d0d0f 0%, #1d1707 35%, #241c08 50%, #1d1707 65%, #0d0d0f 100%)",
+        background: "#0D1117",
         padding: "0 2rem",
         height: "80px",
       }}
@@ -112,7 +112,7 @@ export default function Header() {
         <div
           className="absolute top-[80px] left-0 right-0 flex flex-col items-center gap-5 py-6 md:hidden"
           style={{
-            background: "#14100a",
+            background: "#0D1117",
           }}
         >
           <div

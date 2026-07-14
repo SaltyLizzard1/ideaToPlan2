@@ -127,7 +127,7 @@ export default function HowItWorks() {
   ];
 
   return (
-    <section ref={sectionRef} className="py-14 px-6 bg-white">
+    <section ref={sectionRef} className="py-14 px-6 bg-[#FDFCF9]">
       <div className="max-w-5xl mx-auto">
 
         {/* Section heading — unchanged */}
@@ -185,23 +185,6 @@ export default function HowItWorks() {
               }}
             />
 
-            {/* ── Vertical connector line (desktop only) ── */}
-            <div
-              aria-hidden="true"
-              className="hidden md:block absolute"
-              style={{
-                left: "calc(50% - 0.5px)",
-                top: "calc(50% + 20px)",
-                width: "1px",
-                height: "calc(50% + 52px)",
-                background: "#C9A030",
-                zIndex: -1,
-                transformOrigin: "top center",
-                transform: revealed ? "scaleY(1)" : "scaleY(0)",
-                transition: prefersReduced ? "none" : "transform 300ms ease-out",
-                transitionDelay: revealed && !prefersReduced ? "800ms" : "0ms",
-              }}
-            />
 
             {steps.map((s, i) => (
               <div
@@ -216,7 +199,7 @@ export default function HowItWorks() {
                   className="font-serif font-bold"
                   style={{
                     fontSize: "clamp(24px, 2.5vw, 30px)",
-                    color: "#8B6914",
+                    color: "#0D1117",
                     marginBottom: "10px",
                     lineHeight: 1,
                   }}
@@ -228,8 +211,8 @@ export default function HowItWorks() {
                 <div
                   className="flex flex-col items-start p-6 rounded-2xl border w-full flex-1"
                   style={{
-                    borderColor: "rgba(201, 160, 48, 0.6)",
-                    background: "#FEFCF5",
+                    borderColor: "#E8E4DB",
+                    background: "white",
                     ...getRevealStyle(i),
                   }}
                 >
@@ -258,32 +241,6 @@ export default function HowItWorks() {
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* ── Button ───────────────────────────────────────────────────── */}
-          <div
-            className="text-center mt-12"
-            style={{ position: "relative", zIndex: 1 }}
-          >
-            <button
-              onClick={() => { window.location.href = "/assessment"; }}
-              className="cta-shimmer gold-border inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-sans font-semibold text-sm cursor-pointer"
-              style={{ color: "#2D1A00" }}
-            >
-              Start the Assessment
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </button>
           </div>
 
         </div>

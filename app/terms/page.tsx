@@ -74,9 +74,7 @@ export default function TermsPage() {
 
           <Section title="5. Delivery and Revisions">
             <p>
-              Standard plans are delivered within 72 hours of submission. Expedited plans
-              (24-hour option, where available) are delivered within 24 hours. Delivery times are
-              estimates and may vary based on order volume.
+              Standard plans are delivered within 72 hours of submission. Faster delivery may be available on request — email us to ask. Delivery times are estimates and may vary based on order volume.
             </p>
             <p>
               If you are not satisfied with your plan, contact us at{' '}
@@ -100,9 +98,8 @@ export default function TermsPage() {
               issue a refund at our discretion.
             </p>
             <p>
-              Refunds are not provided for dissatisfaction with business outcomes, for plans built
-              on inaccurate information you supplied, or for expedited delivery fees once the
-              expedited plan has been delivered. To request a refund, email{' '}
+              Refunds are not provided for dissatisfaction with business outcomes or for plans built
+              on inaccurate information you supplied. To request a refund, email{' '}
               <a
                 href="mailto:ideatoplanincome@gmail.com"
                 className="underline underline-offset-2 text-[#8B6914] hover:opacity-70"

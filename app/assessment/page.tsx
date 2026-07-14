@@ -150,7 +150,7 @@ function Pill({
           ? 'border-[#7A5C0A] shadow-sm bg-[#E8C84A] text-[#2D1A00]'
           : disabled
           ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-          : 'bg-white border-gray-300 text-gray-700 hover:border-[#C9A030] hover:text-[#8B6914] pill-hover-lift',
+          : 'bg-white border-gray-300 text-gray-700 hover:border-[#C9A030] hover:text-[#0D1117] pill-hover-lift',
       ].join(' ')}
     >
       {label}
@@ -232,7 +232,7 @@ function MatchCard({ match, index }: { match: Match; index: number }) {
 
       {match.uniqueAngle && (
         <div className="bg-[#FBF6E4] border border-[#EBD9A0] rounded-lg px-4 py-3 mb-4">
-          <p className="text-xs font-semibold text-[#8B6914] uppercase tracking-wide mb-1">Your unique angle</p>
+          <p className="text-xs font-semibold text-[#0D1117] uppercase tracking-wide mb-1">Your unique angle</p>
           <p className="text-sm text-[#5C4206]">{match.uniqueAngle}</p>
         </div>
       )}
@@ -242,7 +242,7 @@ function MatchCard({ match, index }: { match: Match; index: number }) {
         <ol className="space-y-1">
           {match.firstSteps.map((step, i) => (
             <li key={i} className="flex gap-2 text-sm text-gray-700">
-              <span className="font-bold shrink-0" style={{ color: '#8B6914' }}>{i + 1}.</span>
+              <span className="font-bold shrink-0" style={{ color: '#0D1117' }}>{i + 1}.</span>
               {step}
             </li>
           ))}
@@ -426,7 +426,7 @@ export default function AssessmentPage() {
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Your soft skills</h2>
           <p className="text-gray-500 mb-6 text-sm">
             Pick your top 5.{' '}
-            <span className="font-semibold" style={{ color: '#8B6914' }}>{form.softSkills.length}/5 selected</span>
+            <span className="font-semibold" style={{ color: '#6B6B66' }}>{form.softSkills.length}/5 selected</span>
           </p>
           <div className="flex flex-wrap gap-2">
             {SOFT_SKILLS.map((s) => (
@@ -475,7 +475,7 @@ export default function AssessmentPage() {
           <h2 className="text-2xl font-bold text-gray-900 mb-1">What matters most</h2>
           <p className="text-gray-500 mb-6 text-sm">
             Pick your top 3.{' '}
-            <span className="font-semibold" style={{ color: '#8B6914' }}>{form.values.length}/3 selected</span>
+            <span className="font-semibold" style={{ color: '#6B6B66' }}>{form.values.length}/3 selected</span>
           </p>
           <div className="flex flex-wrap gap-2">
             {VALUES.map((v) => (
@@ -548,7 +548,7 @@ export default function AssessmentPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center max-w-sm w-full">
-          <Loader2 className="w-10 h-10 animate-spin mx-auto mb-6" style={{ color: '#8B6914' }} />
+          <Loader2 className="w-10 h-10 animate-spin mx-auto mb-6" style={{ color: '#0D1117' }} />
           <p className="text-lg font-semibold text-gray-800 transition-all duration-500 min-h-[3.5rem] flex items-center justify-center">
             {LOADING_MESSAGES[loadingMsgIndex]}
           </p>
@@ -639,9 +639,18 @@ export default function AssessmentPage() {
                 Turn it into a full business plan: market research, revenue model, 90-day action plan, and more.
               </p>
               <a
-                href="/"
+                href="/#pricing"
                 className="inline-block px-8 py-3 font-semibold rounded-lg cta-shimmer"
                 style={GOLD_BUTTON_STYLE}
+                onClick={() => {
+                  try {
+                    sessionStorage.setItem('i2p_prefill_idea', JSON.stringify({
+                      title: matches[0].title,
+                      description: matches[0].description,
+                      uniqueAngle: matches[0].uniqueAngle,
+                    }));
+                  } catch {}
+                }}
               >
                 Turn this into a business plan →
               </a>

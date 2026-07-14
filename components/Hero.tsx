@@ -22,7 +22,7 @@ export default function Hero() {
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 80% 60% at 50% 30%, rgba(197,152,28,0.11) 0%, transparent 65%)",
+            "radial-gradient(ellipse 80% 60% at 50% 30%, rgba(197,152,28,0.04) 0%, transparent 65%)",
         }}
       />
       <div
@@ -33,7 +33,7 @@ export default function Hero() {
           transform: "translateX(-50%)",
           width: "600px",
           height: "300px",
-          background: "radial-gradient(ellipse, rgba(245,208,32,0.07) 0%, transparent 70%)",
+          background: "radial-gradient(ellipse, rgba(245,208,32,0.02) 0%, transparent 70%)",
           filter: "blur(40px)",
         }}
       />
