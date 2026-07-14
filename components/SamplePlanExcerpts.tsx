@@ -25,32 +25,32 @@ const SAMPLE_PAGES: SamplePage[] = [
     lines: [
       {
         k: "p",
-        text: "A location-independent food media business with three revenue streams: paid newsletter, live virtual cooking workshops, and digital cookbooks. Runs on a laptop, a camera, and a rentable kitchen.",
+        text: "What this business sells is clarity and momentum. QYLAT earns trust with honest content and free tools - a Runway Calculator and Skills Assessment. IdeaToPlan converts that trust into action: roadmaps, loan requests, investor pitches.",
       },
       {
         k: "stats",
-        text: "Startup: $3,200 · Break-even: Month 5 · Year 1 target: $48,000",
+        text: "Stage: pre-revenue · Budget: under $5,000 · First sale target: Day 60",
       },
     ],
   },
   {
-    id: "roadmap",
-    title: "90-Day Roadmap",
+    id: "market",
+    title: "Market Fit",
     lines: [
       {
         k: "labeled",
-        label: "Days 1–30:",
-        text: "LLC via registered agent · Substack + Stripe live · 8 free recipe stories published",
+        label: "The gap:",
+        text: "the market is crowded at the inspiration level but thin at the execution level. Most content stops at \"you can do it.\"",
       },
       {
         k: "labeled",
-        label: "Days 31–60:",
-        text: "Skills Assessment live · first traffic channel running · 3-email welcome sequence",
+        label: "Saturation score: 6/10.",
+        text: "179 competitors in life coaching, but no named competitor occupies the execution lane - tools that produce real documents.",
       },
       {
         k: "labeled",
-        label: "Days 61–90:",
-        text: "$19 digital mini-cookbook · Decision point: double down on highest-margin stream",
+        label: "The lead content competitor",
+        text: "tops out at 12,300 monthly visits. Not insurmountable.",
       },
     ],
   },
@@ -61,37 +61,36 @@ const SAMPLE_PAGES: SamplePage[] = [
       {
         k: "labeled",
         label: "S:",
-        text: "Zero inventory, zero location costs. Travel generates the content.",
+        text: "Lived credibility; a two-site funnel where each site has one clear job",
       },
-      { k: "labeled", label: "W:", text: "No audience at launch" },
-      { k: "labeled", label: "O:", text: "Every destination is a new content season" },
-      { k: "labeled", label: "T:", text: "Platform dependency, crowded niche" },
-      { k: "verdict", prefix: "Viability verdict: ", emphasis: "GO" },
+      { k: "labeled", label: "W:", text: "Zero audience at launch; solo operator bandwidth" },
+      { k: "labeled", label: "O:", text: "The execution gap is unoccupied; early SEO compounds over 6-12 months" },
+      { k: "labeled", label: "T:", text: "Funded platforms ($27.7M raised) could pivot in; new entrants already in market" },
+      { k: "verdict", prefix: "Viability verdict: ", emphasis: "VIABLE" },
     ],
   },
   {
-    id: "implementation",
-    title: "Implementation Suggestions",
+    id: "action",
+    title: "90-Day Action Plan",
     lines: [
       {
         k: "labeled",
-        label: "Start here:",
-        text: "Register the LLC and open a business bank account before anything else. One afternoon, done remotely.",
+        label: "Days 1-30:",
+        text: "Publish the honest posts · Runway Calculator live · email list from Day 1",
       },
       {
         k: "labeled",
-        label: "Tools:",
-        text: "Substack (newsletter) · Stripe (payments) · Zoom (workshops). All free to start.",
+        label: "Days 31-60:",
+        text: "Build the roadmap tool · launch to the waitlist · goal: first sale",
       },
       {
         k: "labeled",
-        label: "First win:",
-        text: "Publish before you're ready. Story #1 builds the audience that buys everything after",
+        label: "Days 61-90:",
+        text: "Interview first buyers · 100 subscribers · publish an honest 90-day retrospective",
       },
       {
-        k: "labeled",
-        label: "Avoid:",
-        text: "Building a custom website first. Validate with the newsletter, upgrade later.",
+        k: "stats",
+        text: "The tool is what you sell. The list is the business.",
       },
     ],
   },
@@ -236,52 +235,13 @@ export default function SamplePlanExcerpts() {
     >
       <div className="max-w-4xl mx-auto">
 
-        {/* Founder preface */}
-        <div className="text-center mb-16 max-w-2xl mx-auto">
-          <p
-            className="font-sans text-xs uppercase tracking-[0.2em] mb-5"
-            style={{ color: "#C9A030" }}
-          >
-            Who This Is For
-          </p>
-          <h2
-            className="font-serif font-bold mb-6"
-            style={{
-              color: "#FBF6E3",
-              fontSize: "clamp(1.6rem, 3.5vw, 2.6rem)",
-              lineHeight: 1.2,
-            }}
-          >
-            Most people know what they want.<br className="hidden sm:block" />{" "}
-            I talk to people who don&apos;t.
-          </h2>
-          <p
-            className="font-sans text-base leading-relaxed mb-8"
-            style={{ color: "#cfc9b8", maxWidth: "600px", margin: "0 auto 2rem" }}
-          >
-            If you&apos;re still figuring out whether change is even possible for you, you&apos;re exactly who this was built for. No business background required, no idea required — that&apos;s what the assessment is for.
-          </p>
-          <div className="font-sans text-sm" style={{ color: "#a89f8a" }}>
-            <p>I built IdeaToPlan using IdeaToPlan. The sample plan below is my own.</p>
-            <p
-              className="font-serif italic mt-1"
-              style={{ color: "#FBF6E3", fontSize: "0.95rem" }}
-            >
-              — Elizabeth, Founder
-            </p>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div style={{ height: "1px", background: "rgba(201,160,48,0.15)", marginBottom: "3rem" }} />
-
         {/* Section heading */}
         <div className="text-center mb-14">
           <p
             className="font-sans text-xs uppercase tracking-[0.2em] mb-3"
             style={{ color: "#C9A030" }}
           >
-            Sample Output
+            The Proof
           </p>
           <h3
             className="font-serif font-bold text-3xl sm:text-4xl mb-3"
@@ -290,7 +250,7 @@ export default function SamplePlanExcerpts() {
             Inside Every Plan
           </h3>
           <p className="font-sans text-base" style={{ color: "#cfc9b8" }}>
-            An excerpt from a Growth plan: structured, specific, and ready to act on.
+            Real pages from a real plan: structured, specific, and ready to act on.
           </p>
         </div>
 
@@ -353,19 +313,21 @@ export default function SamplePlanExcerpts() {
                 {/* Content lines */}
                 <div>{page.lines.map((line, i) => renderLine(line, i))}</div>
 
-                {/* Bottom fade — masks overflow content */}
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: "36px",
-                    background: "linear-gradient(to bottom, transparent, white)",
-                    borderRadius: "0 0 12px 12px",
-                    pointerEvents: "none",
-                  }}
-                />
+                {/* Bottom fade — mobile only, where full text can never fit */}
+                {isMobile && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: "36px",
+                      background: "linear-gradient(to bottom, transparent, white)",
+                      borderRadius: "0 0 12px 12px",
+                      pointerEvents: "none",
+                    }}
+                  />
+                )}
               </div>
             );
           })}
@@ -376,11 +338,50 @@ export default function SamplePlanExcerpts() {
           className="text-center font-sans text-xs mt-10"
           style={{ color: "#a89f8a" }}
         >
-          Excerpt from a sample Growth plan&nbsp;&nbsp;·&nbsp;&nbsp;Hover or tap to explore
+          Excerpts from the founder&apos;s own Growth plan&nbsp;&nbsp;·&nbsp;&nbsp;Hover or tap to explore
         </p>
 
+        {/* Divider */}
+        <div style={{ height: "1px", background: "rgba(201,160,48,0.15)", margin: "3rem 0" }} />
+
+        {/* Founder signature block */}
+        <div className="text-center mt-4 mb-12 max-w-2xl mx-auto">
+          <p
+            className="font-sans text-xs uppercase tracking-[0.2em] mb-5"
+            style={{ color: "#C9A030" }}
+          >
+            Who This Is For
+          </p>
+          <h2
+            className="font-serif font-bold mb-6"
+            style={{
+              color: "#FBF6E3",
+              fontSize: "clamp(1.4rem, 3vw, 2.2rem)",
+              lineHeight: 1.2,
+            }}
+          >
+            Most people know what they want.<br className="hidden sm:block" />{" "}
+            I talk to people who don&apos;t.
+          </h2>
+          <p
+            className="font-sans text-base leading-relaxed mb-8"
+            style={{ color: "#cfc9b8", maxWidth: "600px", margin: "0 auto 2rem" }}
+          >
+            If you&apos;re still figuring out whether change is even possible for you, you&apos;re exactly who this was built for. No business background required, no idea required - that&apos;s what the assessment is for.
+          </p>
+          <div className="font-sans text-sm" style={{ color: "#a89f8a" }}>
+            <p>I built IdeaToPlan using IdeaToPlan. The plan above is my own.</p>
+            <p
+              className="font-serif italic mt-1"
+              style={{ color: "#FBF6E3", fontSize: "0.95rem" }}
+            >
+              - Elizabeth, Founder
+            </p>
+          </div>
+        </div>
+
         {/* CTA */}
-        <div className="text-center mt-10">
+        <div className="text-center mt-4">
           <a
             href="/assessment"
             className="cta-shimmer gold-border inline-flex items-center gap-2 px-8 py-4 rounded-full font-sans font-semibold text-base cursor-pointer"

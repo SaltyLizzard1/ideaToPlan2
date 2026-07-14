@@ -102,6 +102,11 @@ const PLAN_OPTIONS: PlanOption[] = [
   },
 ];
 
+const STRIPE_LINKS: Record<string, string> = {
+  Starter: "https://buy.stripe.com/7sY00kb2Hf7ugmb6J4b7y02",
+  Growth: "https://buy.stripe.com/7sY28s8UzaRe9XN3wSb7y03",
+};
+
 const GOLD_GRADIENT =
   "linear-gradient(135deg, #6B4C08 0%, #C9A030 35%, #F5D020 60%, #E8C84A 80%, #6B4C08 100%)";
 
@@ -119,22 +124,50 @@ const GOLD_BUTTON_TEXT_STYLE = {
 const INPUT_CLASS =
   "w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9A030] transition";
 
-export default function IdeaToPlan({
-  prefillIdea,
-}: {
-  prefillIdea?: string;
-}) {
+export default function IdeaToPlan() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FormData>(initialForm);
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [stripeSessionId, setStripeSessionId] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
 
+  // On return from Stripe, verify the session and open the modal
   useEffect(() => {
-    if (prefillIdea) {
-      setForm((prev) => ({ ...prev, businessIdea: prefillIdea }));
-      setShowForm(true);
-    }
-  }, [prefillIdea]);
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    if (!sessionId) return;
+
+    setVerifying(true);
+    fetch("/api/verify-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.paid) {
+          setStripeSessionId(sessionId);
+          setForm((prev) => ({
+            ...prev,
+            planType: data.planType ?? prev.planType,
+            email: prev.email || data.email || "",
+          }));
+          setShowForm(true);
+          history.replaceState(null, "", window.location.pathname);
+        } else {
+          setPaymentError(
+            "Payment could not be verified. Please try again or contact support."
+          );
+        }
+      })
+      .catch(() => {
+        setPaymentError("Payment verification failed. Please try again.");
+      })
+      .finally(() => setVerifying(false));
+  }, []);
 
   const processSteps = [
     {
@@ -179,7 +212,7 @@ export default function IdeaToPlan({
       await fetch("/api/submit-idea", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, stripeSessionId }),
       });
       setStatus("success");
       setForm(initialForm);
@@ -188,6 +221,14 @@ export default function IdeaToPlan({
       setErrorMsg("Something went wrong. Please try again or email us directly.");
       setStatus("error");
     }
+  };
+
+  const handlePaymentCTA = () => {
+    const plan =
+      form.planType === "Visa / Immigration" ? "Starter" : form.planType;
+    const link = STRIPE_LINKS[plan] ?? STRIPE_LINKS["Starter"];
+    setRedirecting(true);
+    window.location.href = link;
   };
 
   const isDirty = () =>
@@ -253,7 +294,19 @@ export default function IdeaToPlan({
         <div className="mb-8">
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             {/* Starter */}
-            <div className="border-2 border-gray-200 rounded-2xl p-6 bg-white shadow-sm flex flex-col card-hover-lift">
+            <div
+              className={`border-2 rounded-2xl p-6 bg-white shadow-sm flex flex-col card-hover-lift cursor-pointer transition-all ${
+                form.planType === "Starter"
+                  ? "ring-1"
+                  : "border-gray-200"
+              }`}
+              style={
+                form.planType === "Starter"
+                  ? { borderColor: "#C9A030", background: "#FBF6E4", boxShadow: "0 0 0 1px rgba(201,160,48,0.3)" }
+                  : undefined
+              }
+              onClick={() => setForm((prev) => ({ ...prev, planType: "Starter" }))}
+            >
               <h3 className="text-xl font-bold text-gray-900 mb-1">Starter</h3>
               <p className="font-bold text-2xl mb-1" style={{ color: "#8B6914" }}>
                 $25
@@ -280,8 +333,15 @@ export default function IdeaToPlan({
 
             {/* Growth — Most Popular */}
             <div
-              className="border-2 rounded-2xl p-6 shadow-lg flex flex-col relative card-hover-lift"
-              style={{ borderColor: "#C9A030", background: "#FBF6E4" }}
+              className={`border-2 rounded-2xl p-6 shadow-lg flex flex-col relative card-hover-lift cursor-pointer transition-all ${
+                form.planType === "Growth" ? "ring-1" : ""
+              }`}
+              style={{
+                borderColor: "#C9A030",
+                background: form.planType === "Growth" ? "#F5EDD0" : "#FBF6E4",
+                boxShadow: form.planType === "Growth" ? "0 0 0 1px rgba(201,160,48,0.5)" : undefined,
+              }}
+              onClick={() => setForm((prev) => ({ ...prev, planType: "Growth" }))}
             >
               <div
                 className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-4 py-1 rounded-full"
@@ -349,22 +409,47 @@ export default function IdeaToPlan({
             </div>
           </div>
 
+          {/* Payment error from failed verification */}
+          {paymentError && (
+            <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4 mb-4 max-w-lg mx-auto">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-red-700 text-sm">{paymentError}</p>
+            </div>
+          )}
+
           <div className="text-center">
-            <button
-              onClick={() => {
-                setForm((prev) => ({
-                  ...prev,
-                  planType:
-                    prev.planType === "Visa / Immigration" ? "Starter" : prev.planType,
-                  planGoal: prev.planGoal === "visa" ? "" : prev.planGoal,
-                }));
-                setShowForm(true);
-              }}
-              className="px-10 py-4 text-lg font-semibold rounded-lg cta-shimmer shadow-lg"
-              style={GOLD_BUTTON_TEXT_STYLE}
-            >
-              Share Your Idea
-            </button>
+            {verifying ? (
+              <div className="flex flex-col items-center gap-2 py-4">
+                <Loader className="w-6 h-6 animate-spin" style={{ color: "#8B6914" }} />
+                <p className="text-sm text-gray-500">Verifying your payment...</p>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={handlePaymentCTA}
+                  disabled={redirecting}
+                  className="px-10 py-4 text-lg font-semibold rounded-lg cta-shimmer shadow-lg flex items-center gap-2 mx-auto disabled:opacity-60"
+                  style={GOLD_BUTTON_TEXT_STYLE}
+                >
+                  {redirecting ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      Redirecting to payment...
+                    </>
+                  ) : (
+                    <>
+                      Continue to Payment
+                      <span className="text-sm font-normal opacity-75">
+                        ({form.planType === "Visa / Immigration" ? "Starter" : form.planType})
+                      </span>
+                    </>
+                  )}
+                </button>
+                <p className="text-xs text-gray-400 mt-2">
+                  You&apos;ll complete payment first, then fill in your idea details.
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -401,11 +486,11 @@ export default function IdeaToPlan({
                     style={{ color: "#C9A030" }}
                   />
                   <h3 className="text-2xl font-bold mb-3" style={{ color: "#0D1117" }}>
-                    We&apos;ve got your idea!
+                    You&apos;re in the queue!
                   </h3>
                   <p className="text-gray-600 mb-2">
-                    Expect a message within 48 hours. We&apos;ll build your plan, walk you
-                    through it, and go from there.
+                    Payment received and idea submitted — your plan is in the queue.
+                    Delivery within 72 hours.
                   </p>
                   <p className="text-gray-500 text-sm">
                     Check your inbox and spam, just in case.
@@ -781,76 +866,31 @@ export default function IdeaToPlan({
                       </div>
                     )}
 
+                    {/* Plan locked to paid tier */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Plan type <span className="text-red-500">*</span>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        Plan type
                       </label>
-                      <p className="text-xs text-gray-500 mb-3">
-                        Delivered within 72 hours. Expedited 48-hour delivery is available.
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {PLAN_OPTIONS.map((opt) =>
-                          opt.comingSoon ? (
-                            <div
-                              key={opt.value}
-                              className="flex flex-col border-2 border-dashed border-gray-300 rounded-xl p-4 text-left h-full bg-gray-50 cursor-not-allowed opacity-90"
-                              aria-disabled="true"
-                            >
-                              <span className="self-start text-[10px] font-bold uppercase tracking-wide text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200 mb-2">
-                                Coming soon
-                              </span>
-                              <span className="font-bold text-gray-800 text-sm leading-tight">
-                                {opt.title}
-                              </span>
-                              <span className="text-gray-500 font-bold text-lg mt-1">
-                                {opt.price}
-                              </span>
-                              <p className="text-xs text-gray-500 mt-2 leading-relaxed flex-1">
-                                {opt.description}
-                              </p>
-                            </div>
-                          ) : (
-                            <label
-                              key={opt.value}
-                              className={`flex flex-col cursor-pointer border-2 rounded-xl p-4 text-left transition-all h-full card-hover-lift ${
-                                form.planType === opt.value
-                                  ? "ring-1"
-                                  : "border-gray-200 bg-white"
-                              }`}
-                              style={
-                                form.planType === opt.value
-                                  ? {
-                                      borderColor: "#C9A030",
-                                      background: "#FBF6E4",
-                                      boxShadow: "0 0 0 1px rgba(201,160,48,0.3)",
-                                    }
-                                  : undefined
-                              }
-                            >
-                              <input
-                                type="radio"
-                                name="planType"
-                                value={opt.value}
-                                checked={form.planType === opt.value}
-                                onChange={handleChange}
-                                className="sr-only"
-                              />
-                              <span className="font-bold text-gray-900 text-sm leading-tight">
-                                {opt.title}
-                              </span>
-                              <span
-                                className="font-bold text-lg mt-1"
-                                style={{ color: "#8B6914" }}
-                              >
-                                {opt.price}
-                              </span>
-                              <p className="text-xs text-gray-600 mt-2 leading-relaxed flex-1">
-                                {opt.description}
-                              </p>
-                            </label>
-                          )
-                        )}
+                      <div
+                        className="flex items-center gap-3 px-4 py-3 rounded-lg border"
+                        style={{ borderColor: "#C9A030", background: "#FBF6E4" }}
+                      >
+                        <span
+                          className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                          style={{ background: GOLD_GRADIENT, color: "#2D1A00" }}
+                        >
+                          Paid
+                        </span>
+                        <span className="font-semibold text-sm text-gray-800">
+                          {form.planType}
+                        </span>
+                        <span className="text-xs text-gray-500 ml-auto">
+                          {PLAN_OPTIONS.find((p) => p.value === form.planType)?.price}
+                        </span>
                       </div>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Locked to your payment. Contact us to change plans.
+                      </p>
                     </div>
 
                     <button
@@ -870,8 +910,7 @@ export default function IdeaToPlan({
                     </button>
 
                     <p className="text-center text-xs text-gray-400">
-                      We&apos;ll be in touch within 48 hours to review your
-                      plan together.
+                      Your plan will be delivered within 72 hours. We&apos;ll reach out to schedule your walkthrough call.
                     </p>
                   </form>
                 </>

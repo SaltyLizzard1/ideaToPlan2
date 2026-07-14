@@ -643,7 +643,7 @@ export default function AssessmentPage() {
                 className="inline-block px-8 py-3 font-semibold rounded-lg cta-shimmer"
                 style={GOLD_BUTTON_STYLE}
               >
-                Get your free business plan →
+                Turn this into a business plan →
               </a>
             </div>
           )}
