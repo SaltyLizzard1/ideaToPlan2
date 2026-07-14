@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
+import ShareButtons from '../../components/ShareButtons';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -284,6 +285,7 @@ export default function AssessmentPage() {
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [resultId, setResultId] = useState<string | undefined>(undefined);
   const [error, setError] = useState('');
 
   const [email, setEmail] = useState('');
@@ -368,6 +370,7 @@ export default function AssessmentPage() {
       if (!parsed.length) throw new Error('No matches returned');
 
       setMatches(parsed);
+      if (data.resultId) setResultId(data.resultId);
       setStage('results');
     } catch (err) {
       console.error('Assessment error:', err);
@@ -568,6 +571,9 @@ export default function AssessmentPage() {
 
   if (stage === 'results' || stage === 'unlocked') {
     const locked = stage === 'results';
+    const top3 = matches.slice(0, 3).map((m, i) => `${i + 1}. ${m.title}`).join('\n');
+    const more = matches.length > 3 ? `…and ${matches.length - 3} more.` : '';
+    const shareText = `${String.fromCodePoint(0x2728)} I took the 5-minute IdeaToPlan business assessment. My top matches:\n${top3}\n${more}\n${String.fromCodePoint(0x1F4AB)} Find yours:`;
 
     return (
       <div className="min-h-screen bg-gray-50">
@@ -579,10 +585,20 @@ export default function AssessmentPage() {
             <ArrowLeft className="w-4 h-4" /> Back to IdeaToPlan
           </a>
 
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Your online work matches</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">What You're Built to Do</h1>
           <p className="text-gray-500 mb-8 text-sm">
             Based on your skills, values, and lifestyle goals: here are your top 7 paths.
           </p>
+
+          {resultId && (
+            <div className="mb-8">
+              <ShareButtons
+                url="https://ideatoplan.to/assessment"
+                title="My Business Matches"
+                text={shareText}
+              />
+            </div>
+          )}
 
           <div className="mb-4">
             <MatchCard match={matches[0]} index={0} />
