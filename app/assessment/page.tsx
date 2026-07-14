@@ -222,7 +222,7 @@ function MatchCard({ match, index }: { match: Match; index: number }) {
 
       <p className="text-gray-700 mb-3 leading-relaxed">{match.description}</p>
 
-      <p className="text-sm italic text-emerald-700 mb-4 bg-emerald-50 rounded-lg px-4 py-2">
+      <p className="text-sm italic border-l-2 pl-4 mb-4" style={{ borderColor: 'var(--i2p-gold)', color: 'var(--i2p-ink)' }}>
         {match.whyYou}
       </p>
 
@@ -576,21 +576,61 @@ export default function AssessmentPage() {
     const shareText = `${String.fromCodePoint(0x2728)} I took the 5-minute IdeaToPlan business assessment. My top matches:\n${top3}\n${more}\n${String.fromCodePoint(0x1F4AB)} Find yours:`;
 
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div ref={topRef} className="max-w-2xl mx-auto px-4 py-10">
-          <a
-            href="/"
-            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-6"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back to IdeaToPlan
-          </a>
+      <div className="min-h-screen" style={{ background: 'var(--i2p-cream)' }}>
+        <div
+          className="relative overflow-hidden"
+          style={{
+            background: 'linear-gradient(180deg, var(--i2p-dark) 0%, #17140c 65%, #17140c 100%)',
+            padding: '3rem 1.5rem 5rem',
+          }}
+        >
+          <div
+            className="pointer-events-none absolute"
+            style={{
+              top: 0,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '640px',
+              height: '400px',
+              background: 'radial-gradient(ellipse, rgba(232,200,74,0.16) 0%, transparent 70%)',
+            }}
+          />
+          <div ref={topRef} className="relative max-w-2xl mx-auto scroll-mt-24">
+            <a
+              href="/"
+              className="inline-flex items-center gap-1 text-sm mb-8 transition-opacity hover:opacity-80"
+              style={{ color: 'var(--i2p-text-on-dark-dim)' }}
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to IdeaToPlan
+            </a>
+            <div className="text-center">
+              <p
+                className="mb-4 font-bold uppercase"
+                style={{ color: 'var(--i2p-gold)', fontSize: '0.78rem', letterSpacing: '0.15em' }}
+              >
+                YOUR ASSESSMENT · RESULTS
+              </p>
+              <h1
+                className="font-serif mb-3"
+                style={{
+                  fontWeight: 700,
+                  fontSize: 'clamp(2rem, 5vw, 3rem)',
+                  color: 'var(--i2p-text-on-dark)',
+                  lineHeight: 1.15,
+                }}
+              >
+                What You&apos;re Built to Do
+              </h1>
+              <p className="text-sm" style={{ color: 'var(--i2p-text-on-dark-body)' }}>
+                Based on your skills, values, and lifestyle goals: here are your top 7 paths.
+              </p>
+            </div>
+          </div>
+        </div>
 
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">What You're Built to Do</h1>
-          <p className="text-gray-500 mb-8 text-sm">
-            Based on your skills, values, and lifestyle goals: here are your top 7 paths.
-          </p>
+        <div className="relative z-10 max-w-2xl mx-auto px-4 pb-16" style={{ marginTop: '-2.75rem' }}>
 
-          {resultId && (
+          {!locked && resultId && (
             <div className="mb-8">
               <ShareButtons
                 url="https://ideatoplan.to/assessment"
@@ -647,8 +687,8 @@ export default function AssessmentPage() {
           </div>
 
           {!locked && (
-            <div className="mt-10 bg-emerald-50 rounded-2xl p-8 text-center border border-emerald-100">
-              <p className="text-lg font-bold text-emerald-900 mb-2">
+            <div className="mt-10 rounded-2xl p-8 text-center" style={{ background: '#FBF6E4', border: '1px solid #EBD9A0' }}>
+              <p className="text-lg font-bold mb-2" style={{ color: 'var(--i2p-ink)' }}>
                 Ready to build a business around your top match?
               </p>
               <p className="text-sm text-gray-600 mb-5">

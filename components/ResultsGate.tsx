@@ -148,9 +148,21 @@ export default function ResultsGate({ matches, canonicalUrl }: { matches: Match[
         {!unlocked && (
           <div className="absolute inset-0 flex items-start justify-center pt-8">
             <div className="rounded-2xl shadow-xl p-8 mx-4 w-full max-w-md text-center" style={{ background: 'var(--i2p-cream)', border: '1px solid var(--i2p-cream-border)' }}>
-              <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--i2p-ink)' }}>Unlock the full results</h3>
-              <p className="text-sm mb-6" style={{ color: 'var(--i2p-ink-dim)' }}>
-                Enter your email to reveal all matches. No spam, unsubscribe any time.
+              <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--i2p-ink)' }}>
+                Someone shared their matches with you
+              </h3>
+              <p className="text-sm mb-5" style={{ color: 'var(--i2p-ink-dim)' }}>
+                Their #1 match is above. Curious what you&apos;re built to do?
+              </p>
+              <a
+                href="/assessment"
+                className="gold-gradient block w-full py-3 font-semibold rounded-lg transition-all hover:brightness-105 mb-4"
+                style={GOLD_BUTTON_STYLE}
+              >
+                Take the Free Assessment →
+              </a>
+              <p className="text-xs mb-3" style={{ color: 'var(--i2p-ink-dim)' }}>
+                Or enter your email to see the rest of their matches:
               </p>
               <form onSubmit={submitEmail} className="space-y-3">
                 <input
