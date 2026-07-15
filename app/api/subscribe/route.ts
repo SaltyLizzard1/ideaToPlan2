@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit, clientIp } from '../../../lib/rateLimit';
 
 export async function POST(req: NextRequest) {
   try {
     const { email } = await req.json();
+    const allowed = await checkRateLimit(`subscribe:${clientIp(req)}`, 10, 3600);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      );
+    }
 
     const formId = process.env.KIT_QUIZ_FORM_ID;
     const apiKey = process.env.KIT_API_KEY;

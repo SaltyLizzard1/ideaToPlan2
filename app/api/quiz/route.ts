@@ -1,8 +1,17 @@
+import { checkRateLimit, clientIp } from '../../../lib/rateLimit';
+
 export const maxDuration = 180;
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    const allowed = await checkRateLimit(`quiz:${clientIp(req)}`, 5, 3600);
+    if (!allowed) {
+      return Response.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      );
+    }
     const webhookUrl = process.env.N8N_QUIZ_WEBHOOK_URL;
     if (!webhookUrl) {
       return Response.json({ error: 'Webhook not configured' }, { status: 500 });
