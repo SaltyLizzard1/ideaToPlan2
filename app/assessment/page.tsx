@@ -633,7 +633,7 @@ export default function AssessmentPage() {
           {!locked && resultId && (
             <div className="mb-8">
               <ShareButtons
-                url="https://ideatoplan.to/assessment"
+                url={`https://ideatoplan.to/results/${resultId}`}
                 title="My Business Matches"
                 text={shareText}
               />
