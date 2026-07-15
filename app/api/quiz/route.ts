@@ -40,8 +40,31 @@ export async function POST(req: Request) {
 
     const matches = Array.isArray(data) ? data : (data as Record<string, unknown>).matches ?? (data as Record<string, unknown>).result ?? [];
 
+    // Validate shape and size before persisting: array of ≤10 objects, string fields, capped length
+    const isValidMatch = (m: unknown): boolean => {
+      if (typeof m !== 'object' || m === null) return false;
+      const obj = m as Record<string, unknown>;
+      if (typeof obj.title !== 'string' || obj.title.length === 0 || obj.title.length > 300) return false;
+      const stringFields = ['category', 'description', 'whyYou', 'saturation', 'saturationNote', 'uniqueAngle', 'incomeRange'];
+      for (const f of stringFields) {
+        if (obj[f] !== undefined && (typeof obj[f] !== 'string' || (obj[f] as string).length > 5000)) return false;
+      }
+      if (obj.firstSteps !== undefined) {
+        if (!Array.isArray(obj.firstSteps) || obj.firstSteps.length > 20) return false;
+        if (!obj.firstSteps.every((s) => typeof s === 'string' && s.length <= 2000)) return false;
+      }
+      return true;
+    };
+
+    const safeToStore =
+      Array.isArray(matches) &&
+      matches.length > 0 &&
+      matches.length <= 10 &&
+      matches.every(isValidMatch);
+
     let resultId: string | undefined;
     try {
+      if (!safeToStore) throw new Error('Matches failed validation — skipping persistence');
       const { supabase } = await import('../../../lib/supabase');
       const id = crypto.randomUUID().replace(/-/g, '').slice(0, 12);
       const { error } = await supabase.from('quiz_results').insert({ id, matches, site: 'i2p' });

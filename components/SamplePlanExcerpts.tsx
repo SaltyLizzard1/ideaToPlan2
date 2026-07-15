@@ -225,6 +225,7 @@ export default function SamplePlanExcerpts() {
 
   return (
     <section
+      id="sample-plan"
       className="py-16 px-6"
       style={{
         background: "#0D1117",
