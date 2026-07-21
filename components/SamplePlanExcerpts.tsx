@@ -226,12 +226,13 @@ export default function SamplePlanExcerpts() {
   return (
     <section
       id="sample-plan"
-      className="py-16 px-6"
+      className="pt-14 pb-16 px-6"
       style={{
         background: "#0D1117",
         backgroundImage:
           "radial-gradient(circle, rgba(201,160,48,0.06) 1px, transparent 1px)",
         backgroundSize: "32px 32px",
+        scrollMarginTop: "80px",
       }}
     >
       <div className="max-w-4xl mx-auto">

@@ -23,7 +23,7 @@ export default function Header() {
     } else {
       window.location.href = "/#assessment";
     }
-    setMenuOpen(true);
+    setMenuOpen(false);
   };
 
   return (
@@ -78,7 +78,7 @@ export default function Header() {
           boxShadow: "0 8px 32px rgba(139,105,20,0.35)",
         }}
       >
-        Take the Assessment
+        Start My Assessment
       </button>
 
       {/* Mobile hamburger */}
@@ -146,7 +146,7 @@ export default function Header() {
               boxShadow: "0 8px 32px rgba(139,105,20,0.35)",
             }}
           >
-            Take the Assessment
+            Start My Assessment
           </button>
         </div>
       )}

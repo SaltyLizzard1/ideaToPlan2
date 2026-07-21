@@ -57,7 +57,7 @@ export default function Hero() {
             textShadow: "0 0 20px rgba(201,160,48,0.4)",
           }}
         >
-          Skills Assessment&nbsp;&nbsp;<span style={{ color: "#F5D020" }}>•</span>&nbsp;&nbsp;Business Matching&nbsp;&nbsp;<span style={{ color: "#F5D020" }}>•</span>&nbsp;&nbsp;Professional Plans
+          Free Skills Assessment
         </p>
 
         {/* Headline */}
@@ -84,46 +84,8 @@ export default function Hero() {
             marginTop: "-8px",
           }}
         >
-          A 5-minute assessment matches your skills and experience to 7 viable business ideas.
-          <br />
-          Choose one, and we build the plan: strategy, financials, and next steps, ready for investors or your bank.
+          A 5-minute assessment shows you seven businesses you&apos;re actually built to run.
         </p>
-
-        {/* Feature bullets — card style */}
-        <div
-          className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 font-sans"
-          style={{ fontSize: "clamp(0.8rem, 1.1vw, 0.875rem)" }}
-        >
-          {[
-            "Personalized matches that actually fit you",
-            "Full business plan with strategy, financials & next steps",
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-2"
-              style={{
-                background: "rgba(201,160,48,0.06)",
-                border: "1px solid rgba(201,160,48,0.18)",
-                borderRadius: "8px",
-                padding: "8px 14px",
-                color: "#E5E7EB",
-              }}
-            >
-              <span style={{ color: "#C9A030", fontSize: "0.8rem" }}>✓</span>
-              {item}
-            </div>
-          ))}
-        </div>
-
-        {/* Delivery line */}
-        <div
-          className="flex flex-row flex-wrap justify-center gap-x-4 gap-y-1 font-sans"
-          style={{ fontSize: "clamp(0.7rem, 1vw, 0.8rem)", color: "#C9A030", letterSpacing: "0.02em" }}
-        >
-          <span>⚡ 72-hour delivery guarantee</span>
-          <span style={{ color: "#374151" }}>·</span>
-          <span>✦ Human-reviewed plans</span>
-        </div>
 
         {/* CTA block */}
         <div className="flex flex-col items-center" style={{ gap: "12px" }}>

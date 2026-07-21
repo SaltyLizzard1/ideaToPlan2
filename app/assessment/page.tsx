@@ -723,7 +723,7 @@ export default function AssessmentPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div ref={topRef} className="max-w-xl mx-auto px-4 py-10">
+      <div ref={topRef} className="max-w-xl mx-auto px-4 pt-6 pb-10">
         <a
           href="/"
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-6"
@@ -731,9 +731,9 @@ export default function AssessmentPage() {
           <ArrowLeft className="w-4 h-4" /> Back to IdeaToPlan
         </a>
 
-        <h1 className="text-3xl font-bold text-gray-900 mb-1">Find your online work</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">What You&apos;re Built to Do</h1>
         <p className="text-gray-500 mb-6 text-sm">
-          Answer 5 quick questions. Get 7 matched roles tailored to your skills and lifestyle.
+          Answer 5 quick questions. Get 7 businesses matched to your skills, values, and lifestyle.
         </p>
 
         <ProgressBar step={step} total={TOTAL_STEPS} />

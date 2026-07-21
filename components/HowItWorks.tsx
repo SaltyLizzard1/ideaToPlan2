@@ -127,11 +127,11 @@ export default function HowItWorks() {
   ];
 
   return (
-    <section ref={sectionRef} className="py-14 px-6 bg-[#FDFCF9]">
+    <section ref={sectionRef} className="pt-6 pb-14 px-6 bg-[#FDFCF9]">
       <div className="max-w-5xl mx-auto">
 
         {/* Section heading — unchanged */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <p
             className="text-xs font-sans tracking-[0.2em] uppercase mb-3"
             style={{ color: "#C9A030" }}
@@ -142,7 +142,7 @@ export default function HowItWorks() {
             className="font-serif text-4xl sm:text-5xl font-bold"
             style={{ color: "#0D1117" }}
           >
-            From Idea to Income in Three Steps
+            From Idea to Income
           </h2>
         </div>
 

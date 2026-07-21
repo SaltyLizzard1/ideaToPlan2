@@ -69,7 +69,7 @@ export default async function ResultsPage({ params }: Props) {
         className="relative overflow-hidden"
         style={{
           background: 'linear-gradient(180deg, var(--i2p-dark) 0%, #17140c 65%, #17140c 100%)',
-          padding: '4rem 1.5rem 5rem',
+          padding: '1.5rem 1.5rem 5rem',
         }}
       >
         <div

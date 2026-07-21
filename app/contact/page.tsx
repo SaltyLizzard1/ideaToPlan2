@@ -3,7 +3,7 @@ export default function ContactPage() {
     <main style={{ background: "#0D1117", minHeight: "100vh" }}>
       <section
         className="mx-auto flex flex-col items-center text-center"
-        style={{ maxWidth: "600px", padding: "5rem 2rem" }}
+        style={{ maxWidth: "600px", padding: "2rem 2rem 4rem" }}
       >
         <p
           className="font-sans uppercase tracking-widest text-xs mb-4"

@@ -22,6 +22,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://ideatoplan.to"),
   title: "IdeaToPlan: Start Your Business Today",
   description:
     "Take the free skills assessment inspired by What Color Is Your Parachute? and discover the business you're actually built to run. Turn your top match into a real business plan.",

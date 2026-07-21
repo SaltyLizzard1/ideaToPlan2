@@ -1,9 +1,6 @@
 "use client";
 
 import {
-  Lightbulb,
-  FileText,
-  Rocket,
   X,
   CheckCircle,
   AlertCircle,
@@ -91,14 +88,6 @@ const PLAN_OPTIONS: PlanOption[] = [
     price: "$50",
     description:
       "Everything in Starter plus deeper competitor and positioning analysis: who else is solving this, how you stand out, and clearer differentiation for pitches or strategy.",
-  },
-  {
-    value: "Visa / Immigration",
-    title: "Visa / Immigration",
-    price: "$599",
-    description:
-      "Plan structured for visa and immigration contexts: business narrative, viability framing, and language aligned with what officers and advisors typically expect.",
-    comingSoon: true,
   },
 ];
 
@@ -198,26 +187,6 @@ export default function IdeaToPlan() {
       .finally(() => setVerifying(false));
   }, []);
 
-  const processSteps = [
-    {
-      icon: Lightbulb,
-      title: "Share Your Idea",
-      description: "Tell us your idea and goals in a quick, straightforward form",
-    },
-    {
-      icon: FileText,
-      title: "AI-Assisted Planning",
-      description:
-        "We guide the AI to craft a tailored, actionable plan that fits your vision",
-    },
-    {
-      icon: Rocket,
-      title: "Get Your Plan",
-      description:
-        "Get your polished, ready-to-use PDF plan, delivered within 72 hours. Need it faster? Just ask.",
-    },
-  ];
-
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -254,9 +223,7 @@ export default function IdeaToPlan() {
   };
 
   const handlePaymentCTA = () => {
-    const plan =
-      form.planType === "Visa / Immigration" ? "Starter" : form.planType;
-    const link = STRIPE_LINKS[plan] ?? STRIPE_LINKS["Starter"];
+    const link = STRIPE_LINKS[form.planType] ?? STRIPE_LINKS["Starter"];
     setRedirecting(true);
     window.location.href = link;
   };
@@ -283,54 +250,41 @@ export default function IdeaToPlan() {
   return (
     <section
       id="idea-to-plan"
-      className="pt-10 pb-10 md:pt-12 md:pb-14"
-      style={{ background: "#FDFCF9" }}
+      className="pt-2 pb-10 md:pt-3 md:pb-14"
+      style={{
+        background: "#0D1117",
+        backgroundImage:
+          "radial-gradient(circle, rgba(201,160,48,0.06) 1px, transparent 1px)",
+        backgroundSize: "32px 32px",
+      }}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-6">
+        <div className="text-center mb-5">
           <span
-            className="inline-block text-xs sm:text-sm font-bold px-5 py-2 rounded-full uppercase tracking-widest shadow-md mb-4"
+            className="inline-block text-xs sm:text-sm font-bold px-5 py-2 rounded-full uppercase tracking-widest shadow-md mb-3"
             style={GOLD_BUTTON_STYLE}
           >
             IdeaToPlan
           </span>
           <h2
             className="text-3xl md:text-4xl font-serif font-bold mb-3"
-            style={{ color: "#0D1117" }}
+            style={{ color: "#F5E9C9" }}
           >
-            Turn Your Business Idea Into an Actionable Plan in 72 Hours
+            Your business plan in 72 hours.
           </h2>
           <p
-            className="text-base font-medium mb-3 max-w-2xl mx-auto"
-            style={{ color: "#0D1117" }}
+            className="text-base font-medium max-w-2xl mx-auto"
+            style={{ color: "#E8E4DB" }}
           >
             A done-for-you business planning service built for founders who are ready to
-            move. Fast turnaround. Real plans. No fluff.
+            move.
           </p>
-          <p className="text-lg text-gray-700 mb-5 max-w-3xl mx-auto leading-relaxed">
-            You already know what you want to build. Now let&apos;s make sure you land right.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-6 mb-5">
-          {processSteps.map((step, index) => (
-            <div key={index} className="text-center">
-              <div
-                className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4"
-                style={{ background: "white", color: "#0D1117" }}
-              >
-                <step.icon className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">{step.title}</h3>
-              <p className="text-gray-600">{step.description}</p>
-            </div>
-          ))}
         </div>
 
         <div>
           <div
             ref={cardsRef}
-            className="grid md:grid-cols-3 gap-6 mb-4 rounded-2xl transition-all duration-300"
+            className="grid md:grid-cols-2 gap-6 mb-4 rounded-2xl max-w-3xl mx-auto transition-all duration-300"
             style={pulsing ? { outline: "2px solid #C9A030", outlineOffset: "6px" } : undefined}
           >
             {/* Starter */}
@@ -407,34 +361,9 @@ export default function IdeaToPlan() {
               </ul>
             </div>
 
-            {/* Visa / Immigration */}
-            <div className="border border-dashed border-[#E8E4DB] rounded-2xl p-6 bg-white shadow-sm flex flex-col relative opacity-95 card-hover-lift">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gray-100 text-gray-500 text-xs font-bold px-4 py-1 rounded-full border border-gray-200">
-                Coming soon
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-1">Visa / Immigration</h3>
-              <p className="text-gray-500 font-bold text-2xl mb-1">$599</p>
-              <p className="text-sm text-gray-500 mb-4">
-                For founders who need USCIS- and investor-ready structure and compliance
-                language.
-              </p>
-              <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                {[
-                  "Everything in Growth",
-                  "Visa-ready formatting and structure",
-                  "5-year financial projections",
-                  "Job creation and non-marginality language",
-                ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="text-gray-400 font-bold mt-0.5">✓</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
           </div>
 
-          <p className="text-center text-sm font-medium mb-4" style={{ color: "#6B6B66" }}>
+          <p className="text-center text-sm font-medium mb-4" style={{ color: "#B0AA9E" }}>
             Special introductory offer: plans start at $25. Delivered within
             72 hours, and we walk you through it together.
           </p>
@@ -479,7 +408,7 @@ export default function IdeaToPlan() {
                 </button>
                 <p
                   className="text-center mt-3 mx-auto"
-                  style={{ color: "#6B6B66", fontSize: "13px", maxWidth: "560px" }}
+                  style={{ color: "#B0AA9E", fontSize: "13px", maxWidth: "560px" }}
                 >
                   After payment: a 3&ndash;5 minute form about your idea (bank loan and investor plans ask for financials), then your plan is delivered within 72 hours, and we schedule your walkthrough call.
                 </p>
@@ -752,7 +681,6 @@ export default function IdeaToPlan() {
                           <option value="bank-loan">Bank loan</option>
                           <option value="investor">Investor pitch</option>
                           <option value="personal-roadmap">Personal roadmap</option>
-                          <option value="visa" disabled>Visa application</option>
                           <option value="other">Other</option>
                         </select>
                       </div>
