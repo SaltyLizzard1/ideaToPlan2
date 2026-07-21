@@ -283,11 +283,11 @@ export default function IdeaToPlan() {
   return (
     <section
       id="idea-to-plan"
-      className="pt-16 pb-14 md:pt-20 md:pb-20"
+      className="pt-10 pb-10 md:pt-12 md:pb-14"
       style={{ background: "#FDFCF9" }}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-10">
+        <div className="text-center mb-6">
           <span
             className="inline-block text-xs sm:text-sm font-bold px-5 py-2 rounded-full uppercase tracking-widest shadow-md mb-4"
             style={GOLD_BUTTON_STYLE}
@@ -295,28 +295,28 @@ export default function IdeaToPlan() {
             IdeaToPlan
           </span>
           <h2
-            className="text-4xl md:text-5xl font-serif font-bold mb-4"
+            className="text-3xl md:text-4xl font-serif font-bold mb-3"
             style={{ color: "#0D1117" }}
           >
             Turn Your Business Idea Into an Actionable Plan in 72 Hours
           </h2>
           <p
-            className="text-base font-medium mb-4 max-w-2xl mx-auto"
+            className="text-base font-medium mb-3 max-w-2xl mx-auto"
             style={{ color: "#0D1117" }}
           >
             A done-for-you business planning service built for founders who are ready to
             move. Fast turnaround. Real plans. No fluff.
           </p>
-          <p className="text-xl text-gray-700 mb-6 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-lg text-gray-700 mb-5 max-w-3xl mx-auto leading-relaxed">
             You already know what you want to build. Now let&apos;s make sure you land right.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 mb-12">
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
           {processSteps.map((step, index) => (
             <div key={index} className="text-center">
               <div
-                className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-6"
+                className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4"
                 style={{ background: "white", color: "#0D1117" }}
               >
                 <step.icon className="w-8 h-8" />
@@ -369,12 +369,12 @@ export default function IdeaToPlan() {
 
             {/* Growth — Most Popular */}
             <div
-              className={`border rounded-2xl p-6 shadow-sm flex flex-col relative card-hover-lift cursor-pointer transition-all ${
-                form.planType === "Growth"
-                  ? "border-[#C9A030]"
-                  : "border-[#E8E4DB] bg-white"
-              }`}
-              style={form.planType === "Growth" ? { background: "#FDFBF4" } : undefined}
+              className="border-2 rounded-2xl p-6 shadow-lg flex flex-col relative card-hover-lift cursor-pointer transition-all scale-[1.02]"
+              style={{
+                borderColor: "#C9A030",
+                background: "#FDFBF4",
+                boxShadow: "0 8px 24px rgba(201, 160, 48, 0.18)",
+              }}
               onClick={() => { setForm((prev) => ({ ...prev, planType: "Growth" })); setPlanSelected(true); }}
             >
               <div
