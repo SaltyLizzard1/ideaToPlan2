@@ -312,7 +312,7 @@ export default function IdeaToPlan() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-3 gap-6 mb-5">
           {processSteps.map((step, index) => (
             <div key={index} className="text-center">
               <div
@@ -327,10 +327,10 @@ export default function IdeaToPlan() {
           ))}
         </div>
 
-        <div className="mb-8">
+        <div>
           <div
             ref={cardsRef}
-            className="grid md:grid-cols-3 gap-6 mb-8 rounded-2xl transition-all duration-300"
+            className="grid md:grid-cols-3 gap-6 mb-4 rounded-2xl transition-all duration-300"
             style={pulsing ? { outline: "2px solid #C9A030", outlineOffset: "6px" } : undefined}
           >
             {/* Starter */}
@@ -434,7 +434,7 @@ export default function IdeaToPlan() {
             </div>
           </div>
 
-          <p className="text-center text-sm font-medium mb-6" style={{ color: "#6B6B66" }}>
+          <p className="text-center text-sm font-medium mb-4" style={{ color: "#6B6B66" }}>
             Special introductory offer: plans start at $25. Delivered within
             72 hours, and we walk you through it together.
           </p>

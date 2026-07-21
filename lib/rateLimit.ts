@@ -13,19 +13,24 @@ export async function checkRateLimit(
     });
     if (error) {
       console.error('Rate limit check error:', error);
-      return true; // fail open — don't block real users if the check itself breaks
+      return false; // fail closed: if we can't verify the limit, don't allow the request
     }
     return data === true;
   } catch (err) {
     console.error('Rate limit error:', err);
-    return true;
+    return false; // fail closed, same reasoning as above
   }
 }
 
 export function clientIp(req: Request): string {
-  return (
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    'unknown'
-  );
+  // X-Forwarded-For is a comma-separated chain: client-claimed value first,
+  // each trusted proxy's own value appended after. The LAST entry is the one
+  // added by our own edge (Vercel) and can't be spoofed by the client, the
+  // first entry can be set to anything by whoever sends the request.
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) {
+    const parts = forwarded.split(',').map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
+  return req.headers.get('x-real-ip') ?? 'unknown';
 }

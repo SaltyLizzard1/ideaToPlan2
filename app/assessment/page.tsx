@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import ShareButtons from '../../components/ShareButtons';
+import PlanLoader from '../../components/PlanLoader';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -552,6 +553,7 @@ export default function AssessmentPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center max-w-sm w-full">
           <Loader2 className="w-10 h-10 animate-spin mx-auto mb-6" style={{ color: '#0D1117' }} />
+          <PlanLoader className="mb-6" />
           <p className="text-lg font-semibold text-gray-800 transition-all duration-500 min-h-[3.5rem] flex items-center justify-center">
             {LOADING_MESSAGES[loadingMsgIndex]}
           </p>
