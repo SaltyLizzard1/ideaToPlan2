@@ -9,7 +9,7 @@
 const BAR_DELAYS_S = [0, 0.18, 0.36];
 
 const BAR_STYLE: React.CSSProperties = {
-  width: '8px',
+  width: '12px',
   borderRadius: '9999px',
   background:
     'linear-gradient(180deg, var(--i2p-gold-bright) 0%, var(--i2p-gold) 55%, var(--i2p-gold-deep) 100%)',
@@ -18,17 +18,17 @@ const BAR_STYLE: React.CSSProperties = {
 export default function PlanLoader({ className = '' }: { className?: string }) {
   return (
     <div
-      className={`flex items-end justify-center gap-1.5 ${className}`}
-      style={{ height: '40px' }}
+      className={`flex items-end justify-center gap-2 ${className}`}
+      style={{ height: '64px' }}
       aria-hidden="true"
     >
       <style>{`
         @keyframes i2pBarRise {
-          0%, 100% { height: 12px; opacity: 0.65; }
-          50%      { height: 40px; opacity: 1; }
+          0%, 100% { height: 20px; opacity: 0.65; }
+          50%      { height: 64px; opacity: 1; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .i2p-bar { animation: none !important; height: 28px !important; opacity: 1 !important; }
+          .i2p-bar { animation: none !important; height: 44px !important; opacity: 1 !important; }
         }
       `}</style>
       {BAR_DELAYS_S.map((delay, i) => (
