@@ -21,7 +21,7 @@ export default function Home() {
       <ScrollReveal>
         <section
           id="assessment"
-          className="pt-6 pb-16 px-6"
+          className="pt-6 pb-8 px-6"
           style={{ background: "#FDFCF9", scrollMarginTop: "80px" }}
         >
           <div className="max-w-2xl mx-auto text-center">
