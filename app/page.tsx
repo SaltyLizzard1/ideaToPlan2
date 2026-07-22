@@ -33,7 +33,10 @@ export default function Home() {
             </h2>
 
             <div className="font-sans text-sm mb-8" style={{ color: "#6B6B66" }}>
-              <p>I built IdeaToPlan using IdeaToPlan. The sample plan above is my own.</p>
+              <p className="font-serif text-lg mb-2" style={{ color: "#0D1117" }}>
+                Most people know what they want. I talk to people who don&apos;t.
+              </p>
+              <p>I built QYLAT using IdeaToPlan.</p>
               <p className="font-serif italic mt-1" style={{ color: "#0D1117", fontSize: "0.95rem" }}>
                 — Elizabeth, Founder
               </p>
