@@ -28,7 +28,7 @@ export default function Header() {
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between"
+      className="sticky top-0 z-50 flex items-center justify-between"
       style={{
         background: "#0D1117",
         padding: "0 2rem",

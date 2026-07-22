@@ -52,7 +52,7 @@ export default function RootLayout({
     <html lang="en" className={`${cinzel.variable} ${cormorant.variable} ${inter.variable}`}>
       <body className="min-h-full antialiased" suppressHydrationWarning>
         <Header />
-        <div style={{ paddingTop: "80px" }}>{children}</div>
+        {children}
         {/* Tawk.to chat — disabled; re-enable by restoring the Script block */}
       </body>
     </html>
