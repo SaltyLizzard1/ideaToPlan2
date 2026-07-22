@@ -1,21 +1,43 @@
+'use client';
+
+/*
+  Living version of the IdeaToPlan logo mark: three gold bars that rise and
+  fall like an equalizer. Pure CSS, staggered so the bars move asynchronously.
+  Gold palette pulled from the tokens in globals.css (i2p-gold scale).
+*/
+
+const BAR_DELAYS_S = [0, 0.18, 0.36];
+
+const BAR_STYLE: React.CSSProperties = {
+  width: '8px',
+  borderRadius: '9999px',
+  background:
+    'linear-gradient(180deg, var(--i2p-gold-bright) 0%, var(--i2p-gold) 55%, var(--i2p-gold-deep) 100%)',
+};
+
 export default function PlanLoader({ className = '' }: { className?: string }) {
   return (
-    <div className={`flex items-end justify-center gap-2 h-16 ${className}`} aria-hidden="true">
+    <div
+      className={`flex items-end justify-center gap-1.5 ${className}`}
+      style={{ height: '40px' }}
+      aria-hidden="true"
+    >
       <style>{`
         @keyframes i2pBarRise {
-          0%, 100% { transform: scaleY(0.35); opacity: 0.7; }
-          50% { transform: scaleY(1); opacity: 1; }
+          0%, 100% { height: 12px; opacity: 0.65; }
+          50%      { height: 40px; opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .i2p-bar { animation: none !important; height: 28px !important; opacity: 1 !important; }
         }
       `}</style>
-      {[0, 1, 2].map((i) => (
-        <div
+      {BAR_DELAYS_S.map((delay, i) => (
+        <span
           key={i}
-          className="w-4 rounded-t-sm origin-bottom"
+          className="i2p-bar"
           style={{
-            height: `${2.2 + i * 0.7}rem`,
-            background: 'linear-gradient(180deg, #F5E070 0%, #E8C84A 40%, #C9A030 75%, #8B6914 100%)',
-            animation: `i2pBarRise 1.4s ease-in-out ${i * 0.18}s infinite`,
-            boxShadow: '0 0 12px rgba(232,200,74,0.35)',
+            ...BAR_STYLE,
+            animation: `i2pBarRise 1.4s ease-in-out ${delay}s infinite`,
           }}
         />
       ))}
