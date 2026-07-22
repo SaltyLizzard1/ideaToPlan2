@@ -118,6 +118,16 @@ export default function Hero() {
             Free&nbsp;&nbsp;•&nbsp;&nbsp;5 minutes&nbsp;&nbsp;•&nbsp;&nbsp;No sign-up required
           </p>
         </div>
+
+        {/* Delivery line */}
+        <div
+          className="flex flex-row flex-wrap justify-center gap-x-4 gap-y-1 font-sans"
+          style={{ fontSize: "clamp(0.7rem, 1vw, 0.8rem)", color: "#C9A030", letterSpacing: "0.02em" }}
+        >
+          <span>⚡ 72-hour delivery guarantee</span>
+          <span style={{ color: "#374151" }}>·</span>
+          <span>✦ Human-reviewed plans</span>
+        </div>
       </div>
     </section>
   );
