@@ -144,6 +144,7 @@ const [paymentError, setPaymentError] = useState("");
   const [notifyError, setNotifyError] = useState("");
   const [notifySubmitted, setNotifySubmitted] = useState(false);
   const cardsRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
 
   // On return from Stripe, verify the session and open the modal
   useEffect(() => {
@@ -183,7 +184,9 @@ const [paymentError, setPaymentError] = useState("");
 
           if (prefillIdea) setShowPrefillNote(true);
           setShowForm(true);
-          window.scrollTo({ top: 0 });
+          requestAnimationFrame(() => {
+            formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          });
           history.replaceState(null, "", window.location.pathname);
         } else {
           setPaymentError(
@@ -491,7 +494,7 @@ const [paymentError, setPaymentError] = useState("");
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
         >
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+          <div ref={formRef} className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div
               className="flex items-center justify-between px-6 py-4 border-b"
               style={{ borderColor: "#E8E4DB" }}
