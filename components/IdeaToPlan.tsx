@@ -89,6 +89,14 @@ const PLAN_OPTIONS: PlanOption[] = [
     description:
       "Everything in Starter plus deeper competitor and positioning analysis: who else is solving this, how you stand out, and clearer differentiation for pitches or strategy.",
   },
+  {
+    value: "Visa / Immigration",
+    title: "Visa / Immigration",
+    price: "$599",
+    description:
+      "Plan structured for visa and immigration contexts: business narrative, viability framing, and language aligned with what officers and advisors typically expect.",
+    comingSoon: true,
+  },
 ];
 
 // LIVE links - uncomment for production launch
@@ -132,6 +140,10 @@ export default function IdeaToPlan() {
   const [planSelected, setPlanSelected] = useState(false);
   const [pulsing, setPulsing] = useState(false);
   const [showPrefillNote, setShowPrefillNote] = useState(false);
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifyLoading, setNotifyLoading] = useState(false);
+  const [notifyError, setNotifyError] = useState("");
+  const [notifySubmitted, setNotifySubmitted] = useState(false);
   const cardsRef = useRef<HTMLDivElement>(null);
 
   // On return from Stripe, verify the session and open the modal
@@ -234,6 +246,26 @@ export default function IdeaToPlan() {
     setTimeout(() => setPulsing(false), 900);
   };
 
+  const submitNotify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notifyEmail.trim()) return;
+    setNotifyLoading(true);
+    setNotifyError("");
+    try {
+      await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: notifyEmail.trim() }),
+      });
+      setNotifySubmitted(true);
+    } catch (err) {
+      console.error("Notify subscribe error:", err);
+      setNotifyError("Something went wrong. Try again.");
+    } finally {
+      setNotifyLoading(false);
+    }
+  };
+
   const isDirty = () =>
     JSON.stringify(form) !== JSON.stringify(initialForm) &&
     status !== "success";
@@ -284,7 +316,7 @@ export default function IdeaToPlan() {
         <div>
           <div
             ref={cardsRef}
-            className="grid md:grid-cols-2 gap-6 mb-4 rounded-2xl max-w-3xl mx-auto transition-all duration-300"
+            className="grid md:grid-cols-3 gap-6 mb-4 rounded-2xl transition-all duration-300"
             style={pulsing ? { outline: "2px solid #C9A030", outlineOffset: "6px" } : undefined}
           >
             {/* Starter */}
@@ -359,6 +391,51 @@ export default function IdeaToPlan() {
                   </li>
                 ))}
               </ul>
+            </div>
+
+            {/* Visa / Immigration — Notify-me capture (not purchasable yet) */}
+            <div className="border border-dashed border-[#E8E4DB] rounded-2xl p-6 bg-white shadow-sm flex flex-col relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gray-100 text-gray-500 text-xs font-bold px-4 py-1 rounded-full border border-gray-200">
+                Coming soon
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">Visa / Immigration</h3>
+              <p className="text-gray-500 font-bold text-2xl mb-1">$599</p>
+              <p className="text-sm text-gray-500 mb-4">
+                Plan structured for visa and immigration contexts: business narrative, viability framing, and language aligned with what officers and advisors typically expect.
+              </p>
+
+              <div className="flex-1 flex flex-col justify-end">
+                {notifySubmitted ? (
+                  <div className="text-center py-2">
+                    <CheckCircle className="w-6 h-6 mx-auto mb-2" style={{ color: "#3D6B35" }} />
+                    <p className="text-sm font-semibold text-gray-800">You&apos;re on the list</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      We&apos;ll email you when this tier is available.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={submitNotify} className="space-y-2">
+                    <input
+                      type="email"
+                      required
+                      value={notifyEmail}
+                      onChange={(e) => setNotifyEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
+                    />
+                    <button
+                      type="submit"
+                      disabled={notifyLoading}
+                      className="w-full py-2 text-sm font-semibold rounded-lg border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 disabled:opacity-60 transition-colors"
+                    >
+                      {notifyLoading ? "Adding..." : "Notify Me When Available"}
+                    </button>
+                    {notifyError && (
+                      <p className="text-xs text-red-600 text-center">{notifyError}</p>
+                    )}
+                  </form>
+                )}
+              </div>
             </div>
 
           </div>
