@@ -7,7 +7,7 @@ import AnimatedLogo from "@/components/AnimatedLogo";
 
 const NAV_LINKS = [
   { label: "How It Works", href: "/#how-it-works" },
-  { label: "Real Plan Pages", href: "/#sample-plan" },
+  { label: "Sample Plans", href: "/#sample-plan" },
   { label: "Pricing", href: "/#pricing" },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
