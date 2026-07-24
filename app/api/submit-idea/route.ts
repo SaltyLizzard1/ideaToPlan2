@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabase } from "../../../lib/supabase";
+import { notify } from "../../../lib/notify";
 
 export const maxDuration = 180;
 
@@ -17,6 +18,10 @@ export async function POST(req: NextRequest) {
     const sessionId = body.stripeSessionId;
 
     if (!sessionId || typeof sessionId !== "string" || !sessionId.startsWith("cs_")) {
+      notify(
+        "FAILED submission - payment verification",
+        `Reason: missing or invalid session ID\nEmail: ${body?.email ?? "unknown"}`
+      );
       return NextResponse.json({ error: "Missing payment reference" }, { status: 402 });
     }
 
@@ -25,10 +30,18 @@ export async function POST(req: NextRequest) {
     try {
       session = await stripe.checkout.sessions.retrieve(sessionId);
     } catch {
+      notify(
+        "FAILED submission - payment verification",
+        `Reason: Stripe session retrieval failed\nEmail: ${body?.email ?? "unknown"}`
+      );
       return NextResponse.json({ error: "Invalid payment reference" }, { status: 402 });
     }
 
     if (session.payment_status !== "paid") {
+      notify(
+        "FAILED submission - payment verification",
+        `Reason: payment_status is "${session.payment_status}"\nEmail: ${session.customer_details?.email ?? body?.email ?? "unknown"}`
+      );
       return NextResponse.json({ error: "Payment not completed" }, { status: 402 });
     }
 
@@ -54,12 +67,13 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Only now forward to the plan pipeline
+    const verifiedPlanType = PLAN_BY_AMOUNT[session.amount_total ?? 0] ?? null;
     const res = await fetch(process.env.N8N_I2P_WEBHOOK_URL!, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...body,
-        verifiedPlanType: PLAN_BY_AMOUNT[session.amount_total ?? 0] ?? null,
+        verifiedPlanType,
         verifiedEmail: session.customer_details?.email ?? null,
       }),
       signal: AbortSignal.timeout(175_000),
@@ -69,9 +83,17 @@ export async function POST(req: NextRequest) {
       throw new Error(`n8n responded ${res.status}`);
     }
 
+    notify(
+      `New plan submission: ${verifiedPlanType ?? "unknown"}`,
+      `Name: ${body.fullName ?? "unknown"}\nEmail: ${session.customer_details?.email ?? body.email ?? "unknown"}\nIdea: ${String(body.businessIdea ?? "").slice(0, 400)}`
+    );
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("IdeaToPlan submission error:", err);
+    notify(
+      "FAILED submission - server error",
+      `Error: ${err instanceof Error ? err.message : String(err)}`
+    );
     return NextResponse.json({ error: "Submission failed" }, { status: 500 });
   }
 }
