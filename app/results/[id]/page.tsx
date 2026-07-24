@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { Sparkles } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
-import Header from '../../../components/Header';
 import Footer from '../../../components/Footer';
 import ResultsGate from '../../../components/ResultsGate';
 
@@ -63,8 +62,6 @@ export default async function ResultsPage({ params }: Props) {
 
   return (
     <>
-      <Header />
-
       <div
         className="relative overflow-hidden"
         style={{
