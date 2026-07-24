@@ -135,8 +135,7 @@ export default function IdeaToPlan() {
   const [errorMsg, setErrorMsg] = useState("");
   const [stripeSessionId, setStripeSessionId] = useState<string | null>(null);
   const [redirecting, setRedirecting] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [paymentError, setPaymentError] = useState("");
+const [paymentError, setPaymentError] = useState("");
   const [planSelected, setPlanSelected] = useState(false);
   const [pulsing, setPulsing] = useState(false);
   const [showPrefillNote, setShowPrefillNote] = useState(false);
@@ -145,6 +144,7 @@ export default function IdeaToPlan() {
   const [notifyError, setNotifyError] = useState("");
   const [notifySubmitted, setNotifySubmitted] = useState(false);
   const cardsRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
 
   // On return from Stripe, verify the session and open the modal
   useEffect(() => {
@@ -152,7 +152,6 @@ export default function IdeaToPlan() {
     const sessionId = params.get("session_id");
     if (!sessionId) return;
 
-    setVerifying(true);
     fetch("/api/verify-payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -185,7 +184,9 @@ export default function IdeaToPlan() {
 
           if (prefillIdea) setShowPrefillNote(true);
           setShowForm(true);
-          window.scrollTo({ top: 0 });
+          requestAnimationFrame(() => {
+            formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          });
           history.replaceState(null, "", window.location.pathname);
         } else {
           setPaymentError(
@@ -195,8 +196,7 @@ export default function IdeaToPlan() {
       })
       .catch(() => {
         setPaymentError("Payment verification failed. Please try again.");
-      })
-      .finally(() => setVerifying(false));
+      });
   }, []);
 
   const handleChange = (
@@ -321,12 +321,16 @@ export default function IdeaToPlan() {
           >
             {/* Starter */}
             <div
-              className={`border rounded-2xl p-6 shadow-sm flex flex-col card-hover-lift cursor-pointer transition-all ${
+              className={`rounded-2xl p-6 flex flex-col card-hover-lift cursor-pointer transition-all ${
                 form.planType === "Starter"
-                  ? "border-[#C9A030]"
-                  : "border-[#E8E4DB] bg-white"
+                  ? "border-2 border-[#C9A030] scale-[1.02]"
+                  : "border border-[#E8E4DB] bg-white shadow-sm"
               }`}
-              style={form.planType === "Starter" ? { background: "#FDFBF4" } : undefined}
+              style={
+                form.planType === "Starter"
+                  ? { background: "#FDFBF4", boxShadow: "0 8px 24px rgba(201, 160, 48, 0.18)" }
+                  : undefined
+              }
               onClick={() => { setForm((prev) => ({ ...prev, planType: "Starter" })); setPlanSelected(true); }}
             >
               <h3 className="text-xl font-bold text-gray-900 mb-1">Starter</h3>
@@ -454,43 +458,34 @@ export default function IdeaToPlan() {
           )}
 
           <div className="text-center">
-            {verifying ? (
-              <div className="flex flex-col items-center gap-2 py-4">
-                <Loader className="w-6 h-6 animate-spin" style={{ color: "#0D1117" }} />
-                <p className="text-sm text-gray-500">Verifying your payment...</p>
-              </div>
-            ) : (
-              <>
-                <button
-                  onClick={planSelected ? handlePaymentCTA : handleGetStarted}
-                  disabled={redirecting}
-                  className="px-10 py-4 text-lg font-semibold rounded-lg cta-shimmer shadow-lg flex items-center gap-2 mx-auto disabled:opacity-60"
-                  style={GOLD_BUTTON_TEXT_STYLE}
-                >
-                  {redirecting ? (
-                    <>
-                      <Loader className="w-5 h-5 animate-spin" />
-                      Redirecting to payment...
-                    </>
-                  ) : planSelected ? (
-                    <>
-                      Build My Plan
-                      <span className="font-normal opacity-75">
-                        · {form.planType === "Growth" ? "$50" : "$25"}
-                      </span>
-                    </>
-                  ) : (
-                    "Build My Plan"
-                  )}
-                </button>
-                <p
-                  className="text-center mt-3 mx-auto"
-                  style={{ color: "#B0AA9E", fontSize: "13px", maxWidth: "560px" }}
-                >
-                  After payment: a 3&ndash;5 minute form about your idea (bank loan and investor plans ask for financials), then your plan is delivered within 72 hours, and we schedule your walkthrough call.
-                </p>
-              </>
-            )}
+            <button
+              onClick={planSelected ? handlePaymentCTA : handleGetStarted}
+              disabled={redirecting}
+              className="px-10 py-4 text-lg font-semibold rounded-lg cta-shimmer shadow-lg flex items-center gap-2 mx-auto disabled:opacity-60"
+              style={GOLD_BUTTON_TEXT_STYLE}
+            >
+              {redirecting ? (
+                <>
+                  <Loader className="w-5 h-5 animate-spin" />
+                  Redirecting to payment...
+                </>
+              ) : planSelected ? (
+                <>
+                  Build My Plan
+                  <span className="font-normal opacity-75">
+                    · {form.planType === "Growth" ? "$50" : "$25"}
+                  </span>
+                </>
+              ) : (
+                "Build My Plan"
+              )}
+            </button>
+            <p
+              className="text-center mt-3 mx-auto"
+              style={{ color: "#B0AA9E", fontSize: "13px", maxWidth: "560px" }}
+            >
+              After payment: a 3&ndash;5 minute form about your idea (bank loan and investor plans ask for financials), then your plan is delivered within 72 hours, and we schedule your walkthrough call.
+            </p>
           </div>
         </div>
       </div>
@@ -499,7 +494,7 @@ export default function IdeaToPlan() {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
         >
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+          <div ref={formRef} className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div
               className="flex items-center justify-between px-6 py-4 border-b"
               style={{ borderColor: "#E8E4DB" }}
