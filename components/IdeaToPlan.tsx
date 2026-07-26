@@ -316,7 +316,7 @@ const [paymentError, setPaymentError] = useState("");
         <div>
           <div
             ref={cardsRef}
-            className="grid md:grid-cols-3 gap-6 mb-4 rounded-2xl transition-all duration-300"
+            className="pricing-grid grid md:grid-cols-3 gap-6 mb-4 rounded-2xl transition-all duration-300"
             style={pulsing ? { outline: "2px solid #C9A030", outlineOffset: "6px" } : undefined}
           >
             {/* Starter */}

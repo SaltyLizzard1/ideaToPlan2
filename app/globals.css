@@ -171,21 +171,54 @@ body {
 /* Interactive card hover lift */
 .card-hover-lift {
   cursor: pointer;
-  transition: transform 200ms ease-out, box-shadow 200ms ease-out, border-color 200ms ease-out;
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out, border-color 200ms ease-out, background-color 200ms ease-out;
 }
 .card-hover-lift:hover {
   transform: translateY(-6px);
   box-shadow: 0 0 0 2px #F5D020, 0 20px 48px rgba(201, 160, 48, 0.32), 0 8px 16px rgba(0, 0, 0, 0.10);
+  background-color: #FDFBF4;
 }
 
 /* Growth card hover - stronger lift from its already-elevated resting state */
 .card-hover-lift-strong {
   cursor: pointer;
-  transition: transform 200ms ease-out, box-shadow 200ms ease-out, border-color 200ms ease-out;
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out, border-color 200ms ease-out, background-color 200ms ease-out;
 }
 .card-hover-lift-strong:hover {
   transform: translateY(-10px) scale(1.02);
   box-shadow: 0 0 0 2px #F5D020, 0 28px 60px rgba(201, 160, 48, 0.48), 0 12px 24px rgba(0, 0, 0, 0.12);
+  background-color: #FAF2DC;
+}
+
+/* Pricing grid group-dim: non-hovered siblings fade back when one card is active */
+@media (hover: hover) {
+  .pricing-grid > * {
+    transition: opacity 200ms ease-out, filter 200ms ease-out;
+  }
+  .pricing-grid:hover > * {
+    opacity: 0.55;
+    filter: saturate(0.6);
+  }
+  .pricing-grid:hover > *:hover {
+    opacity: 1;
+    filter: none;
+  }
+}
+
+/* Reduced motion: keep color and opacity changes, remove transform lifts */
+@media (prefers-reduced-motion: reduce) {
+  .card-hover-lift {
+    transition: box-shadow 200ms ease-out, border-color 200ms ease-out, background-color 200ms ease-out;
+  }
+  .card-hover-lift:hover {
+    transform: none;
+  }
+  .card-hover-lift-strong {
+    transition: box-shadow 200ms ease-out, border-color 200ms ease-out, background-color 200ms ease-out;
+  }
+  .card-hover-lift-strong:hover {
+    transform: scale(1.02);
+  }
 }
 
 /* Pill button hover lift — lighter than card-hover-lift for small interactive chips */
