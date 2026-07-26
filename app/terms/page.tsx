@@ -99,15 +99,17 @@ export default function TermsPage() {
               missed. I will revise it once, free.
             </p>
             <p>
-              Still not right after the revision? I will refund you in full, no argument. You keep
-              the plan.
+              Still not right after the revision? Tell me within 7 days of receiving the revised
+              plan and I will refund you in full, no argument. You keep the plan.
             </p>
             <p>
               Delivered late? If your plan takes longer than 72 hours from when you submit your
-              form, tell me and I will refund you in full whether you keep the plan or not.
+              form, tell me within 7 days and I will refund you in full whether you keep the plan
+              or not. The 72 hours runs continuously and includes weekends.
             </p>
             <p>
               Refunds are processed to your original payment method within 5 business days.
+              Refunds are limited to one per customer.
             </p>
           </Section>
 
