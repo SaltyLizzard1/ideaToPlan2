@@ -196,8 +196,8 @@ body {
     transition: opacity 200ms ease-out, filter 200ms ease-out;
   }
   .pricing-grid:hover > * {
-    opacity: 0.55;
-    filter: saturate(0.6);
+    opacity: 0.72;
+    filter: saturate(0.85);
   }
   .pricing-grid:hover > *:hover {
     opacity: 1;
