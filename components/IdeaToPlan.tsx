@@ -308,8 +308,7 @@ const [paymentError, setPaymentError] = useState("");
             className="text-base font-medium max-w-2xl mx-auto"
             style={{ color: "#E8E4DB" }}
           >
-            A done-for-you business planning service built for founders who are ready to
-            move.
+            Built by AI, finished by a human. Every plan is reviewed by hand and delivered with a call.
           </p>
         </div>
 
@@ -346,6 +345,8 @@ const [paymentError, setPaymentError] = useState("");
                   "Revenue model and pricing strategy",
                   "90-day roadmap with clear milestones",
                   "Professional PDF delivered in 72 hours",
+                  "Reviewed by a real person, never auto-sent",
+                  "Walkthrough call to talk through your plan",
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className="font-bold mt-0.5" style={{ color: "#0D1117" }}>
@@ -386,6 +387,8 @@ const [paymentError, setPaymentError] = useState("");
                   "Competitor research and landscape analysis",
                   "SWOT analysis",
                   "Viability verdict with go/no-go assessment",
+                  "Reviewed by a real person, never auto-sent",
+                  "Walkthrough call to talk through your plan",
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className="font-bold mt-0.5" style={{ color: "#0D1117" }}>

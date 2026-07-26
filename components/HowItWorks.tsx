@@ -120,9 +120,9 @@ export default function HowItWorks() {
         </svg>
       ),
       step: "03",
-      title: "Build Your Business Plan",
+      title: "Get a Plan a Human Signed Off On",
       description:
-        "Love your top match? Submit it to IdeaToPlan and we'll deliver a done-for-you professional business plan, ready for investors, lenders, or your own roadmap.",
+        "Love your top match? Submit it and we build your plan, then a real person reviews every page before it goes out. You get the finished plan within 72 hours and a call to walk through it together.",
     },
   ];
 
