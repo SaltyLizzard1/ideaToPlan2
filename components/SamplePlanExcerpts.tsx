@@ -251,10 +251,7 @@ export default function SamplePlanExcerpts() {
           >
             Inside Every Plan
           </h3>
-          <p className="font-sans text-base" style={{ color: "#cfc9b8" }}>
-            Real pages from a real plan: structured, specific, and ready to act on.
-          </p>
-          <p className="font-sans text-base mt-4 mx-auto" style={{ color: "#cfc9b8", maxWidth: "600px" }}>
+          <p className="font-sans text-base mt-6 mx-auto" style={{ color: "#cfc9b8", maxWidth: "600px" }}>
             Below are excerpts from the plan I used to build{" "}
             <a href="https://quityourlifeandtravel.com/" target="_blank" rel="noopener noreferrer" style={{ color: "#C9A030", textDecoration: "underline", textUnderlineOffset: "3px" }}>Quit Your Life and Travel</a>
             . QYLAT is for people standing at the cusp of change who are not sure how to make it. I provide a runway calculator, a skills assessment, and honest math instead of cheerleading. These are the actual pages, unedited.
