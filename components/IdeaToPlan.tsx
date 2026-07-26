@@ -359,7 +359,7 @@ const [paymentError, setPaymentError] = useState("");
 
             {/* Growth — Most Popular */}
             <div
-              className="border-2 rounded-2xl p-6 shadow-lg flex flex-col relative card-hover-lift cursor-pointer transition-all scale-[1.02]"
+              className="border-2 rounded-2xl p-6 shadow-lg flex flex-col relative card-hover-lift-strong cursor-pointer transition-all scale-[1.02]"
               style={{
                 borderColor: "#C9A030",
                 background: "#FDFBF4",

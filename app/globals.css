@@ -171,11 +171,21 @@ body {
 /* Interactive card hover lift */
 .card-hover-lift {
   cursor: pointer;
-  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out, border-color 200ms ease-out;
 }
 .card-hover-lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-6px);
+  box-shadow: 0 0 0 2px #F5D020, 0 20px 48px rgba(201, 160, 48, 0.32), 0 8px 16px rgba(0, 0, 0, 0.10);
+}
+
+/* Growth card hover - stronger lift from its already-elevated resting state */
+.card-hover-lift-strong {
+  cursor: pointer;
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out, border-color 200ms ease-out;
+}
+.card-hover-lift-strong:hover {
+  transform: translateY(-10px) scale(1.02);
+  box-shadow: 0 0 0 2px #F5D020, 0 28px 60px rgba(201, 160, 48, 0.48), 0 12px 24px rgba(0, 0, 0, 0.12);
 }
 
 /* Pill button hover lift — lighter than card-hover-lift for small interactive chips */
