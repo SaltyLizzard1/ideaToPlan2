@@ -254,6 +254,9 @@ export default function SamplePlanExcerpts() {
           <p className="font-sans text-base" style={{ color: "#cfc9b8" }}>
             Real pages from a real plan: structured, specific, and ready to act on.
           </p>
+          <p className="font-sans text-base mt-4 mx-auto" style={{ color: "#cfc9b8", maxWidth: "600px" }}>
+            This is my own plan. Quit Your Life and Travel is for people standing at the edge of a big change who have not decided yet. A runway calculator, a skills assessment, and honest math instead of cheerleading. I built its business plan with IdeaToPlan, and these are the actual pages, unedited.
+          </p>
         </div>
 
         {/* Fan */}
@@ -340,7 +343,7 @@ export default function SamplePlanExcerpts() {
           className="text-center font-sans text-xs mt-10 mb-16"
           style={{ color: "#a89f8a" }}
         >
-          Excerpts from the founder&apos;s own Growth plan&nbsp;&nbsp;·&nbsp;&nbsp;Hover or tap to explore
+          Hover or tap to explore
         </p>
 
       </div>
