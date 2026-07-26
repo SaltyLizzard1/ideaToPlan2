@@ -122,7 +122,7 @@ export default function HowItWorks() {
       step: "03",
       title: "Get a Plan a Human Signed Off On",
       description:
-        "Love your top match? Submit it and we build your plan, then a real person reviews every page before it goes out. You get the finished plan within 72 hours and a call to walk through it together.",
+        "Love your top match? Submit it and we build your plan, then a real person reviews every page before it goes out. You get the finished plan within 72 hours, and you can email me questions about it any time.",
     },
   ];
 

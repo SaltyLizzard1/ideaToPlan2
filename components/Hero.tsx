@@ -84,7 +84,7 @@ export default function Hero() {
             marginTop: "-8px",
           }}
         >
-          A 5-minute assessment shows you seven businesses you&apos;re actually built to run. Then we build the plan, review it by hand, and walk you through it on a call.
+          A 5-minute assessment shows you seven businesses you&apos;re actually built to run. Then we build the plan, review it by hand, and send it to you with email follow-up included.
         </p>
 
         {/* CTA block */}

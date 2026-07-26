@@ -308,7 +308,7 @@ const [paymentError, setPaymentError] = useState("");
             className="text-base font-medium max-w-2xl mx-auto"
             style={{ color: "#E8E4DB" }}
           >
-            Built by AI, finished by a human. Every plan is reviewed by hand and delivered with a call.
+            Built by AI, finished by a human. Every plan is reviewed by hand before it reaches you.
           </p>
         </div>
 
@@ -346,7 +346,7 @@ const [paymentError, setPaymentError] = useState("");
                   "90-day roadmap with clear milestones",
                   "Professional PDF delivered in 72 hours",
                   "Reviewed by a real person, never auto-sent",
-                  "Walkthrough call to talk through your plan",
+                  "Email follow-up to answer your questions",
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className="font-bold mt-0.5" style={{ color: "#0D1117" }}>
@@ -388,7 +388,7 @@ const [paymentError, setPaymentError] = useState("");
                   "SWOT analysis",
                   "Viability verdict with go/no-go assessment",
                   "Reviewed by a real person, never auto-sent",
-                  "Walkthrough call to talk through your plan",
+                  "Email follow-up to answer your questions",
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className="font-bold mt-0.5" style={{ color: "#0D1117" }}>
@@ -449,7 +449,7 @@ const [paymentError, setPaymentError] = useState("");
 
           <p className="text-center text-sm font-medium mb-4" style={{ color: "#B0AA9E" }}>
             Special introductory offer: plans start at $25. Delivered within
-            72 hours, and we walk you through it together.
+            72 hours, reviewed by a real person before it reaches you.
           </p>
 
           {/* Payment error from failed verification */}
@@ -487,7 +487,7 @@ const [paymentError, setPaymentError] = useState("");
               className="text-center mt-3 mx-auto"
               style={{ color: "#B0AA9E", fontSize: "13px", maxWidth: "560px" }}
             >
-              After payment: a 3&ndash;5 minute form about your idea (bank loan and investor plans ask for financials), then your plan is delivered within 72 hours, and we schedule your walkthrough call.
+              After payment: a 3&ndash;5 minute form about your idea (bank loan and investor plans ask for financials), then your plan is delivered within 72 hours, and you can email me questions about it any time.
             </p>
           </div>
         </div>
@@ -963,7 +963,7 @@ const [paymentError, setPaymentError] = useState("");
                     </button>
 
                     <p className="text-center text-xs text-gray-400">
-                      Your plan will be delivered within 72 hours. We&apos;ll reach out to schedule your walkthrough call.
+                      Your plan will be delivered within 72 hours. You can email me questions about it any time.
                     </p>
                   </form>
                 </>
