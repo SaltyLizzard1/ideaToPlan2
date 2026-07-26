@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import AnimatedLogo from "@/components/AnimatedLogo";
+import VisaWaitlistModal from "@/components/VisaWaitlistModal";
 
 const NAV_LINKS = [
   { label: "How It Works", href: "/#how-it-works" },
@@ -11,6 +13,8 @@ const NAV_LINKS = [
 ];
 
 export default function Footer() {
+  const [showVisaModal, setShowVisaModal] = useState(false);
+
   return (
     <footer style={{ background: "#0d0d0f", borderTop: "1px solid rgba(201,160,48,0.18)" }}>
       <div
@@ -57,13 +61,20 @@ export default function Footer() {
           >
             Services
           </p>
-          {["Skills Assessment", "Business Matching", "Business Plans", "Visa-Ready Plans"].map(
-            (item) => (
-              <span key={item} className="font-sans text-sm" style={{ color: "#cfc9b8" }}>
-                {item}
-              </span>
-            )
-          )}
+          {["Skills Assessment", "Business Matching", "Business Plans"].map((item) => (
+            <span key={item} className="font-sans text-sm" style={{ color: "#cfc9b8" }}>
+              {item}
+            </span>
+          ))}
+          <button
+            onClick={() => setShowVisaModal(true)}
+            className="font-sans text-sm text-left"
+            style={{ color: "#cfc9b8" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#FBF6E3")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#cfc9b8")}
+          >
+            Visa-Ready Plans
+          </button>
         </div>
 
         {/* Contact */}
@@ -126,6 +137,7 @@ export default function Footer() {
           ))}
         </div>
       </div>
+      <VisaWaitlistModal isOpen={showVisaModal} onClose={() => setShowVisaModal(false)} />
     </footer>
   );
 }

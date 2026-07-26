@@ -3,7 +3,7 @@ import { checkRateLimit, clientIp } from '../../../lib/rateLimit';
 
 export async function POST(req: NextRequest) {
   try {
-    const { email } = await req.json();
+    const { email, formId: formIdParam, country } = await req.json();
     const allowed = await checkRateLimit(`subscribe:${clientIp(req)}`, 10, 3600);
     if (!allowed) {
       return NextResponse.json(
@@ -12,17 +12,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const formId = process.env.KIT_QUIZ_FORM_ID;
     const apiKey = process.env.KIT_API_KEY;
+    const targetFormId = formIdParam === "visa"
+      ? process.env.KIT_VISA_FORM_ID
+      : process.env.KIT_QUIZ_FORM_ID;
 
-    if (formId && apiKey) {
-      await fetch(`https://api.kit.com/v4/forms/${formId}/subscribers`, {
+    if (targetFormId && apiKey) {
+      const payload: Record<string, unknown> = { email_address: email };
+      if (country) payload.fields = { target_country: country };
+      await fetch(`https://api.kit.com/v4/forms/${targetFormId}/subscribers`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Kit-Api-Key": apiKey,
         },
-        body: JSON.stringify({ email_address: email }),
+        body: JSON.stringify(payload),
       });
     }
 

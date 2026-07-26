@@ -7,6 +7,7 @@ import {
   Loader,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import VisaWaitlistModal from "./VisaWaitlistModal";
 
 type FormData = {
   fullName: string;
@@ -139,10 +140,7 @@ const [paymentError, setPaymentError] = useState("");
   const [planSelected, setPlanSelected] = useState(false);
   const [pulsing, setPulsing] = useState(false);
   const [showPrefillNote, setShowPrefillNote] = useState(false);
-  const [notifyEmail, setNotifyEmail] = useState("");
-  const [notifyLoading, setNotifyLoading] = useState(false);
-  const [notifyError, setNotifyError] = useState("");
-  const [notifySubmitted, setNotifySubmitted] = useState(false);
+  const [showVisaModal, setShowVisaModal] = useState(false);
   const cardsRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -246,25 +244,7 @@ const [paymentError, setPaymentError] = useState("");
     setTimeout(() => setPulsing(false), 900);
   };
 
-  const submitNotify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!notifyEmail.trim()) return;
-    setNotifyLoading(true);
-    setNotifyError("");
-    try {
-      await fetch("/api/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: notifyEmail.trim() }),
-      });
-      setNotifySubmitted(true);
-    } catch (err) {
-      console.error("Notify subscribe error:", err);
-      setNotifyError("Something went wrong. Try again.");
-    } finally {
-      setNotifyLoading(false);
-    }
-  };
+
 
   const isDirty = () =>
     JSON.stringify(form) !== JSON.stringify(initialForm) &&
@@ -412,36 +392,12 @@ const [paymentError, setPaymentError] = useState("");
               </p>
 
               <div className="flex-1 flex flex-col justify-end">
-                {notifySubmitted ? (
-                  <div className="text-center py-2">
-                    <CheckCircle className="w-6 h-6 mx-auto mb-2" style={{ color: "#3D6B35" }} />
-                    <p className="text-sm font-semibold text-gray-800">You&apos;re on the list</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      We&apos;ll email you when this tier is available.
-                    </p>
-                  </div>
-                ) : (
-                  <form onSubmit={submitNotify} className="space-y-2">
-                    <input
-                      type="email"
-                      required
-                      value={notifyEmail}
-                      onChange={(e) => setNotifyEmail(e.target.value)}
-                      placeholder="your@email.com"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
-                    />
-                    <button
-                      type="submit"
-                      disabled={notifyLoading}
-                      className="w-full py-2 text-sm font-semibold rounded-lg border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 disabled:opacity-60 transition-colors"
-                    >
-                      {notifyLoading ? "Adding..." : "Notify Me When Available"}
-                    </button>
-                    {notifyError && (
-                      <p className="text-xs text-red-600 text-center">{notifyError}</p>
-                    )}
-                  </form>
-                )}
+                <button
+                  onClick={() => setShowVisaModal(true)}
+                  className="w-full py-2 text-sm font-semibold rounded-lg border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  Notify Me When Available
+                </button>
               </div>
             </div>
 
@@ -982,6 +938,7 @@ const [paymentError, setPaymentError] = useState("");
           </div>
         </div>
       )}
+      <VisaWaitlistModal isOpen={showVisaModal} onClose={() => setShowVisaModal(false)} />
     </section>
   );
 }
