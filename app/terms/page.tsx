@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 
 const EFFECTIVE_DATE = 'July 8, 2026';
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (
-    <section className="mb-10">
+    <section className="mb-10" id={id} style={id ? { scrollMarginTop: "96px" } : undefined}>
       <h2 className="font-serif text-2xl font-bold text-gray-900 mb-3">{title}</h2>
       <div className="text-gray-700 leading-relaxed space-y-3">{children}</div>
     </section>
@@ -89,24 +89,25 @@ export default function TermsPage() {
             </p>
           </Section>
 
-          <Section title="6. Refund Policy">
+          <Section title="6. Refunds" id="refunds">
             <p>
-              If your plan has not yet been delivered, you may cancel for a full refund of any
-              amount paid. After delivery, if the plan does not match what you submitted or
-              contains material errors on our part, contact us within 7 days of delivery and we
-              will revise it at no cost. If we cannot resolve the issue through revision, we will
-              issue a refund at our discretion.
+              Every plan is reviewed by a person before it reaches you, so if something is wrong,
+              I want to fix it.
             </p>
             <p>
-              Refunds are not provided for dissatisfaction with business outcomes or for plans built
-              on inaccurate information you supplied. To request a refund, email{' '}
-              <a
-                href="mailto:ideatoplanincome@gmail.com"
-                className="underline underline-offset-2 text-[#8B6914] hover:opacity-70"
-              >
-                ideatoplanincome@gmail.com
-              </a>{' '}
-              with your order details.
+              Not happy with your plan? Reply to the delivery email within 7 days and tell me what
+              missed. I will revise it once, free.
+            </p>
+            <p>
+              Still not right after the revision? I will refund you in full, no argument. You keep
+              the plan.
+            </p>
+            <p>
+              Delivered late? If your plan takes longer than 72 hours from when you submit your
+              form, tell me and I will refund you in full whether you keep the plan or not.
+            </p>
+            <p>
+              Refunds are processed to your original payment method within 5 business days.
             </p>
           </Section>
 

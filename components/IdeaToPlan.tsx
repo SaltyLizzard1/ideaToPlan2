@@ -489,6 +489,16 @@ const [paymentError, setPaymentError] = useState("");
             >
               After payment: a 3&ndash;5 minute form about your idea (bank loan and investor plans ask for financials), then your plan is delivered within 72 hours, and you can email me questions about it any time.
             </p>
+            <p
+              className="text-center mt-2 mx-auto"
+              style={{ color: "#B0AA9E", fontSize: "13px", maxWidth: "560px" }}
+            >
+              Not happy? One free revision, then a{" "}
+              <a href="/terms#refunds" style={{ color: "#B0AA9E", textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                full refund
+              </a>
+              {" "}within 7 days.
+            </p>
           </div>
         </div>
       </div>
