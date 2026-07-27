@@ -10,7 +10,7 @@ export default function Hero() {
       className="relative flex flex-col items-center justify-center text-center overflow-x-hidden"
       style={{
         background: "#0D1117",
-        minHeight: "calc(100svh - 80px)",
+        minHeight: "calc(78svh - 80px)",
         padding: "28px 24px 24px",
         backgroundImage:
           "radial-gradient(circle, rgba(201,160,48,0.06) 1px, transparent 1px)",
