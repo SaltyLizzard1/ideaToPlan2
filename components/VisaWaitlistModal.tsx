@@ -96,7 +96,7 @@ export default function VisaWaitlistModal({ isOpen, onClose }: Props) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
                 />
               </div>
               <div>
@@ -114,7 +114,7 @@ export default function VisaWaitlistModal({ isOpen, onClose }: Props) {
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
                   placeholder="e.g. USA, Canada, UK"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
                 />
               </div>
               <button
