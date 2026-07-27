@@ -3,6 +3,7 @@ import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Header from "@/components/Header";
+import { BASE_URL } from "@/lib/seo";
 
 const cinzel = Cinzel({
   variable: "--font-cinzel",
@@ -22,7 +23,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ideatoplan.to"),
+  metadataBase: new URL(BASE_URL),
   title: "IdeaToPlan: Start Your Business Today",
   description:
     "Take the free skills assessment inspired by What Color Is Your Parachute? and discover the business you're actually built to run. Turn your top match into a real business plan.",
