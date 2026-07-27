@@ -12,7 +12,7 @@ export default function Home() {
     <main>
       <Hero />
 
-      <div id="how-it-works" style={{ scrollMarginTop: "80px" }}>
+      <div id="how-it-works" style={{ scrollMarginTop: "96px" }}>
         <ScrollReveal><HowItWorks /></ScrollReveal>
       </div>
 
@@ -21,8 +21,8 @@ export default function Home() {
       <ScrollReveal>
         <section
           id="assessment"
-          className="pt-14 pb-14 px-6"
-          style={{ background: "#FDFCF9", scrollMarginTop: "80px" }}
+          className="pt-4 pb-14 px-6"
+          style={{ background: "#FDFCF9", scrollMarginTop: "96px" }}
         >
           <div className="max-w-2xl mx-auto text-center">
             <p className="font-sans text-xs uppercase tracking-[0.2em] mb-3" style={{ color: "#C9A030" }}>
@@ -81,9 +81,7 @@ export default function Home() {
         </section>
       </ScrollReveal>
 
-      <div id="pricing" style={{ scrollMarginTop: "80px" }}>
-        <ScrollReveal><IdeaToPlan /></ScrollReveal>
-      </div>
+      <ScrollReveal><IdeaToPlan /></ScrollReveal>
 
       <ScrollReveal><Footer /></ScrollReveal>
     </main>
