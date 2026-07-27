@@ -3,6 +3,7 @@ import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Header from "@/components/Header";
+import ScrollManager from "@/components/ScrollManager";
 import { BASE_URL } from "@/lib/seo";
 
 const cinzel = Cinzel({
@@ -53,6 +54,7 @@ export default function RootLayout({
     <html lang="en" className={`${cinzel.variable} ${cormorant.variable} ${inter.variable}`}>
       <body className="min-h-full antialiased" suppressHydrationWarning>
         <Header />
+        <ScrollManager />
         {children}
         {/* Tawk.to chat — disabled; re-enable by restoring the Script block */}
       </body>
