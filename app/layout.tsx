@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: "IdeaToPlan: Start Your Business Today",
   description:
-    "Take the free skills assessment inspired by What Color Is Your Parachute? and discover the business you're actually built to run. Turn your top match into a real business plan.",
+    "Take the free skills assessment inspired by What Color Is Your Parachute? and discover the business you're built to run. Turn your top match into a real business plan.",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
