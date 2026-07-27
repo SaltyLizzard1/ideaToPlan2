@@ -1,6 +1,6 @@
 export default function AboutPage() {
   return (
-    <main style={{ background: "#FDFCF9", minHeight: "100vh" }}>
+    <main style={{ background: "#FDFCF9" }}>
       <section
         className="mx-auto flex flex-col items-center text-center"
         style={{ maxWidth: "800px", padding: "2rem 2rem 4rem" }}

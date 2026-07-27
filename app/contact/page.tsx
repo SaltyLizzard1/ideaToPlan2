@@ -1,6 +1,6 @@
 export default function ContactPage() {
   return (
-    <main style={{ background: "#0D1117", minHeight: "100vh" }}>
+    <main style={{ background: "#0D1117" }}>
       <section
         className="mx-auto flex flex-col items-center text-center"
         style={{ maxWidth: "600px", padding: "2rem 2rem 4rem" }}
