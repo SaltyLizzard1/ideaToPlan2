@@ -21,10 +21,13 @@ export default function Home() {
       <ScrollReveal>
         <section
           id="assessment"
-          className="pt-6 pb-8 px-6"
+          className="pt-14 pb-8 px-6"
           style={{ background: "#FDFCF9", scrollMarginTop: "80px" }}
         >
           <div className="max-w-2xl mx-auto text-center">
+            <p className="font-sans text-xs uppercase tracking-[0.2em] mb-3" style={{ color: "#C9A030" }}>
+              Why This Exists
+            </p>
             <h2
               className="font-serif text-4xl sm:text-5xl font-bold mb-8"
               style={{ color: "#0D1117" }}
@@ -33,12 +36,12 @@ export default function Home() {
             </h2>
 
             <div className="font-sans text-sm mb-8" style={{ color: "#6B6B66" }}>
-              <p className="font-serif text-lg mb-2" style={{ color: "#0D1117" }}>
+              <p className="font-serif text-lg mb-1" style={{ color: "#0D1117" }}>
                 Most people know what they want. I talk to people who don&apos;t.
               </p>
               <p>I built QYLAT using IdeaToPlan.</p>
-              <p className="font-serif italic mt-1" style={{ color: "#0D1117", fontSize: "0.95rem" }}>
-                — Elizabeth, Founder
+              <p className="font-serif italic" style={{ color: "#0D1117", fontSize: "0.95rem" }}>
+                Elizabeth, Founder
               </p>
             </div>
 
