@@ -11,7 +11,7 @@ const EFFECTIVE_DATE = 'July 8, 2026';
 
 function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (
-    <section className="mb-10" id={id} style={id ? { scrollMarginTop: "112px" } : undefined}>
+    <section className="mb-10" id={id} style={id ? { scrollMarginTop: "80px" } : undefined}>
       <h2 className="font-serif text-2xl font-bold text-gray-900 mb-3">{title}</h2>
       <div className="text-gray-700 leading-relaxed space-y-3">{children}</div>
     </section>

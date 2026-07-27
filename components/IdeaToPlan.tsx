@@ -262,10 +262,10 @@ const [paymentError, setPaymentError] = useState("");
   return (
     <section
       id="pricing"
-      className="pt-4 pb-10 md:pt-4 md:pb-14"
+      className="pt-10 pb-10 md:pt-10 md:pb-14"
       style={{
         background: "#0D1117",
-        scrollMarginTop: "112px",
+        scrollMarginTop: "80px",
         backgroundImage:
           "radial-gradient(circle, rgba(201,160,48,0.06) 1px, transparent 1px)",
         backgroundSize: "32px 32px",

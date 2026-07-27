@@ -127,7 +127,7 @@ export default function HowItWorks() {
   ];
 
   return (
-    <section ref={sectionRef} className="pt-4 pb-14 px-6 bg-[#FDFCF9]">
+    <section ref={sectionRef} className="pt-10 pb-14 px-6 bg-[#FDFCF9]">
       <div className="max-w-5xl mx-auto">
 
         {/* Section heading — unchanged */}
