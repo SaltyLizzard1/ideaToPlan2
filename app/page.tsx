@@ -12,7 +12,7 @@ export default function Home() {
     <main>
       <Hero />
 
-      <div id="how-it-works" style={{ scrollMarginTop: "96px" }}>
+      <div id="how-it-works" style={{ scrollMarginTop: "112px" }}>
         <ScrollReveal><HowItWorks /></ScrollReveal>
       </div>
 
@@ -22,7 +22,7 @@ export default function Home() {
         <section
           id="assessment"
           className="pt-4 pb-14 px-6"
-          style={{ background: "#FDFCF9", scrollMarginTop: "96px" }}
+          style={{ background: "#FDFCF9", scrollMarginTop: "112px" }}
         >
           <div className="max-w-2xl mx-auto text-center">
             <p className="font-sans text-xs uppercase tracking-[0.2em] mb-3" style={{ color: "#C9A030" }}>
