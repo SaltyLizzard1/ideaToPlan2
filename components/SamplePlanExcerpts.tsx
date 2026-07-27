@@ -238,7 +238,7 @@ export default function SamplePlanExcerpts() {
       <div className="max-w-4xl mx-auto">
 
         {/* Section heading */}
-        <div className="text-center mb-14">
+        <div className="text-center mb-2">
           <p
             className="font-sans text-xs uppercase tracking-[0.2em] mb-3"
             style={{ color: "#C9A030" }}
@@ -254,7 +254,7 @@ export default function SamplePlanExcerpts() {
           <p className="font-sans text-base mt-6 mx-auto" style={{ color: "#cfc9b8", maxWidth: "600px" }}>
             Below are excerpts from the plan I used to build{" "}
             <a href="https://quityourlifeandtravel.com/" target="_blank" rel="noopener noreferrer" style={{ color: "#C9A030", textDecoration: "underline", textUnderlineOffset: "3px" }}>Quit Your Life and Travel</a>
-            . QYLAT is for people standing at the cusp of change who are not sure how to make it. I provide a runway calculator, a skills assessment, and honest math instead of cheerleading. These are the actual pages, unedited.
+            . QYLAT is for people standing at the cusp of change who are not sure how to make it. I provide a runway calculator, a skills assessment, and honest math. These are the actual pages, unedited.
           </p>
         </div>
 
