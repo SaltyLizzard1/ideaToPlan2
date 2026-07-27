@@ -449,11 +449,11 @@ const [paymentError, setPaymentError] = useState("");
               className="text-center mt-2 mx-auto"
               style={{ color: "#B0AA9E", fontSize: "13px", maxWidth: "560px" }}
             >
-              Not happy? One free revision, then a{" "}
+              Not happy? I will keep revising until it is{" "}
               <a href="/terms#refunds" style={{ color: "#B0AA9E", textDecoration: "underline", textUnderlineOffset: "2px" }}>
-                full refund
+                right
               </a>
-              {" "}within 7 days.
+              .
             </p>
           </div>
         </div>

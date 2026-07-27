@@ -95,21 +95,23 @@ export default function TermsPage() {
               I want to fix it.
             </p>
             <p>
-              Not happy with your plan? Reply to the delivery email within 7 days and tell me what
-              missed. I will revise it once, free.
+              Changed your mind before delivery? Email me any time before your plan is sent and I
+              will refund you in full, no questions.
             </p>
             <p>
-              Still not right after the revision? Tell me within 7 days of receiving the revised
-              plan and I will refund you in full, no argument. You keep the plan.
+              Not happy with the plan you received? Reply within 7 days and tell me what missed. I
+              will keep revising it until it is right, at no cost. Because a plan cannot be returned
+              once it is delivered, revisions are how I make it right rather than refunds.
             </p>
             <p>
               Delivered late? If your plan takes longer than 72 hours from when you submit your
-              form, tell me within 7 days and I will refund you in full whether you keep the plan
-              or not. The 72 hours runs continuously and includes weekends.
+              form, tell me within 7 days and I will refund you in full.
             </p>
             <p>
               Refunds are processed to your original payment method within 5 business days.
-              Refunds are limited to one per customer.
+            </p>
+            <p>
+              If you are in the UK or EU, nothing in these terms affects your statutory rights.
             </p>
           </Section>
 
