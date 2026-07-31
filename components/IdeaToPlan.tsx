@@ -101,10 +101,10 @@ const PLAN_OPTIONS: PlanOption[] = [
 ];
 
 const STRIPE_LINKS: Record<string, string> = {
-  // test mode link, kept for staging tests: 'https://buy.stripe.com/test_14A8wI5GDgf6ekc1oa4Ja03'
-  Starter: 'https://buy.stripe.com/7sY00kb2Hf7ugmb6J4b7y02',
-  // test mode link, kept for staging tests: 'https://buy.stripe.com/test_5kQ3co2ur4wogsk3wi4Ja02'
-  Growth: 'https://buy.stripe.com/7sY28s8UzaRe9XN3wSb7y03',
+  // live mode link, kept for production: 'https://buy.stripe.com/7sY00kb2Hf7ugmb6J4b7y02'
+  Starter: 'https://buy.stripe.com/test_14A8wI5GDgf6ekc1oa4Ja03',
+  // live mode link, kept for production: 'https://buy.stripe.com/7sY28s8UzaRe9XN3wSb7y03'
+  Growth: 'https://buy.stripe.com/test_5kQ3co2ur4wogsk3wi4Ja02',
 };
 
 const GOLD_GRADIENT =
