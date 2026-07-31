@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabase } from "../../../lib/supabase";
 import { notify } from "../../../lib/notify";
+import { checkRateLimit, clientIp } from "../../../lib/rateLimit";
 
 export const maxDuration = 180;
 
@@ -12,9 +13,64 @@ const PLAN_BY_AMOUNT: Record<number, string> = {
   5000: "Growth",
 };
 
+const ALLOWED_FIELDS = [
+  "fullName",
+  "email",
+  "businessIdea",
+  "targetAudience",
+  "problem",
+  "industry",
+  "location",
+  "revenueModel",
+  "differentiation",
+  "budget",
+  "planGoal",
+  "planType",
+  "expedited24h",
+  "founderBackground",
+  "fundingAsk",
+  "useOfFunds",
+  "currentTraction",
+  "exitVision",
+  "loanAmount",
+  "loanUse",
+  "creditStanding",
+  "existingDebt",
+  "assetsCollateral",
+  "currentRevenue",
+  "yearsInBusiness",
+  "stripeSessionId",
+] as const;
+
+const MAX_FIELD_LENGTH = 5000;
+const MAX_BODY_LENGTH = 50000;
+
 export async function POST(req: NextRequest) {
   try {
+    // 0. Rate limit — checked before body is consumed
+    const allowed = await checkRateLimit(`submit-idea:${clientIp(req)}`, 10, 3600);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
+
+    // 1. Size caps
+    if (JSON.stringify(body).length > MAX_BODY_LENGTH) {
+      return NextResponse.json({ error: "Request body too large" }, { status: 413 });
+    }
+    for (const key of Object.keys(body)) {
+      if (typeof body[key] === "string" && (body[key] as string).length > MAX_FIELD_LENGTH) {
+        return NextResponse.json(
+          { error: `Field "${key}" exceeds maximum length` },
+          { status: 413 }
+        );
+      }
+    }
+
     const sessionId = body.stripeSessionId;
 
     if (!sessionId || typeof sessionId !== "string" || !sessionId.startsWith("cs_")) {
@@ -25,7 +81,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing payment reference" }, { status: 402 });
     }
 
-    // 1. Verify the session is genuinely paid, server-side
+    // 2. Verify the session is genuinely paid, server-side
     let session;
     try {
       session = await stripe.checkout.sessions.retrieve(sessionId);
@@ -45,7 +101,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Payment not completed" }, { status: 402 });
     }
 
-    // 2. Atomically mark the session as redeemed — primary key rejects reuse
+    // 3. Atomically mark the session as redeemed — primary key rejects reuse
     const { error: redemptionError } = await supabase
       .from("stripe_redemptions")
       .insert({
@@ -66,13 +122,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Submission failed" }, { status: 500 });
     }
 
-    // 3. Only now forward to the plan pipeline
+    // 4. Only now forward to the plan pipeline — allowlisted fields only
     const verifiedPlanType = PLAN_BY_AMOUNT[session.amount_total ?? 0] ?? null;
+
+    const allowlisted: Record<string, unknown> = {};
+    for (const field of ALLOWED_FIELDS) {
+      if (Object.prototype.hasOwnProperty.call(body, field)) {
+        allowlisted[field] = body[field];
+      }
+    }
+
+    const secret = process.env.N8N_WEBHOOK_SECRET;
+    if (!secret) {
+      console.warn("N8N_WEBHOOK_SECRET is not set — submit-idea webhook call will be unauthenticated");
+    }
+    const webhookHeaders: Record<string, string> = { "Content-Type": "application/json" };
+    if (secret) webhookHeaders["X-Webhook-Secret"] = secret;
+
     const res = await fetch(process.env.N8N_I2P_WEBHOOK_URL!, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: webhookHeaders,
       body: JSON.stringify({
-        ...body,
+        ...allowlisted,
         verifiedPlanType,
         verifiedEmail: session.customer_details?.email ?? null,
       }),

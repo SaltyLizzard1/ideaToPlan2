@@ -17,9 +17,16 @@ export async function POST(req: Request) {
       return Response.json({ error: 'Webhook not configured' }, { status: 500 });
     }
 
+    const secret = process.env.N8N_WEBHOOK_SECRET;
+    if (!secret) {
+      console.warn('N8N_WEBHOOK_SECRET is not set — quiz webhook call will be unauthenticated');
+    }
+    const webhookHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (secret) webhookHeaders['X-Webhook-Secret'] = secret;
+
     const res = await fetch(webhookUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: webhookHeaders,
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(175_000),
     });

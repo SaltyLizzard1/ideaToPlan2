@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { checkRateLimit, clientIp } from "../../../lib/rateLimit";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -16,6 +17,14 @@ const PLAN_BY_AMOUNT: Record<number, string> = {
 
 export async function POST(req: NextRequest) {
   try {
+    const allowed = await checkRateLimit(`verify-payment:${clientIp(req)}`, 20, 3600);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const { sessionId } = await req.json();
 
     if (!sessionId || typeof sessionId !== "string" || !sessionId.startsWith("cs_")) {

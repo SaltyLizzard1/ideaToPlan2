@@ -569,9 +569,16 @@ const [paymentError, setPaymentError] = useState("");
                         onChange={handleChange}
                         required
                         rows={3}
+                        maxLength={5000}
                         placeholder="What's the idea? Give us the overview."
                         className={`${INPUT_CLASS} resize-none`}
                       />
+                      <p
+                        className="text-xs text-right mt-1"
+                        style={{ color: form.businessIdea.length > 4500 ? "#C9A030" : "#9CA3AF" }}
+                      >
+                        {form.businessIdea.length} / 5000
+                      </p>
                     </div>
 
                     <div>
