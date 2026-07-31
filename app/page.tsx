@@ -52,7 +52,7 @@ export default function Home() {
             </p>
 
             <div className="font-sans text-sm mb-8" style={{ color: "#6B6B66" }}>
-              <p>I built QYLAT using IdeaToPlan.</p>
+              <p>I built Quit Your Life and Travel using IdeaToPlan. The plan above is its actual pages.</p>
               <p className="font-serif italic mt-1" style={{ color: "#0D1117", fontSize: "0.95rem" }}>
                 Elizabeth, Founder
               </p>
