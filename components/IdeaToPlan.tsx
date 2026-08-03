@@ -212,14 +212,38 @@ const [paymentError, setPaymentError] = useState("");
     setErrorMsg("");
 
     try {
-      await fetch("/api/submit-idea", {
+      const res = await fetch("/api/submit-idea", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, stripeSessionId }),
       });
-      setStatus("success");
-      sessionStorage.removeItem("i2p_prefill_idea");
-      setForm(initialForm);
+
+      if (res.ok) {
+        setStatus("success");
+        sessionStorage.removeItem("i2p_prefill_idea");
+        setForm(initialForm);
+      } else {
+        let serverMsg = "";
+        try {
+          const json = await res.json();
+          serverMsg = json?.error ?? "";
+        } catch {}
+
+        let msg: string;
+        if (res.status === 409) {
+          msg = serverMsg || "This payment has already been used for a submission.";
+        } else if (res.status === 413) {
+          msg = "Your idea text is too long. Please shorten it and resubmit.";
+        } else if (res.status === 429) {
+          msg = "Too many attempts. Please wait a few minutes and try again.";
+        } else {
+          msg =
+            "Something went wrong and your submission was NOT received. Please try again, or email us and we will sort it out. Your payment is safe.";
+        }
+
+        setErrorMsg(msg);
+        setStatus("error");
+      }
     } catch (err: unknown) {
       console.error(err);
       setErrorMsg("Something went wrong. Please try again or email us directly.");
