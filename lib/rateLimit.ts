@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { notify } from './notify';
 
 export async function checkRateLimit(
   key: string,
@@ -13,12 +14,14 @@ export async function checkRateLimit(
     });
     if (error) {
       console.error('Rate limit check error:', error);
-      return false; // fail closed: if we can't verify the limit, don't allow the request
+      notify('rateLimit RPC failure', error.message);
+      return true;
     }
     return data === true;
   } catch (err) {
     console.error('Rate limit error:', err);
-    return false; // fail closed, same reasoning as above
+    notify('rateLimit RPC failure', err instanceof Error ? err.message : String(err));
+    return true;
   }
 }
 
