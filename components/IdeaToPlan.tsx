@@ -749,7 +749,6 @@ const [paymentError, setPaymentError] = useState("");
                           <option value="bank-loan">Bank loan</option>
                           <option value="investor">Investor pitch</option>
                           <option value="personal-roadmap">Personal roadmap</option>
-                          <option value="other">Other</option>
                         </select>
                       </div>
                     </div>
