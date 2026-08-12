@@ -41,7 +41,7 @@ export const metadata: Metadata = {
       "Discover the business you're built to run. Free skills assessment + done-for-you business plans.",
     url: "https://ideatoplan.to",
     siteName: "IdeaToPlan",
-    images: [{ url: "/og-image.png", width: 400, height: 400, alt: "IdeaToPlan" }],
+    images: [{ url: "/og-ideatoplan.png", width: 1200, height: 630, alt: "IdeaToPlan: Shape your future. Start today." }],
   },
 };
 

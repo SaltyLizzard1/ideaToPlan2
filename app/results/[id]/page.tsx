@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const canonicalUrl = `${BASE_URL}/results/${id}`;
   const title = 'My Business Matches | IdeaToPlan';
-  const description = 'See the business ideas this assessment matched — then build yours into a real plan.';
+  const description = 'See the business ideas this assessment matched, then build yours into a real plan.';
 
   return {
     title,
@@ -36,9 +36,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: canonicalUrl,
       siteName: 'IdeaToPlan',
+      images: [{ url: '/og-ideatoplan.png', width: 1200, height: 630, alt: 'IdeaToPlan: Shape your future. Start today.' }],
     },
     twitter: {
       card: 'summary_large_image',
+      images: ['/og-ideatoplan.png'],
     },
   };
 }
