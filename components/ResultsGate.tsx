@@ -136,6 +136,12 @@ export default function ResultsGate({ matches, canonicalUrl }: { matches: Match[
         <MatchCard match={matches[0]} index={0} />
       </div>
 
+      {unlocked && (
+        <div className="mb-6 flex justify-center">
+          <ShareButtons url={canonicalUrl} title="My Business Matches" text={shareText} />
+        </div>
+      )}
+
       <div className="relative">
         <div className={unlocked ? '' : 'blur-sm select-none pointer-events-none'}>
           <div className="space-y-4">
