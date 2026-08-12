@@ -37,11 +37,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: canonicalUrl,
       siteName: 'IdeaToPlan',
-      images: [{ url: '/og-ideatoplan.png', width: 1200, height: 630, alt: 'IdeaToPlan: Shape your future. Start today.' }],
+      images: [{ url: '/og-ideatoplan-dark.png', width: 1200, height: 630, alt: 'IdeaToPlan: Shape your future. Start today.' }],
     },
     twitter: {
       card: 'summary_large_image',
-      images: ['/og-ideatoplan.png'],
+      images: ['/og-ideatoplan-dark.png'],
     },
   };
 }
