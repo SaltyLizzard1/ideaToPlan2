@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
-import Script from "next/script";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import ScrollManager from "@/components/ScrollManager";
@@ -57,6 +57,7 @@ export default function RootLayout({
         <ScrollManager />
         {children}
         {/* Tawk.to chat — disabled; re-enable by restoring the Script block */}
+        <GoogleAnalytics gaId="G-VZSW0DM03F" />
       </body>
     </html>
   );
