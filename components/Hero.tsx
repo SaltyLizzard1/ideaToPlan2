@@ -7,7 +7,7 @@ export default function Hero() {
 
   return (
     <section
-      className="relative flex flex-col items-center justify-center text-center overflow-x-hidden min-h-[calc(100svh_-_80px)] md:min-h-[calc(78svh_-_80px)]"
+      className="relative flex flex-col items-center justify-center text-center overflow-x-hidden min-h-[calc(100svh_-_80px)]"
       style={{
         background: "#0D1117",
         padding: "28px 24px 24px",
