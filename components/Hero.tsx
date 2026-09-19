@@ -68,8 +68,7 @@ export default function Hero() {
             lineHeight: 1.15,
           }}
         >
-          Turn What You&apos;re Good At Into<br className="hidden sm:block" />{" "}
-          a Business You <span className="gold-gradient-text--animated">Love</span>
+          What Business Should You <span className="gold-gradient-text--animated">Start?</span>
         </h1>
 
         {/* Subheadline */}
@@ -83,7 +82,7 @@ export default function Hero() {
             marginTop: "-8px",
           }}
         >
-          A 5-minute assessment shows you seven businesses you&apos;re built to run. Then we build the plan, review it by hand, and send it to you with email follow-up included.
+          Take the free 5-minute assessment and discover seven business ideas matched to your skills, experience, interests, and goals.
         </p>
 
         {/* CTA block */}
