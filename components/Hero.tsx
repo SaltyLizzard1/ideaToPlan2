@@ -39,11 +39,12 @@ export default function Hero() {
 
       {/* Content stack */}
       <div
-        className="relative flex flex-col items-center"
+        className="relative flex flex-col items-center justify-center"
         style={{
           maxWidth: "900px",
           width: "100%",
           gap: "clamp(24px, 3vw, 32px)",
+          flex: 1,
         }}
       >
         {/* Eyebrow */}
