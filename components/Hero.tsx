@@ -43,7 +43,7 @@ export default function Hero() {
         style={{
           maxWidth: "900px",
           width: "100%",
-          gap: "clamp(14px, 2vw, 22px)",
+          gap: "clamp(24px, 3vw, 32px)",
         }}
       >
         {/* Eyebrow */}
