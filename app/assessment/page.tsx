@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight, Loader } from 'lucide-react';
-import { getStripeLink, createClientReferenceId, appendPaymentParams } from '../lib/stripe';
+import { getStripeLink, createClientReferenceId, appendPaymentParams } from '../../lib/stripe';
 import ShareButtons from '../../components/ShareButtons';
 import PlanLoader from '../../components/PlanLoader';
 
