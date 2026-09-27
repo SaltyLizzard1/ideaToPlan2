@@ -7,6 +7,7 @@ import {
   Loader,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import { getStripeLink } from "@/lib/stripe";
 import VisaWaitlistModal from "./VisaWaitlistModal";
 
 type FormData = {
@@ -99,13 +100,6 @@ const PLAN_OPTIONS: PlanOption[] = [
     comingSoon: true,
   },
 ];
-
-const STRIPE_LINKS: Record<string, string> = {
-  // live mode link, kept for production: 'https://buy.stripe.com/7sY00kb2Hf7ugmb6J4b7y02'
-  Starter: 'https://buy.stripe.com/test_14A8wI5GDgf6ekc1oa4Ja03',
-  // live mode link, kept for production: 'https://buy.stripe.com/7sY28s8UzaRe9XN3wSb7y03'
-  Growth: 'https://buy.stripe.com/test_5kQ3co2ur4wogsk3wi4Ja02',
-};
 
 const GOLD_GRADIENT =
   "linear-gradient(135deg, #6B4C08 0%, #C9A030 35%, #F5D020 60%, #E8C84A 80%, #6B4C08 100%)";
@@ -290,7 +284,8 @@ const [paymentError, setPaymentError] = useState("");
   };
 
   const handlePaymentCTA = () => {
-    const link = STRIPE_LINKS[form.planType] ?? STRIPE_LINKS["Starter"];
+    const planType = form.planType === "Growth" ? "Growth" : "Starter";
+    const link = getStripeLink(planType as "Starter" | "Growth");
     setRedirecting(true);
     window.location.href = link;
   };

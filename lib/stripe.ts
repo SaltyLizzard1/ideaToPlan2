@@ -10,7 +10,7 @@ const STRIPE_LINKS_LIVE = {
 };
 
 export function getStripeLink(planType: 'Starter' | 'Growth'): string {
-  const isProduction = process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
+  const isProduction = process.env.NEXT_PUBLIC_VERCEL_ENV === 'production' || process.env.VERCEL_ENV === 'production';
   const links = isProduction ? STRIPE_LINKS_LIVE : STRIPE_LINKS_TEST;
   return links[planType] || links.Starter;
 }
