@@ -335,7 +335,7 @@ const [paymentError, setPaymentError] = useState("");
             className="text-3xl md:text-4xl font-serif font-bold mb-3"
             style={{ color: "#F5E9C9" }}
           >
-            Your business plan in 72 hours.
+            Business Plans in 72 hours.
           </h2>
           <p
             className="text-base font-medium max-w-2xl mx-auto"

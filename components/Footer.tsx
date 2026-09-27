@@ -7,7 +7,7 @@ import VisaWaitlistModal from "@/components/VisaWaitlistModal";
 
 const NAV_LINKS = [
   { label: "How It Works", href: "/#how-it-works" },
-  { label: "Pricing", href: "/#pricing" },
+  { label: "Business Plans", href: "/#pricing" },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
 ];
