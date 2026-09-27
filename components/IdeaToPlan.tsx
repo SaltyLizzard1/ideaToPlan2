@@ -179,14 +179,17 @@ const [paymentError, setPaymentError] = useState("");
             email: data.email || "",
           };
 
+          let hasPrefill = false;
+
           if (sourceMatch) {
             prefilled.businessIdea = sourceMatch.description || "";
-            prefilled.problem = sourceMatch.whyYou || "";
-            prefilled.targetAudience = "";
-            prefilled.industry = sourceMatch.category || "";
+            prefilled.differentiation = sourceMatch.whyYou || "";
+            // problem, targetAudience, industry left empty per n8n prompt requirements
             prefilled.planGoal = "personal-roadmap";
+            hasPrefill = !!prefilled.businessIdea || !!prefilled.differentiation;
           } else if (fallbackIdea) {
             prefilled.businessIdea = fallbackIdea;
+            hasPrefill = true;
           }
 
           setForm((prev) => ({
@@ -194,7 +197,7 @@ const [paymentError, setPaymentError] = useState("");
             ...prefilled,
           }));
 
-          if (sourceMatch || fallbackIdea) {
+          if (hasPrefill) {
             setShowPrefillNote(true);
           }
 

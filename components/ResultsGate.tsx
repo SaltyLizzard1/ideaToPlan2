@@ -79,6 +79,23 @@ function MatchCard({ match, index, resultId, userEmail }: MatchCardProps) {
 
         <p className="mb-3 leading-relaxed" style={{ color: 'var(--i2p-ink-body)' }}>{match.description}</p>
 
+        {/* Quick buy button - compact, right under description */}
+        <button
+          onClick={() => handleBuildPlan('Starter')}
+          disabled={redirecting}
+          className="w-full py-2 mb-4 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-60"
+          style={{ color: '#2D1A00', border: '1.5px solid #7A5C0A', backgroundColor: '#F5E070' }}
+        >
+          {redirecting ? (
+            <>
+              <Loader className="w-3 h-3 animate-spin" />
+              Redirecting...
+            </>
+          ) : (
+            <>Build my plan for this idea · $25</>
+          )}
+        </button>
+
         {match.whyYou && (
           <p className="text-sm italic border-l-2 pl-4 mb-4" style={{ borderColor: 'var(--i2p-gold)', color: 'var(--i2p-ink)' }}>
             {match.whyYou}
@@ -117,22 +134,8 @@ function MatchCard({ match, index, resultId, userEmail }: MatchCardProps) {
           <p className="text-xs mt-3" style={{ color: 'var(--i2p-ink-dim)' }}>{match.saturationNote}</p>
         )}
 
-        <div className="mt-6 flex flex-col gap-2">
-          <button
-            onClick={() => handleBuildPlan('Starter')}
-            disabled={redirecting}
-            className="w-full py-3 font-semibold rounded-lg cta-shimmer flex items-center justify-center gap-2 disabled:opacity-60"
-            style={GOLD_BUTTON_STYLE}
-          >
-            {redirecting ? (
-              <>
-                <Loader className="w-4 h-4 animate-spin" />
-                Redirecting...
-              </>
-            ) : (
-              <>Build my plan for this idea · $25</>
-            )}
-          </button>
+        {/* Growth tier option at bottom */}
+        <div className="mt-6">
           <button
             onClick={() => handleBuildPlan('Growth')}
             disabled={redirecting}
