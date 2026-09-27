@@ -551,7 +551,7 @@ const [paymentError, setPaymentError] = useState("");
                     You&apos;re in the queue!
                   </h3>
                   <p className="text-gray-600 mb-2">
-                    Payment received and idea submitted — your plan is in the queue.
+                    Payment received and idea submitted. Your plan is in the queue.
                     Delivery within 72 hours.
                   </p>
                   <p className="text-gray-500 text-sm">

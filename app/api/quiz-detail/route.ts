@@ -61,9 +61,12 @@ export async function GET(req: Request) {
     }
 
     const ranking = merged[indexNum];
-    if (!ranking.title) {
-      console.error(`[quiz-detail] ranking has no title: resultId=${resultId} index=${indexNum}`);
-      return Response.json({ error: 'Match has no title to detail' }, { status: 500 });
+    if (!ranking.title || !ranking.category) {
+      console.error(
+        `[quiz-detail] stored ranking is incomplete: resultId=${resultId} index=${indexNum} ` +
+          `title=${JSON.stringify(ranking.title)} category=${JSON.stringify(ranking.category)}`
+      );
+      return Response.json({ error: 'Stored ranking is incomplete' }, { status: 500 });
     }
 
     // Rows written before the two stage split have no answers, but they are
@@ -113,6 +116,11 @@ export async function GET(req: Request) {
           resultId,
           matchIndex: indexNum,
           title: ranking.title,
+          // The detail has to return the same category and cannot guess it,
+          // so it is sent rather than inferred. oneLiner goes with it as the
+          // promise the write-up has to keep.
+          category: ranking.category,
+          oneLiner: ranking.oneLiner,
           // Every title, so the detail can be written to avoid overlapping
           // the other six.
           allTitles: merged.map((m) => m.title),

@@ -130,7 +130,7 @@ export default function ShareButtons({ url, title, text }: ShareButtonsProps) {
 
       {igCopied && (
         <p className="text-xs text-center" style={{ color: 'var(--i2p-text-on-dark-dim)' }}>
-          Link copied — paste it in your bio or a DM.
+          Link copied. Paste it in your bio or a DM.
         </p>
       )}
     </div>

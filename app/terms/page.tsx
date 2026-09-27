@@ -74,7 +74,7 @@ export default function TermsPage() {
 
           <Section title="5. Delivery and Revisions">
             <p>
-              Standard plans are delivered within 72 hours of submission. Faster delivery may be available on request — email us to ask. Delivery times are estimates and may vary based on order volume.
+              Standard plans are delivered within 72 hours of submission. Faster delivery may be available on request. Email us to ask. Delivery times are estimates and may vary based on order volume.
             </p>
             <p>
               If you are not satisfied with your plan, contact us at{' '}

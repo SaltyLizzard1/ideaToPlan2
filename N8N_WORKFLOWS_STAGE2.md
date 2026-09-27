@@ -126,6 +126,8 @@ times out at 55 seconds.
   "resultId": "abc123def456",
   "matchIndex": 0,
   "title": "Executive Virtual Assistant",
+  "category": "Freelance",
+  "oneLiner": "Run the calendar, inbox and travel for two or three founders.",
   "allTitles": [
     "Executive Virtual Assistant",
     "Copywriter for SaaS",
@@ -146,9 +148,13 @@ times out at 55 seconds.
 }
 ```
 
-`title` is the one to write up. `allTitles` is all 7 in index order, so the
-write-up can stay off the other six rather than repeating them. `answers` is
-the founder's own input, the same object the ranking call received.
+`title` is the one to write up, and it comes back unchanged. `category` is the
+one the ranking gave this index: return it exactly, do not re-decide it.
+`oneLiner` is what the reader has already seen on the card, so the description
+has to keep that promise rather than contradict it. `allTitles` is all 7 in
+index order, so the write-up can stay off the other six rather than repeating
+them. `answers` is the founder's own input, the same object the ranking call
+received.
 
 ### Response
 
@@ -182,8 +188,8 @@ Rules, all enforced:
 - All 13 fields present. A missing field fails the whole detail.
 - `title` must come back **exactly** as it was sent, trimmed. This is the guard
   against a detail being filed against the wrong match.
-- `category` exactly one of `Business`, `Freelance`, `Remote Job`, and it must
-  be the one the ranking gave this index.
+- `category` must equal the `category` in the request, which is always one of
+  `Business`, `Freelance`, `Remote Job`. It is sent for exactly this reason.
 - `saturation` exactly one of `Low`, `Medium`, `High`.
 - `firstSteps` is an array of 4 to 8 non-empty strings.
 - Every other field is a non-empty string of at most 2000 characters:
@@ -214,9 +220,11 @@ Hard rules:
 3. Stay off the other six titles in allTitles. This is the one they asked for.
 4. industry is specific, for example "Executive Support Services", never
    "Business" and never "General".
-5. category must be the same one the ranking gave this idea.
+5. Return category exactly as given in the request. Do not re-decide it.
 6. Return title exactly as given.
-7. Neutral, plain register. No hype, no em dashes.
+7. The description must agree with oneLiner, which the reader has already
+   seen on the card.
+8. Neutral, plain register. No hype, no em dashes.
 ```
 
 ---
@@ -283,6 +291,8 @@ curl -X POST https://n8n.ideatoplan.to/webhook/quiz-detail-v1 \
     "resultId": "test123",
     "matchIndex": 0,
     "title": "Executive Virtual Assistant",
+    "category": "Freelance",
+    "oneLiner": "Run the calendar, inbox and travel for two or three founders.",
     "allTitles": ["Executive Virtual Assistant","Copywriter for SaaS","Podcast Editor for Founders","Notion Systems Consultant","Remote Customer Success Lead","Course Operations Manager","Community Manager for B2B"],
     "answers": {
       "hardSkills": ["Writing & copywriting"],
@@ -295,5 +305,6 @@ curl -X POST https://n8n.ideatoplan.to/webhook/quiz-detail-v1 \
   }'
 ```
 
-Check: a bare object, 13 fields and no others, `title` identical to the one
-sent, `firstSteps` with 4 to 8 entries, no invented numbers anywhere.
+Check: a bare object, 13 fields and no others, `title` and `category` identical
+to the ones sent, `firstSteps` with 4 to 8 entries, no invented numbers
+anywhere.
