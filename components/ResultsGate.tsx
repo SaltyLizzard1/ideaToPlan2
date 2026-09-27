@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { Loader } from 'lucide-react';
 import ShareButtons from './ShareButtons';
+import { getStripeLink, createClientReferenceId, appendPaymentParams } from '../lib/stripe';
 
 interface Match {
   title: string;
@@ -26,7 +28,27 @@ const GOLD_BUTTON_STYLE = {
   border: '1.5px solid #7A5C0A',
 } as const;
 
-function MatchCard({ match, index }: { match: Match; index: number }) {
+interface MatchCardProps {
+  match: Match;
+  index: number;
+  resultId: string;
+  userEmail?: string;
+}
+
+function MatchCard({ match, index, resultId, userEmail }: MatchCardProps) {
+  const [redirecting, setRedirecting] = useState(false);
+
+  const handleBuildPlan = (planType: 'Starter' | 'Growth' = 'Starter') => {
+    const clientRefId = createClientReferenceId(resultId, index);
+    if (!clientRefId) {
+      console.error('Failed to create client_reference_id');
+      return;
+    }
+    const link = getStripeLink(planType);
+    const linkWithParams = appendPaymentParams(link, clientRefId, userEmail);
+    setRedirecting(true);
+    window.location.href = linkWithParams;
+  };
   return (
     <div
       className="rounded-2xl overflow-hidden"
@@ -94,12 +116,44 @@ function MatchCard({ match, index }: { match: Match; index: number }) {
         {match.saturationNote && (
           <p className="text-xs mt-3" style={{ color: 'var(--i2p-ink-dim)' }}>{match.saturationNote}</p>
         )}
+
+        <div className="mt-6 flex flex-col gap-2">
+          <button
+            onClick={() => handleBuildPlan('Starter')}
+            disabled={redirecting}
+            className="w-full py-3 font-semibold rounded-lg cta-shimmer flex items-center justify-center gap-2 disabled:opacity-60"
+            style={GOLD_BUTTON_STYLE}
+          >
+            {redirecting ? (
+              <>
+                <Loader className="w-4 h-4 animate-spin" />
+                Redirecting...
+              </>
+            ) : (
+              <>Build my plan for this idea · $25</>
+            )}
+          </button>
+          <button
+            onClick={() => handleBuildPlan('Growth')}
+            disabled={redirecting}
+            className="w-full py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-60"
+            style={{ borderColor: '#C9A030', color: '#5C4206', backgroundColor: '#FBF6E4' }}
+          >
+            Growth tier · $50
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-export default function ResultsGate({ matches, canonicalUrl }: { matches: Match[]; canonicalUrl: string }) {
+interface ResultsGateProps {
+  matches: Match[];
+  canonicalUrl: string;
+  resultId: string;
+}
+
+export default function ResultsGate({ matches, canonicalUrl, resultId }: ResultsGateProps) {
   const [unlocked, setUnlocked] = useState(false);
   const [email, setEmail] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
@@ -117,6 +171,7 @@ export default function ResultsGate({ matches, canonicalUrl }: { matches: Match[
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       });
+      setEmail(email.trim());
       setUnlocked(true);
     } catch (err) {
       console.error('Email error:', err);
@@ -133,14 +188,14 @@ export default function ResultsGate({ matches, canonicalUrl }: { matches: Match[
   return (
     <>
       <div className="mb-4">
-        <MatchCard match={matches[0]} index={0} />
+        <MatchCard match={matches[0]} index={0} resultId={resultId} userEmail={email} />
       </div>
 
       <div className="relative">
         <div className={unlocked ? '' : 'blur-sm select-none pointer-events-none'}>
           <div className="space-y-4">
             {matches.slice(1).map((match, i) => (
-              <MatchCard key={i} match={match} index={i + 1} />
+              <MatchCard key={i} match={match} index={i + 1} resultId={resultId} userEmail={email} />
             ))}
           </div>
         </div>

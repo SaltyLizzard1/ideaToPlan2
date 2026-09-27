@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { supabase } from "../../../lib/supabase";
 import { notify } from "../../../lib/notify";
 import { checkRateLimit, clientIp } from "../../../lib/rateLimit";
+import { parseClientReferenceId } from "../../../lib/stripe";
 
 export const maxDuration = 180;
 
@@ -122,6 +123,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Submission failed" }, { status: 500 });
     }
 
+    // 3b. Fetch sourceMatch from client_reference_id (server-side only, never from request body)
+    let sourceMatch: Record<string, unknown> | null = null;
+    const clientRefId = session.client_reference_id;
+    if (clientRefId) {
+      const parsed = parseClientReferenceId(clientRefId);
+      if (parsed) {
+        const { resultId, matchIndex } = parsed;
+        try {
+          const { data, error } = await supabase
+            .from('quiz_results')
+            .select('matches')
+            .eq('id', resultId)
+            .eq('site', 'i2p')
+            .single();
+
+          if (error) {
+            console.error(`[submit-idea] Result not found: resultId=${resultId}, matchIndex=${matchIndex}, error=${error.message}`);
+          } else if (data && Array.isArray(data.matches)) {
+            if (matchIndex >= 0 && matchIndex < data.matches.length) {
+              sourceMatch = data.matches[matchIndex] as Record<string, unknown>;
+            } else {
+              console.error(`[submit-idea] Match index out of range: resultId=${resultId}, matchIndex=${matchIndex}, total=${data.matches.length}`);
+            }
+          }
+        } catch (err) {
+          console.error(`[submit-idea] Failed to fetch sourceMatch: resultId=${resultId}, matchIndex=${matchIndex}, error=${err}`);
+        }
+      } else {
+        console.error(`[submit-idea] Malformed client_reference_id: ${clientRefId}`);
+      }
+    } else {
+      console.error('[submit-idea] No client_reference_id in Stripe session');
+    }
+
     // 4. Only now forward to the plan pipeline — allowlisted fields only
     const verifiedPlanType = PLAN_BY_AMOUNT[session.amount_total ?? 0] ?? null;
 
@@ -139,14 +174,21 @@ export async function POST(req: NextRequest) {
     const webhookHeaders: Record<string, string> = { "Content-Type": "application/json" };
     if (secret) webhookHeaders["X-Webhook-Secret"] = secret;
 
+    const payload: Record<string, unknown> = {
+      ...allowlisted,
+      verifiedPlanType,
+      verifiedEmail: session.customer_details?.email ?? null,
+    };
+
+    // Add sourceMatch if available (fetched server-side, never from request body)
+    if (sourceMatch) {
+      payload.sourceMatch = sourceMatch;
+    }
+
     const res = await fetch(process.env.N8N_I2P_WEBHOOK_URL!, {
       method: "POST",
       headers: webhookHeaders,
-      body: JSON.stringify({
-        ...allowlisted,
-        verifiedPlanType,
-        verifiedEmail: session.customer_details?.email ?? null,
-      }),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(175_000),
     });
 

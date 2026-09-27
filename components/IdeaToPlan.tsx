@@ -155,27 +155,62 @@ const [paymentError, setPaymentError] = useState("");
         if (data.paid) {
           setStripeSessionId(sessionId);
 
-          let prefillIdea = "";
-          try {
-            const raw = sessionStorage.getItem("i2p_prefill_idea");
-            if (raw) {
-              const p = JSON.parse(raw);
-              const parts: string[] = [];
-              if (p.title) parts.push(p.title + ".");
-              if (p.description) parts.push(p.description);
-              if (p.uniqueAngle) parts.push("My angle: " + p.uniqueAngle);
-              prefillIdea = parts.join(" ");
-            }
-          } catch {}
+          // Fallback chain: sourceMatch (from Stripe redirect) → sessionStorage.i2p_prefill_idea (old flow) → empty
+          let sourceMatch = data.sourceMatch || null;
+          let fallbackIdea = "";
+
+          if (!sourceMatch) {
+            try {
+              const raw = sessionStorage.getItem("i2p_prefill_idea");
+              if (raw) {
+                const p = JSON.parse(raw);
+                const parts: string[] = [];
+                if (p.title) parts.push(p.title + ".");
+                if (p.description) parts.push(p.description);
+                if (p.uniqueAngle) parts.push("My angle: " + p.uniqueAngle);
+                fallbackIdea = parts.join(" ");
+              }
+            } catch {}
+          }
+
+          // Pre-fill from sourceMatch or fallback
+          const prefilled: Partial<FormData> = {
+            planType: data.planType ?? undefined,
+            email: data.email || "",
+          };
+
+          if (sourceMatch) {
+            prefilled.businessIdea = sourceMatch.description || "";
+            prefilled.problem = sourceMatch.whyYou || "";
+            prefilled.targetAudience = "";
+            prefilled.industry = sourceMatch.category || "";
+            prefilled.planGoal = "personal-roadmap";
+          } else if (fallbackIdea) {
+            prefilled.businessIdea = fallbackIdea;
+          }
 
           setForm((prev) => ({
             ...prev,
-            planType: data.planType ?? prev.planType,
-            email: prev.email || data.email || "",
-            ...(prefillIdea && !prev.businessIdea ? { businessIdea: prefillIdea } : {}),
+            ...prefilled,
           }));
 
-          if (prefillIdea) setShowPrefillNote(true);
+          if (sourceMatch || fallbackIdea) {
+            setShowPrefillNote(true);
+          }
+
+          // Fire GA4 purchase event (deduplicated by session_id)
+          try {
+            if (typeof window !== 'undefined' && (window as any).gtag) {
+              (window as any).gtag('event', 'purchase', {
+                currency: 'USD',
+                value: data.planType === 'Growth' ? 50 : 25,
+                transaction_id: sessionId,
+              });
+            }
+          } catch (err) {
+            console.error('[GA4] Purchase event fire failed:', err);
+          }
+
           setShowForm(true);
           requestAnimationFrame(() => {
             formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });

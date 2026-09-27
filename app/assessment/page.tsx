@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader } from 'lucide-react';
+import { getStripeLink, createClientReferenceId, appendPaymentParams } from '../lib/stripe';
 import ShareButtons from '../../components/ShareButtons';
 import PlanLoader from '../../components/PlanLoader';
 
@@ -202,7 +203,32 @@ function EitherOrPair({
 
 // ── Result card ────────────────────────────────────────────────────────────
 
-function MatchCard({ match, index }: { match: Match; index: number }) {
+interface MatchCardProps {
+  match: Match;
+  index: number;
+  resultId?: string;
+  userEmail?: string;
+}
+
+function MatchCard({ match, index, resultId, userEmail }: MatchCardProps) {
+  const [redirecting, setRedirecting] = useState(false);
+
+  const handleBuildPlan = (planType: 'Starter' | 'Growth' = 'Starter') => {
+    if (!resultId) {
+      console.error('Result ID not available');
+      return;
+    }
+    const clientRefId = createClientReferenceId(resultId, index);
+    if (!clientRefId) {
+      console.error('Failed to create client_reference_id');
+      return;
+    }
+    const link = getStripeLink(planType);
+    const linkWithParams = appendPaymentParams(link, clientRefId, userEmail);
+    setRedirecting(true);
+    window.location.href = linkWithParams;
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
       <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
@@ -252,6 +278,34 @@ function MatchCard({ match, index }: { match: Match; index: number }) {
       </div>
 
       <p className="text-xs text-gray-400 mt-3">{match.saturationNote}</p>
+
+      {resultId && (
+        <div className="mt-6 flex flex-col gap-2">
+          <button
+            onClick={() => handleBuildPlan('Starter')}
+            disabled={redirecting}
+            className="w-full py-3 font-semibold rounded-lg cta-shimmer flex items-center justify-center gap-2 disabled:opacity-60"
+            style={{ color: '#2D1A00', border: '1.5px solid #7A5C0A' }}
+          >
+            {redirecting ? (
+              <>
+                <Loader className="w-4 h-4 animate-spin" />
+                Redirecting...
+              </>
+            ) : (
+              <>Build my plan for this idea · $25</>
+            )}
+          </button>
+          <button
+            onClick={() => handleBuildPlan('Growth')}
+            disabled={redirecting}
+            className="w-full py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-60"
+            style={{ borderColor: '#C9A030', color: '#5C4206', backgroundColor: '#FBF6E4' }}
+          >
+            Growth tier · $50
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -642,14 +696,14 @@ export default function AssessmentPage() {
           )}
 
           <div className="mb-4">
-            <MatchCard match={matches[0]} index={0} />
+            <MatchCard match={matches[0]} index={0} resultId={resultId} userEmail={email} />
           </div>
 
           <div className="relative">
             <div className={locked ? 'blur-sm select-none pointer-events-none' : ''}>
               <div className="space-y-4">
                 {matches.slice(1).map((match, i) => (
-                  <MatchCard key={i} match={match} index={i + 1} />
+                  <MatchCard key={i} match={match} index={i + 1} resultId={resultId} userEmail={email} />
                 ))}
               </div>
             </div>
@@ -687,32 +741,6 @@ export default function AssessmentPage() {
             )}
           </div>
 
-          {!locked && (
-            <div className="mt-10 rounded-2xl p-8 text-center" style={{ background: '#FBF6E4', border: '1px solid #EBD9A0' }}>
-              <p className="text-lg font-bold mb-2" style={{ color: 'var(--i2p-ink)' }}>
-                Ready to build a business around your top match?
-              </p>
-              <p className="text-sm text-gray-600 mb-5">
-                Turn it into a full business plan: market research, revenue model, 90-day action plan, and more.
-              </p>
-              <a
-                href="/#pricing"
-                className="inline-block px-8 py-3 font-semibold rounded-lg cta-shimmer"
-                style={GOLD_BUTTON_STYLE}
-                onClick={() => {
-                  try {
-                    sessionStorage.setItem('i2p_prefill_idea', JSON.stringify({
-                      title: matches[0].title,
-                      description: matches[0].description,
-                      uniqueAngle: matches[0].uniqueAngle,
-                    }));
-                  } catch {}
-                }}
-              >
-                Turn this into a business plan →
-              </a>
-            </div>
-          )}
         </div>
       </div>
     );
