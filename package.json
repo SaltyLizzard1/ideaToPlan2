@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "node scripts/check-stripe-links.mjs",
     "start": "next start"
   },
   "dependencies": {
