@@ -2,23 +2,11 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { Sparkles } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { mergeMatches } from '../../../lib/quiz';
 import Footer from '../../../components/Footer';
 import ResultsGate from '../../../components/ResultsGate';
 
 const BASE_URL = 'https://ideatoplan.to';
-
-interface Match {
-  title: string;
-  category: string;
-  description: string;
-  whyYou: string;
-  saturation: 'Low' | 'Medium' | 'High';
-  saturationNote: string;
-  uniqueAngle: string;
-  incomeRange: string;
-  firstSteps: string[];
-}
-
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -51,7 +39,7 @@ export default async function ResultsPage({ params }: Props) {
 
   const { data, error } = await supabase
     .from('quiz_results')
-    .select('matches')
+    .select('matches, details')
     .eq('id', id)
     .eq('site', 'i2p')
     .single();
@@ -60,7 +48,12 @@ export default async function ResultsPage({ params }: Props) {
     notFound();
   }
 
-  const matches = (data.matches ?? []) as Match[];
+  // Old rows hold a full match in every entry and no details, new rows hold
+  // ranking stubs plus whatever details have been written so far.
+  const matches = mergeMatches(data.matches, data.details);
+  if (matches.length === 0) {
+    notFound();
+  }
   const canonicalUrl = `${BASE_URL}/results/${id}`;
 
   return (

@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ArrowRight, Loader } from 'lucide-react';
-import { getStripeLink, createClientReferenceId, appendPaymentParams } from '../../lib/stripe';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import ShareButtons from '../../components/ShareButtons';
 import PlanLoader from '../../components/PlanLoader';
+import MatchCard from '../../components/MatchCard';
+import { useMatchDetails } from '../../components/useMatchDetails';
+import { MATCH_COUNT, type MergedMatch } from '../../lib/quiz';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -17,19 +19,20 @@ interface FormData {
   incomeTarget: string;
 }
 
-interface Match {
-  title: string;
-  category: string;
-  description: string;
-  whyYou: string;
-  saturation: 'Low' | 'Medium' | 'High';
-  saturationNote: string;
-  uniqueAngle: string;
-  incomeRange: string;
-  firstSteps: string[];
+type Stage = 'form' | 'loading' | 'results' | 'unlocked';
+
+// Carries the line the visitor should read. The Error message itself stays
+// technical and goes to the console.
+class AssessmentError extends Error {
+  userMessage: string;
+  constructor(userMessage: string, detail: string) {
+    super(detail);
+    this.name = 'AssessmentError';
+    this.userMessage = userMessage;
+  }
 }
 
-type Stage = 'form' | 'loading' | 'results' | 'unlocked';
+const GENERIC_ASSESSMENT_ERROR = 'Something went wrong fetching your results. Please try again.';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -107,13 +110,12 @@ const INCOME_OPTIONS = ['$500–$1,000', '$1,000–$2,500', '$2,500–$5,000', '
 const LOADING_MESSAGES = [
   'Reading your skills and strengths...',
   'Mapping them to online work that fits your life...',
-  'Checking which markets are crowded and which are open...',
-  'Finding your unique angle in each one...',
-  'Writing your personalised first steps...',
-  'Almost there, putting it all together...',
+  'Ranking your best fits...',
 ];
 
-const LOADING_DURATION_MS = 75000;
+// Stage 1 only. The ranking call returns titles in a few seconds, then each
+// match writes itself out on the results page.
+const LOADING_DURATION_MS = 4000;
 
 const GOLD_GRADIENT =
   'linear-gradient(135deg, #8B6914 0%, #E8C84A 35%, #F5E070 55%, #C9A030 75%, #8B6914 100%)';
@@ -122,12 +124,6 @@ const GOLD_BUTTON_STYLE = {
   color: '#2D1A00',
   border: '1.5px solid #7A5C0A',
 } as const;
-
-const SATURATION_COLORS: Record<Match['saturation'], string> = {
-  Low: 'bg-emerald-100 text-emerald-800',
-  Medium: 'bg-yellow-100 text-yellow-800',
-  High: 'bg-red-100 text-red-800',
-};
 
 // ── Pill component ─────────────────────────────────────────────────────────
 
@@ -201,119 +197,6 @@ function EitherOrPair({
   );
 }
 
-// ── Result card ────────────────────────────────────────────────────────────
-
-interface MatchCardProps {
-  match: Match;
-  index: number;
-  resultId?: string;
-  userEmail?: string;
-}
-
-function MatchCard({ match, index, resultId, userEmail }: MatchCardProps) {
-  const [redirecting, setRedirecting] = useState(false);
-
-  const handleBuildPlan = (planType: 'Starter' | 'Growth' = 'Starter') => {
-    if (!resultId) {
-      console.error('Result ID not available');
-      return;
-    }
-    const clientRefId = createClientReferenceId(resultId, index);
-    if (!clientRefId) {
-      console.error('Failed to create client_reference_id');
-      return;
-    }
-    const link = getStripeLink(planType);
-    const linkWithParams = appendPaymentParams(link, clientRefId, userEmail);
-    setRedirecting(true);
-    window.location.href = linkWithParams;
-  };
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-      <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1 block">
-            {match.category}
-          </span>
-          <h3 className="text-xl font-bold text-gray-900">
-            {index + 1}. {match.title}
-          </h3>
-        </div>
-        <span
-          className={`text-xs font-semibold px-3 py-1 rounded-full mt-1 shrink-0 ${SATURATION_COLORS[match.saturation]}`}
-        >
-          {match.saturation} saturation
-        </span>
-      </div>
-
-      <p className="text-gray-700 mb-3 leading-relaxed">{match.description}</p>
-
-      {/* Quick buy button - compact, right under description */}
-      {resultId && (
-        <button
-          onClick={() => handleBuildPlan('Starter')}
-          disabled={redirecting}
-          className="w-full py-2 mb-4 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-60"
-          style={{ color: '#2D1A00', border: '1.5px solid #7A5C0A', backgroundColor: '#F5E070' }}
-        >
-          {redirecting ? (
-            <>
-              <Loader className="w-3 h-3 animate-spin" />
-              Redirecting...
-            </>
-          ) : (
-            <>Build my plan for this idea · $25</>
-          )}
-        </button>
-      )}
-
-      <p className="text-sm italic border-l-2 pl-4 mb-4" style={{ borderColor: 'var(--i2p-gold)', color: 'var(--i2p-ink)' }}>
-        {match.whyYou}
-      </p>
-
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Income range:</span>
-        <span className="text-sm font-bold text-gray-800">{match.incomeRange}</span>
-      </div>
-
-      {match.uniqueAngle && (
-        <div className="bg-[#FBF6E4] border border-[#EBD9A0] rounded-lg px-4 py-3 mb-4">
-          <p className="text-xs font-semibold text-[#0D1117] uppercase tracking-wide mb-1">Your unique angle</p>
-          <p className="text-sm text-[#5C4206]">{match.uniqueAngle}</p>
-        </div>
-      )}
-
-      <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">First steps</p>
-        <ol className="space-y-1">
-          {match.firstSteps.map((step, i) => (
-            <li key={i} className="flex gap-2 text-sm text-gray-700">
-              <span className="font-bold shrink-0" style={{ color: '#0D1117' }}>{i + 1}.</span>
-              {step}
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      <p className="text-xs text-gray-400 mt-3">{match.saturationNote}</p>
-
-      {resultId && (
-        <div className="mt-6">
-          <button
-            onClick={() => handleBuildPlan('Growth')}
-            disabled={redirecting}
-            className="w-full py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-60"
-            style={{ borderColor: '#C9A030', color: '#5C4206', backgroundColor: '#FBF6E4' }}
-          >
-            Growth tier · $50
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Progress bar ───────────────────────────────────────────────────────────
 
 function ProgressBar({ step, total }: { step: number; total: number }) {
@@ -343,9 +226,13 @@ export default function AssessmentPage() {
 
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [matches, setMatches] = useState<Match[]>([]);
+  const [rankings, setRankings] = useState<MergedMatch[]>([]);
   const [resultId, setResultId] = useState<string | undefined>(undefined);
   const [error, setError] = useState('');
+
+  // Stage 1 returns titles. Every match then writes itself out in the
+  // background and its card fills in as it lands.
+  const { matches, statusFor, errors, retry } = useMatchDetails(resultId, rankings);
 
   const [email, setEmail] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
@@ -421,19 +308,45 @@ export default function AssessmentPage() {
         }),
       });
 
-      if (!res.ok) throw new Error(`Status ${res.status}`);
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        const reason = payload?.reason ? `: ${payload.reason}` : '';
+        throw new AssessmentError(
+          payload?.error ? `${payload.error}. Please try again.` : GENERIC_ASSESSMENT_ERROR,
+          `/api/quiz returned ${res.status}${payload?.error ? ` ${payload.error}` : ''}${reason}`
+        );
+      }
 
       const data = await res.json();
-      const parsed: Match[] = Array.isArray(data) ? data : data.matches ?? data.result ?? [];
+      const list: unknown = data?.rankings;
 
-      if (!parsed.length) throw new Error('No matches returned');
+      if (!Array.isArray(list) || list.length !== MATCH_COUNT) {
+        throw new AssessmentError(
+          'Your matches did not come back complete. Please try again.',
+          `Expected ${MATCH_COUNT} rankings, got ${Array.isArray(list) ? list.length : typeof list}`
+        );
+      }
+      if (typeof data.resultId !== 'string' || data.resultId.length === 0) {
+        throw new AssessmentError(
+          'Your results could not be saved, so they cannot be opened. Please try again.',
+          'No resultId returned, the details cannot be fetched without one'
+        );
+      }
 
-      setMatches(parsed);
-      if (data.resultId) setResultId(data.resultId);
+      // Ranking stubs. The hook fills each one in.
+      const stubs: MergedMatch[] = (list as Array<Record<string, unknown>>).map((r, i) => ({
+        index: i,
+        title: typeof r.title === 'string' ? r.title : '',
+        category: typeof r.category === 'string' ? r.category : undefined,
+        oneLiner: typeof r.oneLiner === 'string' ? r.oneLiner : undefined,
+      }));
+
+      setRankings(stubs);
+      setResultId(data.resultId);
       setStage('results');
     } catch (err) {
       console.error('Assessment error:', err);
-      setError('Something went wrong fetching your results. Please try again.');
+      setError(err instanceof AssessmentError ? err.userMessage : GENERIC_ASSESSMENT_ERROR);
       setStage('form');
       setStep(5);
     }
@@ -606,7 +519,9 @@ export default function AssessmentPage() {
     return null;
   }
 
-  if (stage === 'loading') {
+  // matches is empty only in an impossible state, but the cards index into it,
+  // so hold the loader rather than render undefined.
+  if (stage === 'loading' || ((stage === 'results' || stage === 'unlocked') && matches.length === 0)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center max-w-sm w-full">
@@ -621,7 +536,7 @@ export default function AssessmentPage() {
             />
           </div>
           <p className="text-sm text-gray-500 mt-3">
-            This takes about 60–90 seconds. We&apos;re building something tailored to you.
+            This takes a few seconds.
           </p>
         </div>
       </div>
@@ -700,15 +615,35 @@ export default function AssessmentPage() {
           )}
 
           <div className="mb-4">
-            <MatchCard match={matches[0]} index={0} resultId={resultId} userEmail={email} />
+            <MatchCard
+              match={matches[0]}
+              index={0}
+              status={statusFor(0)}
+              resultId={resultId}
+              userEmail={email}
+              errorMessage={errors[0]?.message}
+              onRetry={errors[0]?.canRetry ? () => retry(0) : undefined}
+            />
           </div>
 
           <div className="relative">
             <div className={locked ? 'blur-sm select-none pointer-events-none' : ''}>
               <div className="space-y-4">
-                {matches.slice(1).map((match, i) => (
-                  <MatchCard key={i} match={match} index={i + 1} resultId={resultId} userEmail={email} />
-                ))}
+                {matches.slice(1).map((match, i) => {
+                  const index = i + 1;
+                  return (
+                    <MatchCard
+                      key={index}
+                      match={match}
+                      index={index}
+                      status={statusFor(index)}
+                      resultId={resultId}
+                      userEmail={email}
+                      errorMessage={errors[index]?.message}
+                      onRetry={errors[index]?.canRetry ? () => retry(index) : undefined}
+                    />
+                  );
+                })}
               </div>
             </div>
 

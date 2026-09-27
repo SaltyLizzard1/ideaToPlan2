@@ -8,6 +8,7 @@ import Stripe from "stripe";
 import { checkRateLimit, clientIp } from "../../../lib/rateLimit";
 import { parseClientReferenceId } from "../../../lib/stripe";
 import { supabase } from "../../../lib/supabase";
+import { mergeMatches, type MergedMatch } from "../../../lib/quiz";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -17,18 +18,6 @@ const PLAN_BY_AMOUNT: Record<number, string> = {
   2500: "Starter",
   5000: "Growth",
 };
-
-interface Match {
-  title: string;
-  category: string;
-  description: string;
-  whyYou: string;
-  saturation: 'Low' | 'Medium' | 'High';
-  saturationNote: string;
-  uniqueAngle: string;
-  incomeRange: string;
-  firstSteps: string[];
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,7 +41,7 @@ export async function POST(req: NextRequest) {
     const planType = PLAN_BY_AMOUNT[session.amount_total ?? 0] ?? null;
 
     // Attempt to fetch sourceMatch from client_reference_id
-    let sourceMatch: Match | null = null;
+    let sourceMatch: MergedMatch | null = null;
     const clientRefId = session.client_reference_id;
 
     if (clientRefId) {
@@ -62,18 +51,19 @@ export async function POST(req: NextRequest) {
         try {
           const { data, error } = await supabase
             .from('quiz_results')
-            .select('matches')
+            .select('matches, details')
             .eq('id', resultId)
             .eq('site', 'i2p')
             .single();
 
           if (error) {
             console.error(`[verify-payment] Result not found: resultId=${resultId}, matchIndex=${matchIndex}, error=${error.message}`);
-          } else if (data && Array.isArray(data.matches)) {
-            if (matchIndex >= 0 && matchIndex < data.matches.length) {
-              sourceMatch = data.matches[matchIndex] as Match;
+          } else if (data) {
+            const merged = mergeMatches(data.matches, data.details);
+            if (matchIndex >= 0 && matchIndex < merged.length) {
+              sourceMatch = merged[matchIndex];
             } else {
-              console.error(`[verify-payment] Match index out of range: resultId=${resultId}, matchIndex=${matchIndex}, total_matches=${data.matches.length}`);
+              console.error(`[verify-payment] Match index out of range: resultId=${resultId}, matchIndex=${matchIndex}, total_matches=${merged.length}`);
             }
           }
         } catch (err) {
@@ -90,6 +80,7 @@ export async function POST(req: NextRequest) {
       paid,
       planType,
       email: session.customer_details?.email ?? null,
+      customerName: session.customer_details?.name ?? null,
       sessionId: session.id,
     };
 

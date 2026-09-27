@@ -4,6 +4,7 @@ import { supabase } from "../../../lib/supabase";
 import { notify } from "../../../lib/notify";
 import { checkRateLimit, clientIp } from "../../../lib/rateLimit";
 import { parseClientReferenceId } from "../../../lib/stripe";
+import { mergeMatches } from "../../../lib/quiz";
 
 export const maxDuration = 180;
 
@@ -133,18 +134,19 @@ export async function POST(req: NextRequest) {
         try {
           const { data, error } = await supabase
             .from('quiz_results')
-            .select('matches')
+            .select('matches, details')
             .eq('id', resultId)
             .eq('site', 'i2p')
             .single();
 
           if (error) {
             console.error(`[submit-idea] Result not found: resultId=${resultId}, matchIndex=${matchIndex}, error=${error.message}`);
-          } else if (data && Array.isArray(data.matches)) {
-            if (matchIndex >= 0 && matchIndex < data.matches.length) {
-              sourceMatch = data.matches[matchIndex] as Record<string, unknown>;
+          } else if (data) {
+            const merged = mergeMatches(data.matches, data.details);
+            if (matchIndex >= 0 && matchIndex < merged.length) {
+              sourceMatch = merged[matchIndex] as unknown as Record<string, unknown>;
             } else {
-              console.error(`[submit-idea] Match index out of range: resultId=${resultId}, matchIndex=${matchIndex}, total=${data.matches.length}`);
+              console.error(`[submit-idea] Match index out of range: resultId=${resultId}, matchIndex=${matchIndex}, total=${merged.length}`);
             }
           }
         } catch (err) {

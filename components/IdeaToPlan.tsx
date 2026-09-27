@@ -171,6 +171,7 @@ const [paymentError, setPaymentError] = useState("");
           const prefilled: Partial<FormData> = {
             planType: data.planType ?? undefined,
             email: data.email || "",
+            fullName: data.customerName || "",
           };
 
           let hasPrefill = false;
@@ -178,7 +179,10 @@ const [paymentError, setPaymentError] = useState("");
           if (sourceMatch) {
             prefilled.businessIdea = sourceMatch.description || "";
             prefilled.differentiation = sourceMatch.whyYou || "";
-            // problem, targetAudience, industry left empty per n8n prompt requirements
+            prefilled.targetAudience = sourceMatch.targetCustomer || "";
+            prefilled.industry = sourceMatch.industry || "";
+            prefilled.problem = sourceMatch.problem || "";
+            prefilled.revenueModel = sourceMatch.revenueModel || "";
             prefilled.planGoal = "personal-roadmap";
             hasPrefill = !!prefilled.businessIdea || !!prefilled.differentiation;
           } else if (fallbackIdea) {
@@ -608,7 +612,7 @@ const [paymentError, setPaymentError] = useState("");
                       {showPrefillNote && (
                         <div className="flex items-center justify-between mb-2 px-1">
                           <span className="text-xs" style={{ color: "#6B6B66" }}>
-                            Pre-filled from your assessment match — edit freely.
+                            Pre-filled from your assessment match, edit freely.
                           </span>
                           <button
                             type="button"

@@ -1,32 +1,29 @@
 import { ImageResponse } from 'next/og';
+import type { MergedMatch } from '../../../lib/quiz';
 
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
-export const alt = 'My Business Matches — IdeaToPlan';
-
-interface Match {
-  title?: string;
-  incomeRange?: string;
-}
+export const alt = 'My Business Matches. IdeaToPlan';
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function Image({ params }: Props) {
   const { id } = await params;
 
-  let matches: Match[] = [];
+  let matches: MergedMatch[] = [];
 
   try {
     const { supabase } = await import('../../../lib/supabase');
+    const { mergeMatches } = await import('../../../lib/quiz');
     const { data } = await supabase
       .from('quiz_results')
-      .select('matches')
+      .select('matches, details')
       .eq('id', id)
       .eq('site', 'i2p')
       .single();
 
     if (data?.matches) {
-      matches = data.matches as Match[];
+      matches = mergeMatches(data.matches, data.details);
     }
   } catch {
     // fall through to generic branding
