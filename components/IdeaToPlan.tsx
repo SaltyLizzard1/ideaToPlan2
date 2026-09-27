@@ -329,13 +329,13 @@ const [paymentError, setPaymentError] = useState("");
             className="inline-block text-xs sm:text-sm font-bold px-5 py-2 rounded-full uppercase tracking-widest shadow-md mb-3"
             style={GOLD_BUTTON_STYLE}
           >
-            IdeaToPlan
+            Business Plans
           </span>
           <h2
             className="text-3xl md:text-4xl font-serif font-bold mb-3"
             style={{ color: "#F5E9C9" }}
           >
-            Business Plans in 72 hours.
+            Your business plan in 72 hours.
           </h2>
           <p
             className="text-base font-medium max-w-2xl mx-auto"
