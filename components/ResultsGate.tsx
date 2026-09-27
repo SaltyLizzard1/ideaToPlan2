@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { Loader } from 'lucide-react';
 import ShareButtons from './ShareButtons';
+import { getStripeLink, createClientReferenceId, appendPaymentParams } from '../lib/stripe';
 
 interface Match {
   title: string;
@@ -26,7 +28,27 @@ const GOLD_BUTTON_STYLE = {
   border: '1.5px solid #7A5C0A',
 } as const;
 
-function MatchCard({ match, index }: { match: Match; index: number }) {
+interface MatchCardProps {
+  match: Match;
+  index: number;
+  resultId: string;
+  userEmail?: string;
+}
+
+function MatchCard({ match, index, resultId, userEmail }: MatchCardProps) {
+  const [redirecting, setRedirecting] = useState(false);
+
+  const handleBuildPlan = (planType: 'Starter' | 'Growth' = 'Starter') => {
+    const clientRefId = createClientReferenceId(resultId, index);
+    if (!clientRefId) {
+      console.error('Failed to create client_reference_id');
+      return;
+    }
+    const link = getStripeLink(planType);
+    const linkWithParams = appendPaymentParams(link, clientRefId, userEmail);
+    setRedirecting(true);
+    window.location.href = linkWithParams;
+  };
   return (
     <div
       className="rounded-2xl overflow-hidden"
@@ -56,6 +78,23 @@ function MatchCard({ match, index }: { match: Match; index: number }) {
         </div>
 
         <p className="mb-3 leading-relaxed" style={{ color: 'var(--i2p-ink-body)' }}>{match.description}</p>
+
+        {/* Quick buy button - compact, right under description */}
+        <button
+          onClick={() => handleBuildPlan('Starter')}
+          disabled={redirecting}
+          className="w-full py-2 mb-4 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-60"
+          style={{ color: '#2D1A00', border: '1.5px solid #7A5C0A', backgroundColor: '#F5E070' }}
+        >
+          {redirecting ? (
+            <>
+              <Loader className="w-3 h-3 animate-spin" />
+              Redirecting...
+            </>
+          ) : (
+            <>Build my plan for this idea · $25</>
+          )}
+        </button>
 
         {match.whyYou && (
           <p className="text-sm italic border-l-2 pl-4 mb-4" style={{ borderColor: 'var(--i2p-gold)', color: 'var(--i2p-ink)' }}>
@@ -94,12 +133,30 @@ function MatchCard({ match, index }: { match: Match; index: number }) {
         {match.saturationNote && (
           <p className="text-xs mt-3" style={{ color: 'var(--i2p-ink-dim)' }}>{match.saturationNote}</p>
         )}
+
+        {/* Growth tier option at bottom */}
+        <div className="mt-6">
+          <button
+            onClick={() => handleBuildPlan('Growth')}
+            disabled={redirecting}
+            className="w-full py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-60"
+            style={{ borderColor: '#C9A030', color: '#5C4206', backgroundColor: '#FBF6E4' }}
+          >
+            Growth tier · $50
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-export default function ResultsGate({ matches, canonicalUrl }: { matches: Match[]; canonicalUrl: string }) {
+interface ResultsGateProps {
+  matches: Match[];
+  canonicalUrl: string;
+  resultId: string;
+}
+
+export default function ResultsGate({ matches, canonicalUrl, resultId }: ResultsGateProps) {
   const [unlocked, setUnlocked] = useState(false);
   const [email, setEmail] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
@@ -117,6 +174,7 @@ export default function ResultsGate({ matches, canonicalUrl }: { matches: Match[
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       });
+      setEmail(email.trim());
       setUnlocked(true);
     } catch (err) {
       console.error('Email error:', err);
@@ -133,7 +191,7 @@ export default function ResultsGate({ matches, canonicalUrl }: { matches: Match[
   return (
     <>
       <div className="mb-4">
-        <MatchCard match={matches[0]} index={0} />
+        <MatchCard match={matches[0]} index={0} resultId={resultId} userEmail={email} />
       </div>
 
       {unlocked && (
@@ -146,7 +204,7 @@ export default function ResultsGate({ matches, canonicalUrl }: { matches: Match[
         <div className={unlocked ? '' : 'blur-sm select-none pointer-events-none'}>
           <div className="space-y-4">
             {matches.slice(1).map((match, i) => (
-              <MatchCard key={i} match={match} index={i + 1} />
+              <MatchCard key={i} match={match} index={i + 1} resultId={resultId} userEmail={email} />
             ))}
           </div>
         </div>

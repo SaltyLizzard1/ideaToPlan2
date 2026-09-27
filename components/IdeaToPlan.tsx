@@ -101,10 +101,10 @@ const PLAN_OPTIONS: PlanOption[] = [
 ];
 
 const STRIPE_LINKS: Record<string, string> = {
-  // test mode link, kept for staging tests: 'https://buy.stripe.com/test_14A8wI5GDgf6ekc1oa4Ja03'
-  Starter: 'https://buy.stripe.com/7sY00kb2Hf7ugmb6J4b7y02',
-  // test mode link, kept for staging tests: 'https://buy.stripe.com/test_5kQ3co2ur4wogsk3wi4Ja02'
-  Growth: 'https://buy.stripe.com/7sY28s8UzaRe9XN3wSb7y03',
+  // live mode link, kept for production: 'https://buy.stripe.com/7sY00kb2Hf7ugmb6J4b7y02'
+  Starter: 'https://buy.stripe.com/test_14A8wI5GDgf6ekc1oa4Ja03',
+  // live mode link, kept for production: 'https://buy.stripe.com/7sY28s8UzaRe9XN3wSb7y03'
+  Growth: 'https://buy.stripe.com/test_5kQ3co2ur4wogsk3wi4Ja02',
 };
 
 const GOLD_GRADIENT =
@@ -155,27 +155,65 @@ const [paymentError, setPaymentError] = useState("");
         if (data.paid) {
           setStripeSessionId(sessionId);
 
-          let prefillIdea = "";
-          try {
-            const raw = sessionStorage.getItem("i2p_prefill_idea");
-            if (raw) {
-              const p = JSON.parse(raw);
-              const parts: string[] = [];
-              if (p.title) parts.push(p.title + ".");
-              if (p.description) parts.push(p.description);
-              if (p.uniqueAngle) parts.push("My angle: " + p.uniqueAngle);
-              prefillIdea = parts.join(" ");
-            }
-          } catch {}
+          // Fallback chain: sourceMatch (from Stripe redirect) → sessionStorage.i2p_prefill_idea (old flow) → empty
+          let sourceMatch = data.sourceMatch || null;
+          let fallbackIdea = "";
+
+          if (!sourceMatch) {
+            try {
+              const raw = sessionStorage.getItem("i2p_prefill_idea");
+              if (raw) {
+                const p = JSON.parse(raw);
+                const parts: string[] = [];
+                if (p.title) parts.push(p.title + ".");
+                if (p.description) parts.push(p.description);
+                if (p.uniqueAngle) parts.push("My angle: " + p.uniqueAngle);
+                fallbackIdea = parts.join(" ");
+              }
+            } catch {}
+          }
+
+          // Pre-fill from sourceMatch or fallback
+          const prefilled: Partial<FormData> = {
+            planType: data.planType ?? undefined,
+            email: data.email || "",
+          };
+
+          let hasPrefill = false;
+
+          if (sourceMatch) {
+            prefilled.businessIdea = sourceMatch.description || "";
+            prefilled.differentiation = sourceMatch.whyYou || "";
+            // problem, targetAudience, industry left empty per n8n prompt requirements
+            prefilled.planGoal = "personal-roadmap";
+            hasPrefill = !!prefilled.businessIdea || !!prefilled.differentiation;
+          } else if (fallbackIdea) {
+            prefilled.businessIdea = fallbackIdea;
+            hasPrefill = true;
+          }
 
           setForm((prev) => ({
             ...prev,
-            planType: data.planType ?? prev.planType,
-            email: prev.email || data.email || "",
-            ...(prefillIdea && !prev.businessIdea ? { businessIdea: prefillIdea } : {}),
+            ...prefilled,
           }));
 
-          if (prefillIdea) setShowPrefillNote(true);
+          if (hasPrefill) {
+            setShowPrefillNote(true);
+          }
+
+          // Fire GA4 purchase event (deduplicated by session_id)
+          try {
+            if (typeof window !== 'undefined' && (window as any).gtag) {
+              (window as any).gtag('event', 'purchase', {
+                currency: 'USD',
+                value: data.planType === 'Growth' ? 50 : 25,
+                transaction_id: sessionId,
+              });
+            }
+          } catch (err) {
+            console.error('[GA4] Purchase event fire failed:', err);
+          }
+
           setShowForm(true);
           requestAnimationFrame(() => {
             formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });

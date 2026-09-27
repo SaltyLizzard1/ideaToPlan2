@@ -116,7 +116,7 @@ export default async function ResultsPage({ params }: Props) {
       <div style={{ background: 'var(--i2p-cream)', paddingBottom: '4rem' }}>
         <div className="relative z-10 max-w-2xl mx-auto px-4" style={{ marginTop: '-2.75rem' }}>
 
-          <ResultsGate matches={matches} canonicalUrl={canonicalUrl} />
+          <ResultsGate matches={matches} canonicalUrl={canonicalUrl} resultId={id} />
 
         </div>
       </div>

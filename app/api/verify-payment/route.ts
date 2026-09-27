@@ -1,10 +1,13 @@
 // app/api/verify-payment/route.ts
 // Verifies a completed Stripe Checkout session (from a Payment Link) server-side.
+// Fetches the selected match from client_reference_id if available.
 // The intake form only unlocks when this returns paid: true.
 
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { checkRateLimit, clientIp } from "../../../lib/rateLimit";
+import { parseClientReferenceId } from "../../../lib/stripe";
+import { supabase } from "../../../lib/supabase";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -14,6 +17,18 @@ const PLAN_BY_AMOUNT: Record<number, string> = {
   2500: "Starter",
   5000: "Growth",
 };
+
+interface Match {
+  title: string;
+  category: string;
+  description: string;
+  whyYou: string;
+  saturation: 'Low' | 'Medium' | 'High';
+  saturationNote: string;
+  uniqueAngle: string;
+  incomeRange: string;
+  firstSteps: string[];
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,13 +51,53 @@ export async function POST(req: NextRequest) {
     const paid = session.payment_status === "paid";
     const planType = PLAN_BY_AMOUNT[session.amount_total ?? 0] ?? null;
 
-    return NextResponse.json({
+    // Attempt to fetch sourceMatch from client_reference_id
+    let sourceMatch: Match | null = null;
+    const clientRefId = session.client_reference_id;
+
+    if (clientRefId) {
+      const parsed = parseClientReferenceId(clientRefId);
+      if (parsed) {
+        const { resultId, matchIndex } = parsed;
+        try {
+          const { data, error } = await supabase
+            .from('quiz_results')
+            .select('matches')
+            .eq('id', resultId)
+            .eq('site', 'i2p')
+            .single();
+
+          if (error) {
+            console.error(`[verify-payment] Result not found: resultId=${resultId}, matchIndex=${matchIndex}, error=${error.message}`);
+          } else if (data && Array.isArray(data.matches)) {
+            if (matchIndex >= 0 && matchIndex < data.matches.length) {
+              sourceMatch = data.matches[matchIndex] as Match;
+            } else {
+              console.error(`[verify-payment] Match index out of range: resultId=${resultId}, matchIndex=${matchIndex}, total_matches=${data.matches.length}`);
+            }
+          }
+        } catch (err) {
+          console.error(`[verify-payment] Failed to fetch sourceMatch: resultId=${resultId}, matchIndex=${matchIndex}, error=${err}`);
+        }
+      } else {
+        console.error(`[verify-payment] Malformed client_reference_id: ${clientRefId}`);
+      }
+    } else {
+      console.error('[verify-payment] No client_reference_id in Stripe session');
+    }
+
+    const responsePayload: Record<string, unknown> = {
       paid,
       planType,
       email: session.customer_details?.email ?? null,
-      // Passed through so the submission can carry the payment reference to n8n.
       sessionId: session.id,
-    });
+    };
+
+    if (sourceMatch) {
+      responsePayload.sourceMatch = sourceMatch;
+    }
+
+    return NextResponse.json(responsePayload);
   } catch (err) {
     console.error("Payment verification failed:", err);
     return NextResponse.json(
