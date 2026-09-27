@@ -116,7 +116,7 @@ const GOLD_BUTTON_TEXT_STYLE = {
 } as const;
 
 const INPUT_CLASS =
-  "w-full border border-[#E8E4DB] rounded-lg px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9A030] transition";
+  "w-full border border-[#E8E4DB] rounded-lg px-lg py-md text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9A030] transition";
 
 export default function IdeaToPlan() {
   const [showForm, setShowForm] = useState(false);
@@ -318,7 +318,7 @@ const [paymentError, setPaymentError] = useState("");
   return (
     <section
       id="pricing"
-      className="pt-10 pb-10 md:pt-10 md:pb-14"
+      className="section-y"
       style={{
         background: "#0D1117",
         scrollMarginTop: "80px",
@@ -327,22 +327,22 @@ const [paymentError, setPaymentError] = useState("");
         backgroundSize: "32px 32px",
       }}
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-5">
+      <div className="page-container">
+        <div className="text-center mb-xl">
           <span
-            className="inline-block text-xs sm:text-sm font-bold px-5 py-2 rounded-full uppercase tracking-widest shadow-md mb-3"
+            className="inline-block text-xs sm:text-sm font-bold px-xl py-sm rounded-full uppercase tracking-widest shadow-md mb-md"
             style={GOLD_BUTTON_STYLE}
           >
             Business Plans
           </span>
           <h2
-            className="text-3xl md:text-4xl font-serif font-bold mb-3"
+            className="text-3xl md:text-4xl font-serif font-bold mb-md"
             style={{ color: "#F5E9C9" }}
           >
             Your business plan in 72 hours.
           </h2>
           <p
-            className="text-base font-medium max-w-2xl mx-auto"
+            className="text-base font-medium measure"
             style={{ color: "#E8E4DB" }}
           >
             Built by AI, finished by a human. Every plan is reviewed by hand before it reaches you.
@@ -352,12 +352,12 @@ const [paymentError, setPaymentError] = useState("");
         <div>
           <div
             ref={cardsRef}
-            className="pricing-grid grid md:grid-cols-3 gap-6 mb-4 rounded-2xl transition-all duration-300"
+            className="pricing-grid grid md:grid-cols-3 grid-gap mb-lg rounded-2xl transition-all duration-300"
             style={pulsing ? { outline: "2px solid #C9A030", outlineOffset: "6px" } : undefined}
           >
             {/* Starter */}
             <div
-              className={`rounded-2xl p-6 flex flex-col card-hover-lift cursor-pointer transition-all ${
+              className={`rounded-2xl card-pad flex flex-col card-hover-lift cursor-pointer transition-all ${
                 form.planType === "Starter"
                   ? "border-2 border-[#C9A030] scale-[1.02]"
                   : "border border-[#E8E4DB] bg-white shadow-sm"
@@ -369,14 +369,14 @@ const [paymentError, setPaymentError] = useState("");
               }
               onClick={() => { setForm((prev) => ({ ...prev, planType: "Starter" })); setPlanSelected(true); }}
             >
-              <h3 className="text-xl font-bold text-gray-900 mb-1">Starter</h3>
-              <p className="font-bold text-2xl mb-1" style={{ color: "#0D1117" }}>
+              <h3 className="text-xl font-bold text-gray-900 mb-xs">Starter</h3>
+              <p className="font-bold text-2xl mb-xs" style={{ color: "#0D1117" }}>
                 $25
               </p>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-gray-500 mb-lg">
                 For founders who want a polished business plan without overpaying.
               </p>
-              <ul className="space-y-2 text-sm text-gray-700 flex-1">
+              <ul className="space-y-sm text-sm text-gray-700 flex-1">
                 {[
                   "Actionable business plan built around your idea",
                   "Revenue model and pricing strategy",
@@ -385,7 +385,7 @@ const [paymentError, setPaymentError] = useState("");
                   "Reviewed by a real person, never auto-sent",
                   "Email follow-up to answer your questions",
                 ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-2">
+                  <li key={i} className="flex items-start gap-sm">
                     <span className="font-bold mt-0.5" style={{ color: "#0D1117" }}>
                       ✓
                     </span>
@@ -397,7 +397,7 @@ const [paymentError, setPaymentError] = useState("");
 
             {/* Growth — Most Popular */}
             <div
-              className="border-2 rounded-2xl p-6 shadow-lg flex flex-col relative card-hover-lift-strong cursor-pointer transition-all scale-[1.02]"
+              className="border-2 rounded-2xl card-pad shadow-lg flex flex-col relative card-hover-lift-strong cursor-pointer transition-all scale-[1.02]"
               style={{
                 borderColor: "#C9A030",
                 background: "#FDFBF4",
@@ -406,19 +406,19 @@ const [paymentError, setPaymentError] = useState("");
               onClick={() => { setForm((prev) => ({ ...prev, planType: "Growth" })); setPlanSelected(true); }}
             >
               <div
-                className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-4 py-1 rounded-full"
+                className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-lg py-xs rounded-full"
                 style={GOLD_BUTTON_STYLE}
               >
                 Most Popular
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-1">Growth</h3>
-              <p className="font-bold text-2xl mb-1" style={{ color: "#0D1117" }}>
+              <h3 className="text-xl font-bold text-gray-900 mb-xs">Growth</h3>
+              <p className="font-bold text-2xl mb-xs" style={{ color: "#0D1117" }}>
                 $50
               </p>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-gray-500 mb-lg">
                 For entrepreneurs who want market validation and smarter positioning.
               </p>
-              <ul className="space-y-2 text-sm text-gray-700 flex-1">
+              <ul className="space-y-sm text-sm text-gray-700 flex-1">
                 {[
                   "Everything in Starter",
                   "Competitor research and landscape analysis",
@@ -427,7 +427,7 @@ const [paymentError, setPaymentError] = useState("");
                   "Reviewed by a real person, never auto-sent",
                   "Email follow-up to answer your questions",
                 ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-2">
+                  <li key={i} className="flex items-start gap-sm">
                     <span className="font-bold mt-0.5" style={{ color: "#0D1117" }}>
                       ✓
                     </span>
@@ -438,20 +438,20 @@ const [paymentError, setPaymentError] = useState("");
             </div>
 
             {/* Visa / Immigration — Notify-me capture (not purchasable yet) */}
-            <div className="border border-dashed border-[#E8E4DB] rounded-2xl p-6 bg-white shadow-sm flex flex-col relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gray-100 text-gray-500 text-xs font-bold px-4 py-1 rounded-full border border-gray-200">
+            <div className="border border-dashed border-[#E8E4DB] rounded-2xl card-pad bg-white shadow-sm flex flex-col relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gray-100 text-gray-500 text-xs font-bold px-lg py-xs rounded-full border border-gray-200">
                 Coming soon
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-1">Visa / Immigration</h3>
-              <p className="text-gray-500 font-bold text-2xl mb-1">$599</p>
-              <p className="text-sm text-gray-500 mb-4">
+              <h3 className="text-xl font-bold text-gray-900 mb-xs">Visa / Immigration</h3>
+              <p className="text-gray-500 font-bold text-2xl mb-xs">$599</p>
+              <p className="text-sm text-gray-500 mb-lg">
                 Plan structured for visa and immigration contexts: business narrative, viability framing, and language aligned with what officers and advisors typically expect.
               </p>
 
               <div className="flex-1 flex flex-col justify-end">
                 <button
                   onClick={() => setShowVisaModal(true)}
-                  className="w-full py-2 text-sm font-semibold rounded-lg border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors"
+                  className="w-full py-sm text-sm font-semibold rounded-lg border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors"
                 >
                   Notify Me When Available
                 </button>
@@ -460,14 +460,14 @@ const [paymentError, setPaymentError] = useState("");
 
           </div>
 
-          <p className="text-center text-sm font-medium mb-4" style={{ color: "#B0AA9E" }}>
+          <p className="text-center text-sm font-medium mb-lg" style={{ color: "#B0AA9E" }}>
             Special introductory offer: plans start at $25. Delivered within
             72 hours, reviewed by a real person before it reaches you.
           </p>
 
           {/* Payment error from failed verification */}
           {paymentError && (
-            <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4 mb-4 max-w-lg mx-auto">
+            <div className="flex items-start gap-md bg-red-50 border border-red-200 rounded-lg p-lg mb-lg max-w-lg mx-auto">
               <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
               <p className="text-red-700 text-sm">{paymentError}</p>
             </div>
@@ -477,7 +477,7 @@ const [paymentError, setPaymentError] = useState("");
             <button
               onClick={planSelected ? handlePaymentCTA : handleGetStarted}
               disabled={redirecting}
-              className="px-10 py-4 text-lg font-semibold rounded-lg cta-shimmer shadow-lg flex items-center gap-2 mx-auto disabled:opacity-60"
+              className="px-10 py-lg text-lg font-semibold rounded-lg cta-shimmer shadow-lg flex items-center gap-sm mx-auto disabled:opacity-60"
               style={GOLD_BUTTON_TEXT_STYLE}
             >
               {redirecting ? (
@@ -497,13 +497,13 @@ const [paymentError, setPaymentError] = useState("");
               )}
             </button>
             <p
-              className="text-center mt-3 mx-auto"
+              className="text-center mt-md mx-auto"
               style={{ color: "#B0AA9E", fontSize: "13px", maxWidth: "560px" }}
             >
               After payment: a 3&ndash;5 minute form about your idea (bank loan and investor plans ask for financials), then your plan is delivered within 72 hours, and you can email me questions about it any time.
             </p>
             <p
-              className="text-center mt-2 mx-auto"
+              className="text-center mt-sm mx-auto"
               style={{ color: "#B0AA9E", fontSize: "13px", maxWidth: "560px" }}
             >
               Not happy? I will keep revising until it is{" "}
@@ -518,11 +518,11 @@ const [paymentError, setPaymentError] = useState("");
 
       {showForm && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-lg bg-black/60 backdrop-blur-sm"
         >
           <div ref={formRef} className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div
-              className="flex items-center justify-between px-6 py-4 border-b"
+              className="flex items-center justify-between px-xl py-lg border-b"
               style={{ borderColor: "#E8E4DB" }}
             >
               <div>
@@ -533,24 +533,24 @@ const [paymentError, setPaymentError] = useState("");
               </div>
               <button
                 onClick={closeForm}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-sm rounded-full hover:bg-gray-100 transition-colors"
                 aria-label="Close"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-1 p-6">
+            <div className="overflow-y-auto flex-1 card-pad">
               {status === "success" ? (
-                <div className="text-center py-8">
+                <div className="text-center py-2xl">
                   <CheckCircle
-                    className="w-16 h-16 mx-auto mb-4"
+                    className="w-16 h-16 mx-auto mb-lg"
                     style={{ color: "#C9A030" }}
                   />
-                  <h3 className="text-2xl font-bold mb-3" style={{ color: "#0D1117" }}>
+                  <h3 className="text-2xl font-bold mb-md" style={{ color: "#0D1117" }}>
                     You&apos;re in the queue!
                   </h3>
-                  <p className="text-gray-600 mb-2">
+                  <p className="text-gray-600 mb-sm">
                     Payment received and idea submitted. Your plan is in the queue.
                     Delivery within 72 hours.
                   </p>
@@ -559,7 +559,7 @@ const [paymentError, setPaymentError] = useState("");
                   </p>
                   <button
                     onClick={closeForm}
-                    className="mt-6 px-8 py-3 font-semibold rounded-lg cta-shimmer"
+                    className="mt-xl px-2xl py-md font-semibold rounded-lg cta-shimmer"
                     style={GOLD_BUTTON_TEXT_STYLE}
                   >
                     Close
@@ -568,16 +568,16 @@ const [paymentError, setPaymentError] = useState("");
               ) : (
                 <>
                   {status === "error" && (
-                    <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-start gap-md bg-red-50 border border-red-200 rounded-lg p-lg mb-xl">
                       <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                       <p className="text-red-700 text-sm">{errorMsg}</p>
                     </div>
                   )}
 
                   <form onSubmit={handleSubmit} className="space-y-5">
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid sm:grid-cols-2 gap-lg">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 mb-xs">
                           Full Name <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -590,7 +590,7 @@ const [paymentError, setPaymentError] = useState("");
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 mb-xs">
                           Email <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -606,18 +606,18 @@ const [paymentError, setPaymentError] = useState("");
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      <label className="block text-sm font-semibold text-gray-700 mb-xs">
                         Describe your business idea <span className="text-red-500">*</span>
                       </label>
                       {showPrefillNote && (
-                        <div className="flex items-center justify-between mb-2 px-1">
+                        <div className="flex items-center justify-between mb-sm px-xs">
                           <span className="text-xs" style={{ color: "#6B6B66" }}>
                             Pre-filled from your assessment match, edit freely.
                           </span>
                           <button
                             type="button"
                             onClick={() => setShowPrefillNote(false)}
-                            className="text-xs ml-3 opacity-50 hover:opacity-100 transition-opacity"
+                            className="text-xs ml-md opacity-50 hover:opacity-100 transition-opacity"
                             style={{ color: "#6B6B66" }}
                           >
                             ✕
@@ -635,7 +635,7 @@ const [paymentError, setPaymentError] = useState("");
                         className={`${INPUT_CLASS} resize-none`}
                       />
                       <p
-                        className="text-xs text-right mt-1"
+                        className="text-xs text-right mt-xs"
                         style={{ color: form.businessIdea.length > 4500 ? "#C9A030" : "#9CA3AF" }}
                       >
                         {form.businessIdea.length} / 5000
@@ -643,7 +643,7 @@ const [paymentError, setPaymentError] = useState("");
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      <label className="block text-sm font-semibold text-gray-700 mb-xs">
                         What problem does it solve? <span className="text-red-500">*</span>
                       </label>
                       <textarea
@@ -657,9 +657,9 @@ const [paymentError, setPaymentError] = useState("");
                       />
                     </div>
 
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid sm:grid-cols-2 gap-lg">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 mb-xs">
                           Industry / type of business <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -672,7 +672,7 @@ const [paymentError, setPaymentError] = useState("");
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 mb-xs">
                           Where will you operate?
                         </label>
                         <input
@@ -685,9 +685,9 @@ const [paymentError, setPaymentError] = useState("");
                       </div>
                     </div>
 
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid sm:grid-cols-2 gap-lg">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 mb-xs">
                           Current annual revenue
                         </label>
                         <input
@@ -699,7 +699,7 @@ const [paymentError, setPaymentError] = useState("");
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 mb-xs">
                           Years in business
                         </label>
                         <input
@@ -713,7 +713,7 @@ const [paymentError, setPaymentError] = useState("");
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      <label className="block text-sm font-semibold text-gray-700 mb-xs">
                         Who is your target customer? <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -726,9 +726,9 @@ const [paymentError, setPaymentError] = useState("");
                       />
                     </div>
 
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid sm:grid-cols-2 gap-lg">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 mb-xs">
                           How will you make money?
                         </label>
                         <input
@@ -740,7 +740,7 @@ const [paymentError, setPaymentError] = useState("");
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 mb-xs">
                           What makes you different?
                         </label>
                         <input
@@ -753,9 +753,9 @@ const [paymentError, setPaymentError] = useState("");
                       </div>
                     </div>
 
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid sm:grid-cols-2 gap-lg">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 mb-xs">
                           Approximate startup budget
                         </label>
                         <select
@@ -773,7 +773,7 @@ const [paymentError, setPaymentError] = useState("");
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 mb-xs">
                           Goal for this plan
                         </label>
                         <select
@@ -792,7 +792,7 @@ const [paymentError, setPaymentError] = useState("");
 
                     {form.planGoal === "bank-loan" && (
                       <div
-                        className="space-y-4 rounded-xl p-4"
+                        className="space-y-lg rounded-xl p-lg"
                         style={{
                           border: "1px solid #E8E4DB",
                           background: "white",
@@ -801,9 +801,9 @@ const [paymentError, setPaymentError] = useState("");
                         <p className="text-sm font-semibold" style={{ color: "#5C4206" }}>
                           Bank Loan Details
                         </p>
-                        <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="grid sm:grid-cols-2 gap-lg">
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-xs">
                               Loan amount requested
                             </label>
                             <input
@@ -815,7 +815,7 @@ const [paymentError, setPaymentError] = useState("");
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-xs">
                               Intended use of loan
                             </label>
                             <input
@@ -827,9 +827,9 @@ const [paymentError, setPaymentError] = useState("");
                             />
                           </div>
                         </div>
-                        <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="grid sm:grid-cols-2 gap-lg">
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-xs">
                               Credit &amp; financial standing
                             </label>
                             <input
@@ -841,7 +841,7 @@ const [paymentError, setPaymentError] = useState("");
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-xs">
                               Existing debt or obligations
                             </label>
                             <input
@@ -854,7 +854,7 @@ const [paymentError, setPaymentError] = useState("");
                           </div>
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-1">
+                          <label className="block text-sm font-semibold text-gray-700 mb-xs">
                             Collateral and assets
                           </label>
                           <textarea
@@ -871,7 +871,7 @@ const [paymentError, setPaymentError] = useState("");
 
                     {form.planGoal === "investor" && (
                       <div
-                        className="space-y-4 rounded-xl p-4"
+                        className="space-y-lg rounded-xl p-lg"
                         style={{
                           border: "1px solid #E8E4DB",
                           background: "white",
@@ -881,7 +881,7 @@ const [paymentError, setPaymentError] = useState("");
                           Investor Pitch Details
                         </p>
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-1">
+                          <label className="block text-sm font-semibold text-gray-700 mb-xs">
                             Your background
                           </label>
                           <textarea
@@ -893,9 +893,9 @@ const [paymentError, setPaymentError] = useState("");
                             className={`${INPUT_CLASS} resize-none`}
                           />
                         </div>
-                        <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="grid sm:grid-cols-2 gap-lg">
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-xs">
                               Funding ask
                             </label>
                             <input
@@ -907,7 +907,7 @@ const [paymentError, setPaymentError] = useState("");
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-xs">
                               Current traction
                             </label>
                             <input
@@ -920,7 +920,7 @@ const [paymentError, setPaymentError] = useState("");
                           </div>
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-1">
+                          <label className="block text-sm font-semibold text-gray-700 mb-xs">
                             Use of funds
                           </label>
                           <textarea
@@ -933,7 +933,7 @@ const [paymentError, setPaymentError] = useState("");
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-1">
+                          <label className="block text-sm font-semibold text-gray-700 mb-xs">
                             Exit vision
                           </label>
                           <textarea
@@ -950,15 +950,15 @@ const [paymentError, setPaymentError] = useState("");
 
                     {/* Plan locked to paid tier */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      <label className="block text-sm font-semibold text-gray-700 mb-xs">
                         Plan type
                       </label>
                       <div
-                        className="flex items-center gap-3 px-4 py-3 rounded-lg border"
+                        className="flex items-center gap-md px-lg py-md rounded-lg border"
                         style={{ borderColor: "#C9A030", background: "white" }}
                       >
                         <span
-                          className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                          className="text-xs font-bold uppercase tracking-wide px-sm py-0.5 rounded-full"
                           style={{ background: GOLD_GRADIENT, color: "#2D1A00" }}
                         >
                           Paid
@@ -970,7 +970,7 @@ const [paymentError, setPaymentError] = useState("");
                           {PLAN_OPTIONS.find((p) => p.value === form.planType)?.price}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-gray-400 mt-xs">
                         Locked to your payment. Contact us to change plans.
                       </p>
                     </div>
@@ -978,7 +978,7 @@ const [paymentError, setPaymentError] = useState("");
                     <button
                       type="submit"
                       disabled={status === "loading"}
-                      className="w-full py-4 text-lg font-semibold rounded-lg cta-shimmer shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                      className="w-full py-lg text-lg font-semibold rounded-lg cta-shimmer shadow-md flex items-center justify-center gap-sm disabled:opacity-50"
                       style={GOLD_BUTTON_TEXT_STYLE}
                     >
                       {status === "loading" ? (

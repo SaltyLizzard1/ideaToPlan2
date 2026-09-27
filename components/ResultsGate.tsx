@@ -57,7 +57,7 @@ export default function ResultsGate({ matches: initial, canonicalUrl, resultId }
 
   return (
     <>
-      <div className="mb-4">
+      <div className="mb-lg">
         <MatchCard
           match={matches[0]}
           index={0}
@@ -71,14 +71,14 @@ export default function ResultsGate({ matches: initial, canonicalUrl, resultId }
       </div>
 
       {unlocked && (
-        <div className="mb-6 flex justify-center">
+        <div className="mb-xl flex justify-center">
           <ShareButtons url={canonicalUrl} title="My Business Matches" text={shareText} />
         </div>
       )}
 
       <div className="relative">
         <div className={unlocked ? '' : 'blur-sm select-none pointer-events-none'}>
-          <div className="space-y-4">
+          <div className="space-y-lg">
             {matches.slice(1).map((match, i) => {
               const index = i + 1;
               return (
@@ -99,44 +99,44 @@ export default function ResultsGate({ matches: initial, canonicalUrl, resultId }
         </div>
 
         {!unlocked && (
-          <div className="absolute inset-0 flex items-start justify-center pt-8">
-            <div className="rounded-2xl shadow-xl p-8 mx-4 w-full max-w-md text-center" style={{ background: 'var(--i2p-cream)', border: '1px solid var(--i2p-cream-border)' }}>
-              <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--i2p-ink)' }}>
+          <div className="absolute inset-0 flex items-start justify-center pt-2xl">
+            <div className="rounded-2xl shadow-xl card-pad w-full max-w-copy text-center" style={{ background: 'var(--i2p-cream)', border: '1px solid var(--i2p-cream-border)' }}>
+              <h3 className="text-xl font-bold mb-sm" style={{ color: 'var(--i2p-ink)' }}>
                 Someone shared their matches with you
               </h3>
-              <p className="text-sm mb-5" style={{ color: 'var(--i2p-ink-dim)' }}>
+              <p className="text-sm mb-xl" style={{ color: 'var(--i2p-ink-dim)' }}>
                 Their #1 match is above. Curious what you&apos;re built to do?
               </p>
               <a
                 href="/assessment"
-                className="gold-gradient block w-full py-3 font-semibold rounded-lg transition-all hover:brightness-105 mb-4"
+                className="gold-gradient block w-full py-md font-semibold rounded-lg transition-all hover:brightness-105 mb-lg"
                 style={GOLD_BUTTON_STYLE}
               >
                 Take the Free Assessment →
               </a>
-              <p className="text-xs mb-3" style={{ color: 'var(--i2p-ink-dim)' }}>
+              <p className="text-xs mb-md" style={{ color: 'var(--i2p-ink-dim)' }}>
                 Or enter your email to see the rest of their matches:
               </p>
-              <form onSubmit={submitEmail} className="space-y-3">
+              <form onSubmit={submitEmail} className="space-y-md">
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
+                  className="w-full px-lg py-md border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
                 />
                 <button
                   type="submit"
                   disabled={emailLoading}
-                  className="gold-gradient w-full py-3 font-semibold rounded-lg disabled:opacity-60"
+                  className="gold-gradient w-full py-md font-semibold rounded-lg disabled:opacity-60"
                   style={GOLD_BUTTON_STYLE}
                 >
                   {emailLoading ? 'Revealing...' : 'Reveal my matches'}
                 </button>
               </form>
               {emailError && (
-                <p className="mt-3 text-sm text-red-600">{emailError}</p>
+                <p className="mt-md text-sm text-red-600">{emailError}</p>
               )}
             </div>
           </div>
@@ -144,21 +144,21 @@ export default function ResultsGate({ matches: initial, canonicalUrl, resultId }
       </div>
 
       {unlocked && (
-        <div className="mt-8 flex justify-center">
+        <div className="mt-2xl flex justify-center">
           <ShareButtons url={canonicalUrl} title="My Business Matches" text={shareText} />
         </div>
       )}
 
-      <div className="mt-10 rounded-2xl p-8 text-center" style={{ background: 'var(--i2p-cream-card)', border: '1px solid var(--i2p-cream-border)' }}>
-        <p className="text-lg font-bold mb-2" style={{ color: 'var(--i2p-ink)' }}>
+      <div className="mt-2xl rounded-2xl card-pad text-center" style={{ background: 'var(--i2p-cream-card)', border: '1px solid var(--i2p-cream-border)' }}>
+        <p className="text-lg font-bold mb-sm" style={{ color: 'var(--i2p-ink)' }}>
           Want your own matches?
         </p>
-        <p className="text-sm mb-5" style={{ color: 'var(--i2p-ink-body)' }}>
+        <p className="text-sm mb-xl" style={{ color: 'var(--i2p-ink-body)' }}>
           Answer a few simple questions and discover the paths that best match your skills, values, and goals.
         </p>
         <a
           href="/assessment"
-          className="gold-gradient inline-block px-8 py-3 font-semibold rounded-lg transition-all hover:brightness-105"
+          className="gold-gradient inline-block px-2xl py-md font-semibold rounded-lg transition-all hover:brightness-105"
           style={GOLD_BUTTON_STYLE}
         >
           Start My Assessment →

@@ -81,12 +81,12 @@ export default function ShareButtons({ url, title, text }: ShareButtonsProps) {
   const payload = encodeURIComponent(`${text} ${url}`);
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex flex-col items-center gap-md">
       {canNativeShare && (
         <button
           type="button"
           onClick={handleNativeShare}
-          className="gold-gradient inline-flex items-center gap-2 px-6 py-2.5 font-semibold rounded-lg transition-all hover:brightness-105 text-sm"
+          className="gold-gradient inline-flex items-center gap-sm px-xl py-sm.5 font-semibold rounded-lg transition-all hover:brightness-105 text-sm"
           style={{ color: '#2D1A00', border: '1.5px solid #7A5C0A' }}
         >
           <Share2 className="w-4 h-4" />
@@ -94,7 +94,7 @@ export default function ShareButtons({ url, title, text }: ShareButtonsProps) {
         </button>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-sm">
         <IconBtn label="Copy link" onClick={handleCopy}>
           {copied ? <Check className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
         </IconBtn>

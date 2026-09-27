@@ -28,7 +28,7 @@ export default function MaintenancePage() {
         />
 
         <p
-          className="font-sans uppercase tracking-widest text-xs mb-4"
+          className="font-sans uppercase tracking-widest text-xs mb-lg"
           style={{ color: "#C9A030", letterSpacing: "0.24em" }}
         >
           Scheduled Maintenance
@@ -46,7 +46,7 @@ export default function MaintenancePage() {
         </h1>
 
         <p
-          className="font-sans mb-8"
+          className="font-sans mb-2xl"
           style={{ color: "#9CA3AF", fontSize: "1.05rem", lineHeight: 1.75 }}
         >
           IdeaToPlan is undergoing a quick update. We&apos;ll be back shortly, usually within a

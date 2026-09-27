@@ -7,10 +7,9 @@ export default function Hero() {
 
   return (
     <section
-      className="relative flex flex-col items-center justify-center text-center overflow-x-hidden min-h-[calc(100svh_-_80px)]"
+      className="relative flex flex-col items-center justify-center text-center overflow-x-hidden min-h-[calc(100svh_-_80px)] section-y"
       style={{
         background: "#0D1117",
-        padding: "28px 24px 24px",
         backgroundImage:
           "radial-gradient(circle, rgba(201,160,48,0.06) 1px, transparent 1px)",
         backgroundSize: "32px 32px",
@@ -38,15 +37,14 @@ export default function Hero() {
       />
 
       {/* Content stack */}
-      <div
-        className="relative flex flex-col items-center justify-center"
-        style={{
-          maxWidth: "900px",
-          width: "100%",
-          gap: "clamp(24px, 3vw, 32px)",
-          flex: 1,
-        }}
-      >
+      <div className="page-container relative flex flex-col items-center" style={{ flex: 1 }}>
+        <div
+          className="flex flex-col items-center justify-center w-full max-w-hero"
+          style={{
+            gap: "clamp(24px, 3vw, 32px)",
+            flex: 1,
+          }}
+        >
         {/* Eyebrow */}
         <p
           className="font-sans uppercase font-semibold"
@@ -74,23 +72,22 @@ export default function Hero() {
 
         {/* Subheadline */}
         <p
-          className="font-sans"
+          className="font-sans -mt-sm"
           style={{
             color: "#cfc9b8",
             fontSize: "clamp(0.95rem, 1.35vw, 1.1rem)",
             lineHeight: 1.65,
             maxWidth: "620px",
-            marginTop: "-8px",
           }}
         >
           Take the free 5-minute assessment and discover seven business ideas matched to your skills, experience, interests, and goals.
         </p>
 
         {/* CTA block */}
-        <div className="flex flex-col items-center" style={{ gap: "12px" }}>
+        <div className="flex flex-col items-center gap-md">
           <button
             onClick={scrollToAssessment}
-            className="cta-shimmer gold-border inline-flex items-center gap-2 rounded-full font-sans font-semibold cursor-pointer"
+            className="cta-shimmer gold-border inline-flex items-center gap-sm rounded-full font-sans font-semibold cursor-pointer"
             style={{
               color: "#2D1A00",
               fontSize: "clamp(1rem, 1.4vw, 1.1rem)",
@@ -120,12 +117,13 @@ export default function Hero() {
 
         {/* Delivery line */}
         <div
-          className="flex flex-row flex-wrap justify-center gap-x-4 gap-y-1 font-sans"
+          className="flex flex-row flex-wrap justify-center gap-x-lg gap-y-xs font-sans"
           style={{ fontSize: "clamp(0.7rem, 1vw, 0.8rem)", color: "#C9A030", letterSpacing: "0.02em" }}
         >
           <span>⚡ 72-hour delivery guarantee</span>
           <span style={{ color: "#374151" }}>·</span>
           <span>✦ Human-reviewed plans</span>
+        </div>
         </div>
       </div>
     </section>

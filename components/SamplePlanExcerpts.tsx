@@ -226,7 +226,7 @@ export default function SamplePlanExcerpts() {
   return (
     <section
       id="sample-plan"
-      className="pt-10 pb-16 px-6"
+      className="section-y"
       style={{
         background: "#0D1117",
         backgroundImage:
@@ -235,23 +235,23 @@ export default function SamplePlanExcerpts() {
         scrollMarginTop: "80px",
       }}
     >
-      <div className="max-w-4xl mx-auto">
+      <div className="page-container">
 
         {/* Section heading */}
-        <div className="text-center mb-2">
+        <div className="text-center mb-sm">
           <p
-            className="font-sans text-xs uppercase tracking-[0.2em] mb-3"
+            className="font-sans text-xs uppercase tracking-[0.2em] mb-md"
             style={{ color: "#C9A030" }}
           >
             The Proof
           </p>
           <h3
-            className="font-serif font-bold text-3xl sm:text-4xl mb-3"
+            className="font-serif font-bold text-3xl sm:text-4xl mb-md"
             style={{ color: "#FBF6E3" }}
           >
             Inside Every Plan
           </h3>
-          <p className="font-sans text-base mt-6 mx-auto" style={{ color: "#cfc9b8", maxWidth: "600px" }}>
+          <p className="font-sans text-base mt-xl mx-auto max-w-prose" style={{ color: "#cfc9b8" }}>
             Below are excerpts from the plan I used to build{" "}
             <a href="https://quityourlifeandtravel.com/" target="_blank" rel="noopener noreferrer" style={{ color: "#C9A030", textDecoration: "underline", textUnderlineOffset: "3px" }}>Quit Your Life and Travel</a>
             . QYLAT is for people standing at the cusp of change who are not sure how to make it. I provide a runway calculator, a skills assessment, and honest math. These are the actual pages, unedited.
@@ -339,7 +339,7 @@ export default function SamplePlanExcerpts() {
 
         {/* Caption */}
         <p
-          className="text-center font-sans text-xs mt-10 mb-16"
+          className="text-center font-sans text-xs mt-xl"
           style={{ color: "#a89f8a" }}
         >
           Hover or tap to explore

@@ -59,10 +59,9 @@ export default async function ResultsPage({ params }: Props) {
   return (
     <>
       <div
-        className="relative overflow-hidden"
+        className="relative overflow-hidden section-y"
         style={{
           background: 'linear-gradient(180deg, var(--i2p-dark) 0%, #17140c 65%, #17140c 100%)',
-          padding: '1.5rem 1.5rem 5rem',
         }}
       >
         <div
@@ -77,15 +76,16 @@ export default async function ResultsPage({ params }: Props) {
           }}
         />
 
-        <div className="relative max-w-2xl mx-auto text-center">
+        <div className="page-container relative">
+          <div className="measure text-center">
           <p
-            className="mb-5 font-bold uppercase"
+            className="mb-xl font-bold uppercase"
             style={{ color: 'var(--i2p-gold)', fontSize: '0.78rem', letterSpacing: '0.15em' }}
           >
             YOUR ASSESSMENT · RESULTS
           </p>
 
-          <div className="flex items-center justify-center gap-3 mb-3">
+          <div className="flex items-center justify-center gap-md mb-md">
             <Sparkles className="w-6 h-6 flex-shrink-0" style={{ color: 'var(--i2p-gold-bright)' }} />
             <h1
               className="font-serif"
@@ -100,17 +100,18 @@ export default async function ResultsPage({ params }: Props) {
             </h1>
           </div>
 
-          <p className="mb-8 text-sm" style={{ color: 'var(--i2p-text-on-dark-body)' }}>
+          <p className="text-sm" style={{ color: 'var(--i2p-text-on-dark-body)' }}>
             Results from the IdeaToPlan assessment
           </p>
+          </div>
         </div>
       </div>
 
-      <div style={{ background: 'var(--i2p-cream)', paddingBottom: '4rem' }}>
-        <div className="relative z-10 max-w-2xl mx-auto px-4" style={{ marginTop: '-2.75rem' }}>
-
-          <ResultsGate matches={matches} canonicalUrl={canonicalUrl} resultId={id} />
-
+      <div className="pb-section" style={{ background: 'var(--i2p-cream)' }}>
+        <div className="page-container relative z-10" style={{ marginTop: '-2.75rem' }}>
+          <div className="measure">
+            <ResultsGate matches={matches} canonicalUrl={canonicalUrl} resultId={id} />
+          </div>
         </div>
       </div>
 

@@ -48,11 +48,11 @@ export default function VisaWaitlistModal({ isOpen, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-lg bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative rounded-2xl shadow-xl p-8 w-full max-w-md"
+        className="relative rounded-2xl shadow-xl p-2xl w-full max-w-md"
         style={{ background: "var(--i2p-cream)", border: "1px solid var(--i2p-cream-border)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -66,8 +66,8 @@ export default function VisaWaitlistModal({ isOpen, onClose }: Props) {
         </button>
 
         {submitted ? (
-          <div className="text-center py-4">
-            <p className="text-xl font-bold mb-3" style={{ color: "var(--i2p-ink)" }}>
+          <div className="text-center py-lg">
+            <p className="text-xl font-bold mb-md" style={{ color: "var(--i2p-ink)" }}>
               You are on the list.
             </p>
             <p className="text-sm" style={{ color: "var(--i2p-ink-body)" }}>
@@ -76,16 +76,16 @@ export default function VisaWaitlistModal({ isOpen, onClose }: Props) {
           </div>
         ) : (
           <>
-            <h2 className="font-serif text-2xl font-bold mb-2" style={{ color: "var(--i2p-ink)" }}>
+            <h2 className="font-serif text-2xl font-bold mb-sm" style={{ color: "var(--i2p-ink)" }}>
               Visa / Immigration Plan
             </h2>
-            <p className="text-sm mb-6" style={{ color: "var(--i2p-ink-body)" }}>
+            <p className="text-sm mb-xl" style={{ color: "var(--i2p-ink-body)" }}>
               Join the waitlist and be first to know when this plan is available.
             </p>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-lg">
               <div>
                 <label
-                  className="block text-sm font-medium mb-1"
+                  className="block text-sm font-medium mb-xs"
                   style={{ color: "var(--i2p-ink)" }}
                 >
                   Email
@@ -96,12 +96,12 @@ export default function VisaWaitlistModal({ isOpen, onClose }: Props) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
+                  className="w-full px-lg py-md border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
                 />
               </div>
               <div>
                 <label
-                  className="block text-sm font-medium mb-1"
+                  className="block text-sm font-medium mb-xs"
                   style={{ color: "var(--i2p-ink)" }}
                 >
                   Which country are you targeting?{" "}
@@ -114,20 +114,20 @@ export default function VisaWaitlistModal({ isOpen, onClose }: Props) {
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
                   placeholder="e.g. USA, Canada, UK"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
+                  className="w-full px-lg py-md border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="gold-gradient w-full py-3 font-semibold rounded-lg disabled:opacity-60"
+                className="gold-gradient w-full py-md font-semibold rounded-lg disabled:opacity-60"
                 style={GOLD_BUTTON_STYLE}
               >
                 {loading ? "Adding..." : "Notify Me When Available"}
               </button>
               {error && <p className="text-sm text-red-600">{error}</p>}
             </form>
-            <p className="text-xs mt-4" style={{ color: "var(--i2p-ink-dim)" }}>
+            <p className="text-xs mt-lg" style={{ color: "var(--i2p-ink-dim)" }}>
               We will only email you about the Visa plan.
             </p>
           </>

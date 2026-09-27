@@ -11,9 +11,9 @@ const EFFECTIVE_DATE = 'July 8, 2026';
 
 function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (
-    <section className="mb-10" id={id} style={id ? { scrollMarginTop: "80px" } : undefined}>
-      <h2 className="font-serif text-2xl font-bold text-gray-900 mb-3">{title}</h2>
-      <div className="text-gray-700 leading-relaxed space-y-3">{children}</div>
+    <section className="mb-2xl" id={id} style={id ? { scrollMarginTop: "80px" } : undefined}>
+      <h2 className="font-serif text-2xl font-bold text-gray-900 mb-md">{title}</h2>
+      <div className="text-gray-700 leading-relaxed space-y-md">{children}</div>
     </section>
   );
 }
@@ -22,11 +22,12 @@ export default function TermsPage() {
   return (
     <>
       <main className="min-h-screen bg-gray-50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-6 pb-12">
-          <h1 className="font-serif text-4xl md:text-5xl font-bold text-gray-900 mb-2">
+        <div className="page-container section-y">
+          <div className="measure-prose">
+          <h1 className="font-serif text-4xl md:text-5xl font-bold text-gray-900 mb-sm">
             Terms of Service
           </h1>
-          <p className="text-sm text-gray-500 mb-10">Effective date: {EFFECTIVE_DATE}</p>
+          <p className="text-sm text-gray-500 mb-2xl">Effective date: {EFFECTIVE_DATE}</p>
 
           <Section title="1. The Service">
             <p>
@@ -137,7 +138,7 @@ export default function TermsPage() {
 
           <Section title="9. Prohibited Use">
             <p>You agree not to use IdeaToPlan to:</p>
-            <ul className="list-disc pl-6 space-y-2">
+            <ul className="list-disc pl-xl space-y-sm">
               <li>Submit false or misleading information for fraudulent purposes</li>
               <li>
                 Generate plans intended to deceive investors, lenders, or government agencies
@@ -179,6 +180,7 @@ export default function TermsPage() {
               .
             </p>
           </Section>
+          </div>
         </div>
       </main>
       <Footer />

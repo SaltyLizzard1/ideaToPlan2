@@ -11,9 +11,9 @@ const EFFECTIVE_DATE = 'July 8, 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mb-10">
-      <h2 className="font-serif text-2xl font-bold text-gray-900 mb-3">{title}</h2>
-      <div className="text-gray-700 leading-relaxed space-y-3">{children}</div>
+    <section className="mb-2xl">
+      <h2 className="font-serif text-2xl font-bold text-gray-900 mb-md">{title}</h2>
+      <div className="text-gray-700 leading-relaxed space-y-md">{children}</div>
     </section>
   );
 }
@@ -38,15 +38,16 @@ export default function PrivacyPage() {
   return (
     <>
       <main className="min-h-screen bg-gray-50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-6 pb-12">
-          <h1 className="font-serif text-4xl md:text-5xl font-bold text-gray-900 mb-2">
+        <div className="page-container section-y">
+          <div className="measure-prose">
+          <h1 className="font-serif text-4xl md:text-5xl font-bold text-gray-900 mb-sm">
             Privacy Policy
           </h1>
-          <p className="text-sm text-gray-500 mb-10">Effective date: {EFFECTIVE_DATE}</p>
+          <p className="text-sm text-gray-500 mb-2xl">Effective date: {EFFECTIVE_DATE}</p>
 
           <Section title="1. What We Collect">
             <p>We collect information you choose to share when using ideatoplan.to:</p>
-            <ul className="list-disc pl-6 space-y-2">
+            <ul className="list-disc pl-xl space-y-sm">
               <li>
                 <span className="font-semibold text-gray-900">Contact information</span>: your
                 full name and email address
@@ -173,6 +174,7 @@ export default function PrivacyPage() {
               .
             </p>
           </Section>
+          </div>
         </div>
       </main>
       <Footer />

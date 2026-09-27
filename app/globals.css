@@ -23,6 +23,84 @@
   --font-serif:  var(--font-cormorant);
   --font-sans:   var(--font-inter);
 }
+/* ===== Spacing system =====
+   One scale, defined here and nowhere else. Components use the classes and
+   utilities below, never a raw value. Every left edge on the site comes from
+   .page-container, including the header and the footer, so content lines up
+   at every width. */
+@theme {
+  /* the one container, plus the narrower reading columns inside it */
+  --container-page: 1200px;
+  --container-measure: 672px;
+  --container-prose: 768px;
+  --container-copy: 540px;
+  --container-hero: 900px;
+
+  /* distance from the viewport edge to any content */
+  --spacing-gutter: 24px;
+  --spacing-gutter-md: 32px;
+
+  /* section vertical rhythm */
+  --spacing-section: 48px;
+  --spacing-section-md: 72px;
+  --spacing-section-lg: 96px;
+
+  /* components */
+  --spacing-card: 24px;
+  --spacing-card-md: 32px;
+  --spacing-grid: 24px;
+  --spacing-grid-md: 32px;
+  --spacing-stack: 16px;
+
+  /* type rhythm, 4px base */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+}
+
+/* The one container. */
+.page-container {
+  width: 100%;
+  max-width: var(--container-page);
+  margin-inline: auto;
+  padding-inline: var(--spacing-gutter);
+}
+
+/* Reading columns, centred inside the container. */
+.measure {
+  width: 100%;
+  max-width: var(--container-measure);
+  margin-inline: auto;
+}
+.measure-prose {
+  width: 100%;
+  max-width: var(--container-prose);
+  margin-inline: auto;
+}
+
+/* Section vertical rhythm. */
+.section-y { padding-block: var(--spacing-section); }
+.section-y-lg { padding-block: var(--spacing-section-lg); }
+
+/* Card padding and grid gap. */
+.card-pad { padding: var(--spacing-card); }
+.grid-gap { gap: var(--spacing-grid); }
+
+@media (min-width: 768px) {
+  .page-container { padding-inline: var(--spacing-gutter-md); }
+  .section-y { padding-block: var(--spacing-section-md); }
+  .card-pad { padding: var(--spacing-card-md); }
+  .grid-gap { gap: var(--spacing-grid-md); }
+}
+
+/* Headings and card titles never leave a single word on the last line. */
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
 /* ===== IdeaToPlan design tokens ===== */
 :root {
   /* Backgrounds */

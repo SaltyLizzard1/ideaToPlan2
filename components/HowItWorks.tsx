@@ -127,13 +127,13 @@ export default function HowItWorks() {
   ];
 
   return (
-    <section ref={sectionRef} className="pt-10 pb-14 px-6 bg-[#FDFCF9]">
-      <div className="max-w-5xl mx-auto">
+    <section ref={sectionRef} className="section-y bg-[#FDFCF9]">
+      <div className="page-container">
 
         {/* Section heading — unchanged */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-2xl">
           <p
-            className="text-xs font-sans tracking-[0.2em] uppercase mb-3"
+            className="text-xs font-sans tracking-[0.2em] uppercase mb-md"
             style={{ color: "#C9A030" }}
           >
             How It Works
@@ -164,7 +164,7 @@ export default function HowItWorks() {
             paint above z:-1 positioned siblings within the same stacking context).
           */}
           <div
-            className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch"
+            className="grid grid-cols-1 md:grid-cols-3 grid-gap items-stretch"
             style={{ position: "relative", zIndex: 1 }}
           >
 
@@ -196,11 +196,10 @@ export default function HowItWorks() {
               >
                 {/* Step number — above the card, outside the border */}
                 <p
-                  className="font-serif font-bold"
+                  className="font-serif font-bold mb-md"
                   style={{
                     fontSize: "clamp(24px, 2.5vw, 30px)",
                     color: "#0D1117",
-                    marginBottom: "10px",
                     lineHeight: 1,
                   }}
                 >
@@ -209,7 +208,7 @@ export default function HowItWorks() {
 
                 {/* Card — flex-1 so all cards stretch to the tallest */}
                 <div
-                  className="flex flex-col items-start p-6 rounded-2xl border w-full flex-1"
+                  className="flex flex-col items-start card-pad rounded-2xl border w-full flex-1"
                   style={{
                     borderColor: "#E8E4DB",
                     background: "white",
@@ -219,7 +218,7 @@ export default function HowItWorks() {
                   {/* icon version — kept for possible revert */}
                   {/*
                   <div
-                    className="mb-5 p-3 rounded-xl"
+                    className="mb-5 p-md rounded-xl"
                     style={{ background: "#FBF6E4", color: "#8B6914" }}
                   >
                     {s.icon}
@@ -227,7 +226,7 @@ export default function HowItWorks() {
                   */}
 
                   <h3
-                    className="font-serif text-xl font-semibold mb-3"
+                    className="font-serif text-xl font-semibold mb-md"
                     style={{ color: "#0D1117" }}
                   >
                     {s.title}

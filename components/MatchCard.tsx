@@ -119,11 +119,11 @@ export default function MatchCard({
 
   const body = (
     <>
-      <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+      <div className="flex items-start justify-between gap-md mb-md flex-wrap">
         <div>
           {match.category && (
             <span
-              className="text-xs font-semibold uppercase tracking-wide mb-1 block"
+              className="text-xs font-semibold uppercase tracking-wide mb-xs block"
               style={{ color: t.eyebrow }}
             >
               {match.category}
@@ -135,7 +135,7 @@ export default function MatchCard({
         </div>
         {match.saturation && (
           <span
-            className={`text-xs font-semibold px-3 py-1 rounded-full mt-1 shrink-0 ${
+            className={`text-xs font-semibold px-md py-xs rounded-full mt-xs shrink-0 ${
               SATURATION_COLORS[match.saturation] ?? 'bg-gray-100 text-gray-700'
             }`}
           >
@@ -147,22 +147,22 @@ export default function MatchCard({
       {status !== 'ready' ? (
         <>
           {match.oneLiner && (
-            <p className="mb-4 leading-relaxed" style={{ color: t.body }}>
+            <p className="mb-lg leading-relaxed" style={{ color: t.body }}>
               {match.oneLiner}
             </p>
           )}
 
           {status === 'loading' && (
             <div aria-busy="true" aria-label="Writing your full match">
-              <div className="animate-pulse space-y-2" aria-hidden="true">
+              <div className="animate-pulse space-y-sm" aria-hidden="true">
                 <div className="h-3 rounded w-full" style={{ background: t.skeleton }} />
                 <div className="h-3 rounded w-11/12" style={{ background: t.skeleton }} />
                 <div className="h-3 rounded w-4/5" style={{ background: t.skeleton }} />
-                <div className="h-16 rounded mt-4" style={{ background: t.skeleton }} />
-                <div className="h-3 rounded w-3/5 mt-4" style={{ background: t.skeleton }} />
+                <div className="h-16 rounded mt-lg" style={{ background: t.skeleton }} />
+                <div className="h-3 rounded w-3/5 mt-lg" style={{ background: t.skeleton }} />
                 <div className="h-3 rounded w-2/3" style={{ background: t.skeleton }} />
               </div>
-              <p className="flex items-center gap-2 text-xs mt-4" style={{ color: t.dim }}>
+              <p className="flex items-center gap-sm text-xs mt-lg" style={{ color: t.dim }}>
                 <Loader className="w-3 h-3 animate-spin" />
                 Writing this one out in full...
               </p>
@@ -170,14 +170,14 @@ export default function MatchCard({
           )}
 
           {status === 'error' && (
-            <div className="rounded-lg px-4 py-3" style={t.angleBox}>
-              <p className="text-sm mb-3" style={{ color: t.body }}>
+            <div className="rounded-lg card-pad" style={t.angleBox}>
+              <p className="text-sm mb-md" style={{ color: t.body }}>
                 {errorMessage || 'This match did not finish writing.'}
               </p>
               {onRetry && (
                 <button
                   onClick={onRetry}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg"
+                  className="inline-flex items-center gap-sm px-lg py-sm text-sm font-semibold rounded-lg"
                   style={{ color: '#2D1A00', border: '1.5px solid #7A5C0A', backgroundColor: '#F5E070' }}
                 >
                   <RotateCcw className="w-3 h-3" />
@@ -190,7 +190,7 @@ export default function MatchCard({
       ) : (
         <>
           {match.description && (
-            <p className="mb-3 leading-relaxed" style={{ color: t.body }}>
+            <p className="mb-md leading-relaxed" style={{ color: t.body }}>
               {match.description}
             </p>
           )}
@@ -200,7 +200,7 @@ export default function MatchCard({
             <button
               onClick={() => handleBuildPlan('Starter')}
               disabled={redirecting}
-              className="w-full py-2 mb-4 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-60"
+              className="w-full py-sm mb-lg text-sm font-semibold rounded-lg flex items-center justify-center gap-sm disabled:opacity-60"
               style={{ color: '#2D1A00', border: '1.5px solid #7A5C0A', backgroundColor: '#F5E070' }}
             >
               {redirecting ? (
@@ -216,7 +216,7 @@ export default function MatchCard({
 
           {match.whyYou && (
             <p
-              className="text-sm italic border-l-2 pl-4 mb-4"
+              className="text-sm italic border-l-2 pl-lg mb-lg"
               style={{ borderColor: 'var(--i2p-gold)', color: 'var(--i2p-ink)' }}
             >
               {match.whyYou}
@@ -224,7 +224,7 @@ export default function MatchCard({
           )}
 
           {match.incomeRange && (
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-sm mb-lg">
               <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: t.dim }}>
                 Income range:
               </span>
@@ -235,8 +235,8 @@ export default function MatchCard({
           )}
 
           {match.uniqueAngle && (
-            <div className="rounded-lg px-4 py-3 mb-4" style={t.angleBox}>
-              <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: t.angleLabel }}>
+            <div className="rounded-lg card-pad mb-lg" style={t.angleBox}>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-xs" style={{ color: t.angleLabel }}>
                 Your unique angle
               </p>
               <p className="text-sm" style={{ color: t.angleBody }}>
@@ -247,12 +247,12 @@ export default function MatchCard({
 
           {Array.isArray(match.firstSteps) && match.firstSteps.length > 0 && (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: t.dim }}>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-sm" style={{ color: t.dim }}>
                 First steps
               </p>
-              <ol className="space-y-1">
+              <ol className="space-y-xs">
                 {match.firstSteps.map((step, i) => (
-                  <li key={i} className="flex gap-2 text-sm" style={{ color: t.body }}>
+                  <li key={i} className="flex gap-sm text-sm" style={{ color: t.body }}>
                     <span className="font-bold shrink-0" style={{ color: t.stepNumber }}>
                       {i + 1}.
                     </span>
@@ -264,17 +264,17 @@ export default function MatchCard({
           )}
 
           {match.saturationNote && (
-            <p className="text-xs mt-3" style={{ color: t.note }}>
+            <p className="text-xs mt-md" style={{ color: t.note }}>
               {match.saturationNote}
             </p>
           )}
 
           {canBuy && (
-            <div className="mt-6">
+            <div className="mt-xl">
               <button
                 onClick={() => handleBuildPlan('Growth')}
                 disabled={redirecting}
-                className="w-full py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-60"
+                className="w-full py-sm text-sm font-semibold rounded-lg border transition-colors disabled:opacity-60"
                 style={{ borderColor: '#C9A030', color: '#5C4206', backgroundColor: '#FBF6E4' }}
               >
                 Growth tier · $50
@@ -290,13 +290,13 @@ export default function MatchCard({
     return (
       <div className="rounded-2xl overflow-hidden" style={t.card}>
         <div className="gold-gradient" style={{ height: '4px' }} />
-        <div className="p-6">{body}</div>
+        <div className="card-pad">{body}</div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl p-6" style={t.card}>
+    <div className="rounded-2xl card-pad" style={t.card}>
       {body}
     </div>
   );

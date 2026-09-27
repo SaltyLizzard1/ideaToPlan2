@@ -17,12 +17,9 @@ export default function Footer() {
 
   return (
     <footer style={{ background: "#0d0d0f", borderTop: "1px solid rgba(201,160,48,0.18)" }}>
-      <div
-        className="mx-auto flex flex-col md:flex-row items-center md:items-start justify-between gap-6"
-        style={{ maxWidth: "1200px", padding: "2rem 2rem 1.25rem" }}
-      >
+      <div className="page-container flex flex-col md:flex-row items-center md:items-start justify-between gap-grid pt-2xl pb-xl">
         {/* Brand */}
-        <div className="flex flex-col items-center md:items-start gap-2">
+        <div className="flex flex-col items-center md:items-start gap-sm">
           <span style={{ display: "block", width: "150px" }}>
             <AnimatedLogo showTagline={false} animate={false} className="w-full h-auto" />
           </span>
@@ -32,7 +29,7 @@ export default function Footer() {
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-col items-center md:items-start gap-2">
+        <nav className="flex flex-col items-center md:items-start gap-sm">
           <p
             className="font-sans text-xs uppercase tracking-widest"
             style={{ color: "#E8C84A", letterSpacing: "0.18em" }}
@@ -54,7 +51,7 @@ export default function Footer() {
         </nav>
 
         {/* Services */}
-        <div className="flex flex-col items-center md:items-start gap-2">
+        <div className="flex flex-col items-center md:items-start gap-sm">
           <p
             className="font-sans text-xs uppercase tracking-widest"
             style={{ color: "#E8C84A", letterSpacing: "0.18em" }}
@@ -78,7 +75,7 @@ export default function Footer() {
         </div>
 
         {/* Contact */}
-        <div className="flex flex-col items-center md:items-start gap-2">
+        <div className="flex flex-col items-center md:items-start gap-sm">
           <p
             className="font-sans text-xs uppercase tracking-widest"
             style={{ color: "#E8C84A", letterSpacing: "0.18em" }}
@@ -108,12 +105,8 @@ export default function Footer() {
 
       {/* Bottom bar */}
       <div
-        className="mx-auto flex flex-col sm:flex-row items-center justify-between gap-2"
-        style={{
-          maxWidth: "1200px",
-          padding: "0.75rem 2rem",
-          borderTop: "1px solid rgba(201,160,48,0.08)",
-        }}
+        className="page-container flex flex-col sm:flex-row items-center justify-between gap-sm py-md"
+        style={{ borderTop: "1px solid rgba(201,160,48,0.08)" }}
       >
         <p className="font-sans text-xs" style={{ color: "#a89f8a" }}>
           © {new Date().getFullYear()} IdeaToPlan. All rights reserved.
