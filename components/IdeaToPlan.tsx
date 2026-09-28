@@ -10,6 +10,7 @@ import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import Portal from "@/components/Portal";
 import { getStripeLink } from "@/lib/stripe";
 import { PLANS } from "@/lib/plans";
+import AutoGrowTextarea from "@/components/AutoGrowTextarea";
 import { useCheckoutRedirect } from "@/components/useCheckoutRedirect";
 import VisaWaitlistModal from "./VisaWaitlistModal";
 
@@ -569,7 +570,7 @@ const [paymentError, setPaymentError] = useState("");
                     </div>
                   )}
 
-                  <form onSubmit={handleSubmit} className="space-y-5">
+                  <form id="intake-form" onSubmit={handleSubmit} className="space-y-5">
                     <div className="grid sm:grid-cols-2 gap-s4">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-s1">
@@ -619,7 +620,7 @@ const [paymentError, setPaymentError] = useState("");
                           </button>
                         </div>
                       )}
-                      <textarea
+                      <AutoGrowTextarea
                         name="businessIdea"
                         value={form.businessIdea}
                         onChange={handleChange}
@@ -627,7 +628,7 @@ const [paymentError, setPaymentError] = useState("");
                         rows={3}
                         maxLength={5000}
                         placeholder="What's the idea? Give us the overview."
-                        className={`${INPUT_CLASS} resize-none`}
+                        className={`${INPUT_CLASS}`}
                       />
                       <p
                         className="text-xs text-right mt-s1"
@@ -641,14 +642,14 @@ const [paymentError, setPaymentError] = useState("");
                       <label className="block text-sm font-semibold text-gray-700 mb-s1">
                         What problem does it solve? <span className="text-red-500">*</span>
                       </label>
-                      <textarea
+                      <AutoGrowTextarea
                         name="problem"
                         value={form.problem}
                         onChange={handleChange}
                         required
                         rows={2}
                         placeholder="What pain point are you solving?"
-                        className={`${INPUT_CLASS} resize-none`}
+                        className={`${INPUT_CLASS}`}
                       />
                     </div>
 
@@ -711,11 +712,12 @@ const [paymentError, setPaymentError] = useState("");
                       <label className="block text-sm font-semibold text-gray-700 mb-s1">
                         Who is your target customer? <span className="text-red-500">*</span>
                       </label>
-                      <input
+                      <AutoGrowTextarea
                         name="targetAudience"
                         value={form.targetAudience}
                         onChange={handleChange}
                         required
+                        rows={2}
                         placeholder="e.g. Freelance designers aged 30–45 who want to go full-time"
                         className={INPUT_CLASS}
                       />
@@ -726,10 +728,11 @@ const [paymentError, setPaymentError] = useState("");
                         <label className="block text-sm font-semibold text-gray-700 mb-s1">
                           How will you make money?
                         </label>
-                        <input
+                        <AutoGrowTextarea
                           name="revenueModel"
                           value={form.revenueModel}
                           onChange={handleChange}
+                          rows={2}
                           placeholder="e.g. Subscriptions, one-time sales, services"
                           className={INPUT_CLASS}
                         />
@@ -738,10 +741,11 @@ const [paymentError, setPaymentError] = useState("");
                         <label className="block text-sm font-semibold text-gray-700 mb-s1">
                           What makes you different?
                         </label>
-                        <input
+                        <AutoGrowTextarea
                           name="differentiation"
                           value={form.differentiation}
                           onChange={handleChange}
+                          rows={2}
                           placeholder="Your edge over competitors"
                           className={INPUT_CLASS}
                         />
@@ -852,13 +856,13 @@ const [paymentError, setPaymentError] = useState("");
                           <label className="block text-sm font-semibold text-gray-700 mb-s1">
                             Collateral and assets
                           </label>
-                          <textarea
+                          <AutoGrowTextarea
                             name="assetsCollateral"
                             value={form.assetsCollateral}
                             onChange={handleChange}
                             rows={3}
                             placeholder="e.g. Vehicle or property as collateral, savings, equipment"
-                            className={`${INPUT_CLASS} resize-none`}
+                            className={`${INPUT_CLASS}`}
                           />
                         </div>
                       </div>
@@ -879,13 +883,13 @@ const [paymentError, setPaymentError] = useState("");
                           <label className="block text-sm font-semibold text-gray-700 mb-s1">
                             Your background
                           </label>
-                          <textarea
+                          <AutoGrowTextarea
                             name="founderBackground"
                             value={form.founderBackground}
                             onChange={handleChange}
                             rows={3}
                             placeholder="Relevant experience and why you're the right person to build this."
-                            className={`${INPUT_CLASS} resize-none`}
+                            className={`${INPUT_CLASS}`}
                           />
                         </div>
                         <div className="grid sm:grid-cols-2 gap-s4">
@@ -918,26 +922,26 @@ const [paymentError, setPaymentError] = useState("");
                           <label className="block text-sm font-semibold text-gray-700 mb-s1">
                             Use of funds
                           </label>
-                          <textarea
+                          <AutoGrowTextarea
                             name="useOfFunds"
                             value={form.useOfFunds}
                             onChange={handleChange}
                             rows={2}
                             placeholder="What will the investment capital be used for?"
-                            className={`${INPUT_CLASS} resize-none`}
+                            className={`${INPUT_CLASS}`}
                           />
                         </div>
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-s1">
                             Exit vision
                           </label>
-                          <textarea
+                          <AutoGrowTextarea
                             name="exitVision"
                             value={form.exitVision}
                             onChange={handleChange}
                             rows={2}
                             placeholder="Acquisition, IPO, lifestyle business? What does success look like in 5–7 years?"
-                            className={`${INPUT_CLASS} resize-none`}
+                            className={`${INPUT_CLASS}`}
                           />
                         </div>
                       </div>
@@ -970,29 +974,41 @@ const [paymentError, setPaymentError] = useState("");
                       </p>
                     </div>
 
-                    <button
-                      type="submit"
-                      disabled={status === "loading"}
-                      className="w-full py-s4 text-lg font-semibold rounded-lg cta-shimmer shadow-md flex items-center justify-center gap-s2 disabled:opacity-50"
-                      style={GOLD_BUTTON_TEXT_STYLE}
-                    >
-                      {status === "loading" ? (
-                        <>
-                          <Loader className="w-5 h-5 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        "Submit Your Idea"
-                      )}
-                    </button>
-
-                    <p className="text-center text-xs text-gray-400">
-                      Your plan will be delivered within 72 hours. You can email me questions about it any time.
-                    </p>
                   </form>
                 </>
               )}
             </div>
+
+            {/* Submit is pinned so a long form never buries it. Everything the
+                form requires is pre-filled after payment, so a buyer who is
+                happy with it can send without scrolling at all. Native
+                validation still jumps to the first empty required field. */}
+            {!paymentError && status !== "success" && (
+              <div
+                className="shrink-0 border-t px-s4 py-s3"
+                style={{ borderColor: "#E8E4DB", background: "#FFFFFF" }}
+              >
+                <button
+                  type="submit"
+                  form="intake-form"
+                  disabled={status === "loading"}
+                  className="w-full py-s4 text-lg font-semibold rounded-lg cta-shimmer shadow-md flex items-center justify-center gap-s2 disabled:opacity-50"
+                  style={GOLD_BUTTON_TEXT_STYLE}
+                >
+                  {status === "loading" ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Submit Your Idea"
+                  )}
+                </button>
+                <p className="text-center text-xs text-gray-400 mt-s2">
+                  Your plan will be delivered within 72 hours. You can email me questions about it any time.
+                </p>
+              </div>
+            )}
           </div>
         </div>
         </Portal>
