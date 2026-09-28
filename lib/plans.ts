@@ -14,20 +14,9 @@ export interface Plan {
   features: string[];
 }
 
+// Order matters: this array is the running order everywhere the tiers are
+// shown, in the chooser and in the Business Plans section. Growth leads.
 export const PLANS: Plan[] = [
-  {
-    name: "Starter",
-    price: "$25",
-    tagline: "For founders who want a polished business plan without overpaying.",
-    features: [
-      "Actionable business plan built around your idea",
-      "Revenue model and pricing strategy",
-      "90-day roadmap with clear milestones",
-      "Professional PDF delivered in 72 hours",
-      "Reviewed by a real person, never auto-sent",
-      "Email follow-up to answer your questions",
-    ],
-  },
   {
     name: "Growth",
     price: "$50",
@@ -37,6 +26,19 @@ export const PLANS: Plan[] = [
       "Competitor research and landscape analysis",
       "SWOT analysis",
       "Viability verdict with go/no-go assessment",
+      "Reviewed by a real person, never auto-sent",
+      "Email follow-up to answer your questions",
+    ],
+  },
+  {
+    name: "Starter",
+    price: "$25",
+    tagline: "For founders who want a polished business plan without overpaying.",
+    features: [
+      "Actionable business plan built around your idea",
+      "Revenue model and pricing strategy",
+      "90-day roadmap with clear milestones",
+      "Professional PDF delivered in 72 hours",
       "Reviewed by a real person, never auto-sent",
       "Email follow-up to answer your questions",
     ],

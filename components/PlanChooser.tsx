@@ -140,10 +140,12 @@ export default function PlanChooser({
                     ))}
                   </ul>
 
+                  {/* Below 768 the buttons live in the footer instead, so both
+                      tiers can be chosen without scrolling. */}
                   <button
                     onClick={() => choose(plan.name)}
                     disabled={redirecting}
-                    className="w-full py-s3 text-sm font-semibold rounded-lg flex items-center justify-center gap-s2 disabled:opacity-60"
+                    className="w-full py-s3 text-sm font-semibold rounded-lg hidden md:flex items-center justify-center gap-s2 disabled:opacity-60"
                     style={{ color: "#2D1A00", border: "1.5px solid #7A5C0A", backgroundColor: "#F5E070" }}
                   >
                     {redirecting ? (
@@ -160,6 +162,33 @@ export default function PlanChooser({
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Both tiers reachable without scrolling on a phone */}
+          <div
+            className="md:hidden shrink-0 border-t px-s4 py-s3 flex flex-col gap-s2"
+            style={{ borderColor: "#E8E4DB", background: "#FFFFFF" }}
+          >
+            {PLANS.map((plan) => (
+              <button
+                key={plan.name}
+                onClick={() => choose(plan.name)}
+                disabled={redirecting}
+                className="w-full py-s3 text-sm font-semibold rounded-lg flex items-center justify-center gap-s2 disabled:opacity-60"
+                style={{ color: "#2D1A00", border: "1.5px solid #7A5C0A", backgroundColor: "#F5E070" }}
+              >
+                {redirecting ? (
+                  <>
+                    <Loader className="w-3 h-3 animate-spin" />
+                    Redirecting...
+                  </>
+                ) : (
+                  <>
+                    Choose {plan.name} · {plan.price}
+                  </>
+                )}
+              </button>
+            ))}
           </div>
         </div>
       </div>

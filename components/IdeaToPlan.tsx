@@ -9,7 +9,7 @@ import {
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import Portal from "@/components/Portal";
 import { getStripeLink } from "@/lib/stripe";
-import { getPlan } from "@/lib/plans";
+import { PLANS } from "@/lib/plans";
 import { useCheckoutRedirect } from "@/components/useCheckoutRedirect";
 import VisaWaitlistModal from "./VisaWaitlistModal";
 
@@ -380,67 +380,44 @@ const [paymentError, setPaymentError] = useState("");
             className="pricing-grid grid md:grid-cols-3 grid-gap mb-s4 rounded-2xl transition-all duration-300"
             style={pulsing ? { outline: "2px solid #C9A030", outlineOffset: "6px" } : undefined}
           >
-            {/* Starter */}
-            <div
-              className={`rounded-2xl card-pad flex flex-col card-hover-lift cursor-pointer transition-all ${
-                form.planType === "Starter"
-                  ? "border-2 border-[#C9A030] scale-[1.02]"
-                  : "border border-[#E8E4DB] bg-white shadow-sm"
-              }`}
-              style={
-                form.planType === "Starter"
-                  ? { background: "#FDFBF4", boxShadow: "0 8px 24px rgba(201, 160, 48, 0.18)" }
-                  : undefined
-              }
-              onClick={() => { setForm((prev) => ({ ...prev, planType: "Starter" })); setPlanSelected(true); }}
-            >
-              <h3 className="text-xl font-bold text-gray-900 mb-s1">{getPlan("Starter").name}</h3>
-              <p className="font-bold text-2xl mb-s1" style={{ color: "#0D1117" }}>
-                {getPlan("Starter").price}
-              </p>
-              <p className="text-sm text-gray-500 mb-s4">
-                {getPlan("Starter").tagline}
-              </p>
-              <ul className="space-y-s2 text-sm text-gray-700 flex-1">
-                {getPlan("Starter").features.map((item, i) => (
-                  <li key={i} className="flex items-start gap-s2">
-                    <span className="font-bold mt-0.5" style={{ color: "#0D1117" }}>
-                      ✓
-                    </span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Growth */}
-            <div
-              className="border-2 rounded-2xl card-pad shadow-lg flex flex-col relative card-hover-lift-strong cursor-pointer transition-all scale-[1.02]"
-              style={{
-                borderColor: "#C9A030",
-                background: "#FDFBF4",
-                boxShadow: "0 8px 24px rgba(201, 160, 48, 0.18)",
-              }}
-              onClick={() => { setForm((prev) => ({ ...prev, planType: "Growth" })); setPlanSelected(true); }}
-            >
-              <h3 className="text-xl font-bold text-gray-900 mb-s1">{getPlan("Growth").name}</h3>
-              <p className="font-bold text-2xl mb-s1" style={{ color: "#0D1117" }}>
-                {getPlan("Growth").price}
-              </p>
-              <p className="text-sm text-gray-500 mb-s4">
-                {getPlan("Growth").tagline}
-              </p>
-              <ul className="space-y-s2 text-sm text-gray-700 flex-1">
-                {getPlan("Growth").features.map((item, i) => (
-                  <li key={i} className="flex items-start gap-s2">
-                    <span className="font-bold mt-0.5" style={{ color: "#0D1117" }}>
-                      ✓
-                    </span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {/* The purchasable tiers, in the order lib/plans.ts gives them, so
+                this section and the chooser can never disagree about which
+                comes first. */}
+            {PLANS.map((plan) => {
+              const selected = form.planType === plan.name;
+              return (
+                <div
+                  key={plan.name}
+                  className={`rounded-2xl card-pad flex flex-col card-hover-lift cursor-pointer transition-all ${
+                    selected
+                      ? "border-2 border-[#C9A030] scale-[1.02]"
+                      : "border border-[#E8E4DB] bg-white shadow-sm"
+                  }`}
+                  style={
+                    selected
+                      ? { background: "#FDFBF4", boxShadow: "0 8px 24px rgba(201, 160, 48, 0.18)" }
+                      : undefined
+                  }
+                  onClick={() => { setForm((prev) => ({ ...prev, planType: plan.name })); setPlanSelected(true); }}
+                >
+                  <h3 className="text-xl font-bold text-gray-900 mb-s1">{plan.name}</h3>
+                  <p className="font-bold text-2xl mb-s1" style={{ color: "#0D1117" }}>
+                    {plan.price}
+                  </p>
+                  <p className="text-sm text-gray-500 mb-s4">{plan.tagline}</p>
+                  <ul className="space-y-s2 text-sm text-gray-700 flex-1">
+                    {plan.features.map((item, i) => (
+                      <li key={i} className="flex items-start gap-s2">
+                        <span className="font-bold mt-0.5" style={{ color: "#0D1117" }}>
+                          ✓
+                        </span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
 
             {/* Visa / Immigration — Notify-me capture (not purchasable yet) */}
             <div className="border border-dashed border-[#E8E4DB] rounded-2xl card-pad bg-white shadow-sm flex flex-col relative">
