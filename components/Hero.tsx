@@ -72,7 +72,7 @@ export default function Hero() {
 
         {/* Subheadline */}
         <p
-          className="font-sans -mt-sm"
+          className="font-sans -mt-s2"
           style={{
             color: "#cfc9b8",
             fontSize: "clamp(0.95rem, 1.35vw, 1.1rem)",
@@ -84,10 +84,10 @@ export default function Hero() {
         </p>
 
         {/* CTA block */}
-        <div className="flex flex-col items-center gap-md">
+        <div className="flex flex-col items-center gap-s3">
           <button
             onClick={scrollToAssessment}
-            className="cta-shimmer gold-border inline-flex items-center gap-sm rounded-full font-sans font-semibold cursor-pointer"
+            className="cta-shimmer gold-border inline-flex items-center gap-s2 rounded-full font-sans font-semibold cursor-pointer"
             style={{
               color: "#2D1A00",
               fontSize: "clamp(1rem, 1.4vw, 1.1rem)",
@@ -117,7 +117,7 @@ export default function Hero() {
 
         {/* Delivery line */}
         <div
-          className="flex flex-row flex-wrap justify-center gap-x-lg gap-y-xs font-sans"
+          className="flex flex-row flex-wrap justify-center gap-x-s4 gap-y-s1 font-sans"
           style={{ fontSize: "clamp(0.7rem, 1vw, 0.8rem)", color: "#C9A030", letterSpacing: "0.02em" }}
         >
           <span>⚡ 72-hour delivery guarantee</span>

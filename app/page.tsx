@@ -26,25 +26,25 @@ export default function Home() {
         >
           <div className="page-container">
             <div className="measure text-center">
-            <p className="font-sans text-xs uppercase tracking-[0.2em] mb-md" style={{ color: "#C9A030" }}>
+            <p className="font-sans text-xs uppercase tracking-[0.2em] mb-s3" style={{ color: "#C9A030" }}>
               Why This Exists
             </p>
             <h2
-              className="font-serif text-4xl sm:text-5xl font-bold mb-xl"
+              className="font-serif text-4xl sm:text-5xl font-bold mb-s5"
               style={{ color: "#0D1117" }}
             >
               What Are You Built to Do?
             </h2>
 
             <p
-              className="font-serif font-semibold mb-xl"
+              className="font-serif font-semibold mb-s5"
               style={{ color: "#0D1117", fontSize: "clamp(1.15rem, 2.2vw, 1.5rem)", lineHeight: 1.3 }}
             >
               Most people know what they want. I talk to people who don&apos;t.
             </p>
 
             <p
-              className="font-sans text-base leading-relaxed max-w-copy mx-auto mb-xl"
+              className="font-sans text-base leading-relaxed max-w-copy mx-auto mb-s5"
               style={{ color: "#4A4A45" }}
             >
               If you&apos;re still figuring out whether change is even possible for you,
@@ -52,16 +52,16 @@ export default function Home() {
               no idea required. That is what the assessment is for.
             </p>
 
-            <div className="font-sans text-sm mb-2xl" style={{ color: "#6B6B66" }}>
+            <div className="font-sans text-sm mb-s6" style={{ color: "#6B6B66" }}>
               <p>I built Quit Your Life and Travel using IdeaToPlan. The plan above is its actual pages.</p>
-              <p className="font-serif italic mt-xs" style={{ color: "#0D1117", fontSize: "0.95rem" }}>
+              <p className="font-serif italic mt-s1" style={{ color: "#0D1117", fontSize: "0.95rem" }}>
                 Elizabeth, Founder
               </p>
             </div>
 
             <a
               href="/assessment"
-              className="cta-shimmer gold-border inline-flex items-center gap-sm px-2xl py-lg rounded-full font-sans font-semibold text-base cursor-pointer"
+              className="cta-shimmer gold-border inline-flex items-center gap-s2 px-s6 py-s4 rounded-full font-sans font-semibold text-base cursor-pointer"
               style={{ color: "#2D1A00" }}
             >
               Start My Assessment

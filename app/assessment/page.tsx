@@ -145,7 +145,7 @@ function Pill({
       onClick={onClick}
       disabled={disabled && !selected}
       className={[
-        'px-lg py-sm rounded-full border text-sm font-medium transition-all',
+        'px-s4 py-s2 rounded-full border text-sm font-medium transition-all',
         selected
           ? 'border-[#7A5C0A] shadow-sm bg-[#E8C84A] text-[#2D1A00]'
           : disabled
@@ -178,7 +178,7 @@ function EitherOrPair({
         type="button"
         onClick={() => onChange(label)}
         className={[
-          'flex-1 py-5 px-lg rounded-xl border-2 text-sm font-semibold transition-all text-center card-hover-lift',
+          'flex-1 py-5 px-s4 rounded-xl border-2 text-sm font-semibold transition-all text-center card-hover-lift',
           active
             ? 'border-[#C9A030] bg-[#FBF6E4] text-[#5C4206] shadow'
             : 'border-gray-200 bg-white text-gray-600 hover:border-[#E8C84A]',
@@ -190,7 +190,7 @@ function EitherOrPair({
   };
 
   return (
-    <div className="flex gap-md items-center">
+    <div className="flex gap-s3 items-center">
       {card(optionA)}
       <span className="text-gray-400 text-xs font-bold shrink-0">OR</span>
       {card(optionB)}
@@ -202,7 +202,7 @@ function EitherOrPair({
 
 function ProgressBar({ step, total }: { step: number; total: number }) {
   return (
-    <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2xl">
+    <div className="w-full bg-gray-100 rounded-full h-1.5 mb-s6">
       <div
         className="h-1.5 rounded-full transition-all duration-500"
         style={{ width: `${(step / total) * 100}%`, backgroundImage: GOLD_GRADIENT }}
@@ -379,9 +379,9 @@ export default function AssessmentPage() {
     if (step === 1) {
       return (
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-xs">Your hard skills</h2>
-          <p className="text-gray-500 mb-xl text-sm">Select everything that applies. Be generous.</p>
-          <div className="flex flex-wrap gap-sm">
+          <h2 className="text-2xl font-bold text-gray-900 mb-s1">Your hard skills</h2>
+          <p className="text-gray-500 mb-s5 text-sm">Select everything that applies. Be generous.</p>
+          <div className="flex flex-wrap gap-s2">
             {HARD_SKILLS.map((s) => (
               <Pill
                 key={s}
@@ -399,12 +399,12 @@ export default function AssessmentPage() {
     if (step === 2) {
       return (
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-xs">Your soft skills</h2>
-          <p className="text-gray-500 mb-xl text-sm">
+          <h2 className="text-2xl font-bold text-gray-900 mb-s1">Your soft skills</h2>
+          <p className="text-gray-500 mb-s5 text-sm">
             Pick your top 5.{' '}
             <span className="font-semibold" style={{ color: '#6B6B66' }}>{form.softSkills.length}/5 selected</span>
           </p>
-          <div className="flex flex-wrap gap-sm">
+          <div className="flex flex-wrap gap-s2">
             {SOFT_SKILLS.map((s) => (
               <Pill
                 key={s}
@@ -422,9 +422,9 @@ export default function AssessmentPage() {
     if (step === 3) {
       return (
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-xs">How you like to work</h2>
-          <p className="text-gray-500 mb-xl text-sm">Pick one from each pair.</p>
-          <div className="space-y-lg">
+          <h2 className="text-2xl font-bold text-gray-900 mb-s1">How you like to work</h2>
+          <p className="text-gray-500 mb-s5 text-sm">Pick one from each pair.</p>
+          <div className="space-y-s4">
             {WORK_STYLE_PAIRS.map((pair, i) => (
               <EitherOrPair
                 key={i}
@@ -448,12 +448,12 @@ export default function AssessmentPage() {
     if (step === 4) {
       return (
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-xs">What matters most</h2>
-          <p className="text-gray-500 mb-xl text-sm">
+          <h2 className="text-2xl font-bold text-gray-900 mb-s1">What matters most</h2>
+          <p className="text-gray-500 mb-s5 text-sm">
             Pick your top 3.{' '}
             <span className="font-semibold" style={{ color: '#6B6B66' }}>{form.values.length}/3 selected</span>
           </p>
-          <div className="flex flex-wrap gap-sm">
+          <div className="flex flex-wrap gap-s2">
             {VALUES.map((v) => (
               <Pill
                 key={v}
@@ -471,15 +471,15 @@ export default function AssessmentPage() {
     if (step === 5) {
       return (
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-xs">The practical part</h2>
-          <p className="text-gray-500 mb-xl text-sm">Realistic expectations make better matches.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-s1">The practical part</h2>
+          <p className="text-gray-500 mb-s5 text-sm">Realistic expectations make better matches.</p>
 
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-sm">
+              <label className="block text-sm font-semibold text-gray-700 mb-s2">
                 Hours available per week
               </label>
-              <div className="flex flex-wrap gap-sm">
+              <div className="flex flex-wrap gap-s2">
                 {HOURS_OPTIONS.map((opt) => (
                   <Pill
                     key={opt}
@@ -493,10 +493,10 @@ export default function AssessmentPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-sm">
+              <label className="block text-sm font-semibold text-gray-700 mb-s2">
                 Monthly income target
               </label>
-              <div className="flex flex-wrap gap-sm">
+              <div className="flex flex-wrap gap-s2">
                 {INCOME_OPTIONS.map((opt) => (
                   <Pill
                     key={opt}
@@ -511,7 +511,7 @@ export default function AssessmentPage() {
           </div>
 
           {error && (
-            <p className="mt-lg text-sm text-red-600 bg-red-50 px-lg py-sm rounded-lg">{error}</p>
+            <p className="mt-s4 text-sm text-red-600 bg-red-50 px-s4 py-s2 rounded-lg">{error}</p>
           )}
         </div>
       );
@@ -524,19 +524,19 @@ export default function AssessmentPage() {
   // so hold the loader rather than render undefined.
   if (stage === 'loading' || ((stage === 'results' || stage === 'unlocked') && matches.length === 0)) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-lg">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-s4">
         <div className="text-center max-w-sm w-full">
-          <PlanLoader className="mb-2xl" />
+          <PlanLoader className="mb-s6" />
           <p className="text-lg font-semibold text-gray-800 transition-all duration-500 min-h-[3.5rem] flex items-center justify-center">
             {LOADING_MESSAGES[loadingMsgIndex]}
           </p>
-          <div className="w-full h-2 bg-gray-200 rounded-full mt-lg overflow-hidden">
+          <div className="w-full h-2 bg-gray-200 rounded-full mt-s4 overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-300 ease-out"
               style={{ width: `${progress}%`, backgroundImage: GOLD_GRADIENT }}
             />
           </div>
-          <p className="text-sm text-gray-500 mt-md">
+          <p className="text-sm text-gray-500 mt-s3">
             This takes a few seconds.
           </p>
         </div>
@@ -573,20 +573,20 @@ export default function AssessmentPage() {
             <div className="measure">
             <a
               href="/"
-              className="inline-flex items-center gap-xs text-sm mb-2xl transition-opacity hover:opacity-80"
+              className="inline-flex items-center gap-s1 text-sm mb-s6 transition-opacity hover:opacity-80"
               style={{ color: 'var(--i2p-text-on-dark-dim)' }}
             >
               <ArrowLeft className="w-4 h-4" /> Back to IdeaToPlan
             </a>
             <div className="text-center">
               <p
-                className="mb-lg font-bold uppercase"
+                className="mb-s4 font-bold uppercase"
                 style={{ color: 'var(--i2p-gold)', fontSize: '0.78rem', letterSpacing: '0.15em' }}
               >
                 YOUR ASSESSMENT · RESULTS
               </p>
               <h1
-                className="font-serif mb-md"
+                className="font-serif mb-s3"
                 style={{
                   fontWeight: 700,
                   fontSize: 'clamp(2rem, 5vw, 3rem)',
@@ -608,7 +608,7 @@ export default function AssessmentPage() {
           <div className="measure">
 
           {!locked && resultId && (
-            <div className="mb-2xl">
+            <div className="mb-s6">
               <ShareButtons
                 url={`https://ideatoplan.to/results/${resultId}`}
                 title="My Business Matches"
@@ -617,7 +617,7 @@ export default function AssessmentPage() {
             </div>
           )}
 
-          <div className="mb-lg">
+          <div className="mb-s4">
             <MatchCard
               match={matches[0]}
               index={0}
@@ -631,7 +631,7 @@ export default function AssessmentPage() {
 
           <div className="relative">
             <div className={locked ? 'blur-sm select-none pointer-events-none' : ''}>
-              <div className="space-y-lg">
+              <div className="space-y-s4">
                 {matches.slice(1).map((match, i) => {
                   const index = i + 1;
                   return (
@@ -651,32 +651,32 @@ export default function AssessmentPage() {
             </div>
 
             {locked && (
-              <div className="absolute inset-0 flex items-start justify-center pt-2xl">
-                <div className="bg-white rounded-2xl shadow-xl p-2xl mx-lg w-full max-w-md text-center border border-gray-100">
-                  <h3 className="text-xl font-bold text-gray-900 mb-sm">Unlock your full results</h3>
-                  <p className="text-gray-500 text-sm mb-xl">
+              <div className="absolute inset-0 flex items-start justify-center pt-s6">
+                <div className="bg-white rounded-2xl shadow-xl p-s6 mx-s4 w-full max-w-md text-center border border-gray-100">
+                  <h3 className="text-xl font-bold text-gray-900 mb-s2">Unlock your full results</h3>
+                  <p className="text-gray-500 text-sm mb-s5">
                     Enter your email to reveal all 7 matches. No spam, unsubscribe any time.
                   </p>
-                  <form onSubmit={submitEmail} className="space-y-md">
+                  <form onSubmit={submitEmail} className="space-y-s3">
                     <input
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="your@email.com"
-                      className="w-full px-lg py-md border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
+                      className="w-full px-s4 py-s3 border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9A030]"
                     />
                     <button
                       type="submit"
                       disabled={emailLoading}
-                      className="w-full py-md font-semibold rounded-lg cta-shimmer disabled:opacity-60"
+                      className="w-full py-s3 font-semibold rounded-lg cta-shimmer disabled:opacity-60"
                       style={GOLD_BUTTON_STYLE}
                     >
                       {emailLoading ? 'Revealing...' : 'Reveal my matches'}
                     </button>
                   </form>
                   {emailError && (
-                    <p className="mt-md text-sm text-red-600">{emailError}</p>
+                    <p className="mt-s3 text-sm text-red-600">{emailError}</p>
                   )}
                 </div>
               </div>
@@ -698,19 +698,19 @@ export default function AssessmentPage() {
         <div className="measure">
         <a
           href="/"
-          className="inline-flex items-center gap-xs text-sm text-gray-500 hover:text-gray-700 mb-xl"
+          className="inline-flex items-center gap-s1 text-sm text-gray-500 hover:text-gray-700 mb-s5"
         >
           <ArrowLeft className="w-4 h-4" /> Back to IdeaToPlan
         </a>
 
-        <h1 className="text-3xl font-bold text-gray-900 mb-xs">What You&apos;re Built to Do</h1>
-        <p className="text-gray-500 mb-xl text-sm">
+        <h1 className="text-3xl font-bold text-gray-900 mb-s1">What You&apos;re Built to Do</h1>
+        <p className="text-gray-500 mb-s5 text-sm">
           Answer 5 quick questions. Get 7 businesses matched to your skills, values, and lifestyle.
         </p>
 
         <ProgressBar step={step} total={TOTAL_STEPS} />
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-xl md:p-2xl mb-xl">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-s5 md:p-s6 mb-s5">
           {renderStep()}
         </div>
 
@@ -719,7 +719,7 @@ export default function AssessmentPage() {
             <button
               type="button"
               onClick={() => setStep((s) => s - 1)}
-              className="inline-flex items-center gap-sm text-sm text-gray-500 hover:text-gray-700 font-medium"
+              className="inline-flex items-center gap-s2 text-sm text-gray-500 hover:text-gray-700 font-medium"
             >
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
@@ -732,7 +732,7 @@ export default function AssessmentPage() {
               type="button"
               disabled={!canAdvance()}
               onClick={() => setStep((s) => s + 1)}
-              className="inline-flex items-center gap-sm px-xl py-sm.5 text-sm font-semibold rounded-lg cta-shimmer disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-s2 px-s5 py-s2.5 text-sm font-semibold rounded-lg cta-shimmer disabled:opacity-40 disabled:cursor-not-allowed"
               style={GOLD_BUTTON_STYLE}
             >
               Next <ArrowRight className="w-4 h-4" />
@@ -743,12 +743,12 @@ export default function AssessmentPage() {
                 type="button"
                 disabled={!canAdvance()}
                 onClick={submitAssessment}
-                className="px-2xl py-md font-semibold rounded-lg cta-shimmer disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+                className="px-s6 py-s3 font-semibold rounded-lg cta-shimmer disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
                 style={GOLD_BUTTON_STYLE}
               >
                 Show me my matches
               </button>
-              <p className="text-xs text-gray-400 mt-sm">
+              <p className="text-xs text-gray-400 mt-s2">
                 Then turn your top match into a full business plan
               </p>
             </div>

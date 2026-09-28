@@ -6,21 +6,21 @@ export default function AboutPage() {
       <main style={{ background: "#FDFCF9" }}>
         <section className="section-y">
           <div className="page-container">
-            <div className="measure-prose flex flex-col items-center text-center">
+            <div className="measure-text flex flex-col items-center text-center">
               <p
-                className="font-sans uppercase tracking-widest text-xs mb-md"
+                className="font-sans uppercase tracking-widest text-xs mb-s3"
                 style={{ color: "#C9A030", letterSpacing: "0.22em" }}
               >
                 About
               </p>
               <h1
-                className="font-serif font-bold leading-tight mb-xl"
+                className="font-serif font-bold leading-tight mb-s5"
                 style={{ color: "#0D1117", fontSize: "clamp(2rem, 4vw, 3rem)" }}
               >
                 We Help You Discover the Business You&apos;re Built For
               </h1>
               <p
-                className="font-sans leading-relaxed mb-lg"
+                className="font-sans leading-relaxed mb-s4"
                 style={{ color: "#4A4A45", fontSize: "1.05rem", lineHeight: 1.75 }}
               >
                 IdeaToPlan was built for people who know they want something different: a career change,

@@ -131,9 +131,9 @@ export default function HowItWorks() {
       <div className="page-container">
 
         {/* Section heading — unchanged */}
-        <div className="text-center mb-2xl">
+        <div className="text-center mb-s6">
           <p
-            className="text-xs font-sans tracking-[0.2em] uppercase mb-md"
+            className="text-xs font-sans tracking-[0.2em] uppercase mb-s3"
             style={{ color: "#C9A030" }}
           >
             How It Works
@@ -196,7 +196,7 @@ export default function HowItWorks() {
               >
                 {/* Step number — above the card, outside the border */}
                 <p
-                  className="font-serif font-bold mb-md"
+                  className="font-serif font-bold mb-s3"
                   style={{
                     fontSize: "clamp(24px, 2.5vw, 30px)",
                     color: "#0D1117",
@@ -218,7 +218,7 @@ export default function HowItWorks() {
                   {/* icon version — kept for possible revert */}
                   {/*
                   <div
-                    className="mb-5 p-md rounded-xl"
+                    className="mb-5 p-s3 rounded-xl"
                     style={{ background: "#FBF6E4", color: "#8B6914" }}
                   >
                     {s.icon}
@@ -226,7 +226,7 @@ export default function HowItWorks() {
                   */}
 
                   <h3
-                    className="font-serif text-xl font-semibold mb-md"
+                    className="font-serif text-xl font-semibold mb-s3"
                     style={{ color: "#0D1117" }}
                   >
                     {s.title}

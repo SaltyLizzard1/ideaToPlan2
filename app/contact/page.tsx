@@ -8,19 +8,19 @@ export default function ContactPage() {
           <div className="page-container">
             <div className="measure flex flex-col items-center text-center">
               <p
-                className="font-sans uppercase tracking-widest text-xs mb-md"
+                className="font-sans uppercase tracking-widest text-xs mb-s3"
                 style={{ color: "#C9A030", letterSpacing: "0.22em" }}
               >
                 Contact
               </p>
               <h1
-                className="font-serif font-bold leading-tight mb-xl"
+                className="font-serif font-bold leading-tight mb-s5"
                 style={{ color: "#F5F0E8", fontSize: "clamp(2rem, 4vw, 3rem)" }}
               >
                 Get in Touch
               </h1>
               <p
-                className="font-sans leading-relaxed mb-2xl"
+                className="font-sans leading-relaxed mb-s6"
                 style={{ color: "#D0D0D0", fontSize: "1.05rem", lineHeight: 1.75 }}
               >
                 Have a question about your business plan, the assessment, or visa-ready options?
@@ -28,7 +28,7 @@ export default function ContactPage() {
               </p>
               <a
                 href="mailto:ideatoplanincome@gmail.com"
-                className="cta-shimmer gold-border inline-flex items-center gap-sm rounded-full font-sans font-semibold"
+                className="cta-shimmer gold-border inline-flex items-center gap-s2 rounded-full font-sans font-semibold"
                 style={{
                   color: "#2D1A00",
                   fontSize: "1.05rem",

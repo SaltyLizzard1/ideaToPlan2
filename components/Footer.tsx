@@ -17,9 +17,9 @@ export default function Footer() {
 
   return (
     <footer style={{ background: "#0d0d0f", borderTop: "1px solid rgba(201,160,48,0.18)" }}>
-      <div className="page-container flex flex-col md:flex-row items-center md:items-start justify-between gap-grid pt-2xl pb-xl">
+      <div className="page-container flex flex-col md:flex-row items-center md:items-start justify-between gap-grid pt-s6 pb-s5">
         {/* Brand */}
-        <div className="flex flex-col items-center md:items-start gap-sm">
+        <div className="flex flex-col items-center md:items-start gap-s2">
           <span style={{ display: "block", width: "150px" }}>
             <AnimatedLogo showTagline={false} animate={false} className="w-full h-auto" />
           </span>
@@ -29,7 +29,7 @@ export default function Footer() {
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-col items-center md:items-start gap-sm">
+        <nav className="flex flex-col items-center md:items-start gap-s2">
           <p
             className="font-sans text-xs uppercase tracking-widest"
             style={{ color: "#E8C84A", letterSpacing: "0.18em" }}
@@ -51,7 +51,7 @@ export default function Footer() {
         </nav>
 
         {/* Services */}
-        <div className="flex flex-col items-center md:items-start gap-sm">
+        <div className="flex flex-col items-center md:items-start gap-s2">
           <p
             className="font-sans text-xs uppercase tracking-widest"
             style={{ color: "#E8C84A", letterSpacing: "0.18em" }}
@@ -75,7 +75,7 @@ export default function Footer() {
         </div>
 
         {/* Contact */}
-        <div className="flex flex-col items-center md:items-start gap-sm">
+        <div className="flex flex-col items-center md:items-start gap-s2">
           <p
             className="font-sans text-xs uppercase tracking-widest"
             style={{ color: "#E8C84A", letterSpacing: "0.18em" }}
@@ -105,7 +105,7 @@ export default function Footer() {
 
       {/* Bottom bar */}
       <div
-        className="page-container flex flex-col sm:flex-row items-center justify-between gap-sm py-md"
+        className="page-container flex flex-col sm:flex-row items-center justify-between gap-s2 py-s3"
         style={{ borderTop: "1px solid rgba(201,160,48,0.08)" }}
       >
         <p className="font-sans text-xs" style={{ color: "#a89f8a" }}>

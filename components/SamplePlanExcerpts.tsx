@@ -238,20 +238,20 @@ export default function SamplePlanExcerpts() {
       <div className="page-container">
 
         {/* Section heading */}
-        <div className="text-center mb-sm">
+        <div className="text-center mb-s2">
           <p
-            className="font-sans text-xs uppercase tracking-[0.2em] mb-md"
+            className="font-sans text-xs uppercase tracking-[0.2em] mb-s3"
             style={{ color: "#C9A030" }}
           >
             The Proof
           </p>
           <h3
-            className="font-serif font-bold text-3xl sm:text-4xl mb-md"
+            className="font-serif font-bold text-3xl sm:text-4xl mb-s3"
             style={{ color: "#FBF6E3" }}
           >
             Inside Every Plan
           </h3>
-          <p className="font-sans text-base mt-xl mx-auto max-w-prose" style={{ color: "#cfc9b8" }}>
+          <p className="font-sans text-base mt-s5 mx-auto max-w-text" style={{ color: "#cfc9b8" }}>
             Below are excerpts from the plan I used to build{" "}
             <a href="https://quityourlifeandtravel.com/" target="_blank" rel="noopener noreferrer" style={{ color: "#C9A030", textDecoration: "underline", textUnderlineOffset: "3px" }}>Quit Your Life and Travel</a>
             . QYLAT is for people standing at the cusp of change who are not sure how to make it. I provide a runway calculator, a skills assessment, and honest math. These are the actual pages, unedited.
@@ -339,7 +339,7 @@ export default function SamplePlanExcerpts() {
 
         {/* Caption */}
         <p
-          className="text-center font-sans text-xs mt-xl"
+          className="text-center font-sans text-xs mt-s5"
           style={{ color: "#a89f8a" }}
         >
           Hover or tap to explore

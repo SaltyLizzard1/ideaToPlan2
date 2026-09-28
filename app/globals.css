@@ -32,7 +32,7 @@
   /* the one container, plus the narrower reading columns inside it */
   --container-page: 1200px;
   --container-measure: 672px;
-  --container-prose: 768px;
+  --container-text: 768px;
   --container-copy: 540px;
   --container-hero: 900px;
 
@@ -52,13 +52,15 @@
   --spacing-grid-md: 32px;
   --spacing-stack: 16px;
 
-  /* type rhythm, 4px base */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 12px;
-  --spacing-lg: 16px;
-  --spacing-xl: 24px;
-  --spacing-2xl: 32px;
+  /* Type rhythm, 4px base. Named s1..s6 on purpose: Tailwind resolves
+     max-w-* against the spacing namespace before the container namespace, so
+     a --spacing-sm here would silently turn max-w-sm into 8px. */
+  --spacing-s1: 4px;
+  --spacing-s2: 8px;
+  --spacing-s3: 12px;
+  --spacing-s4: 16px;
+  --spacing-s5: 24px;
+  --spacing-s6: 32px;
 }
 
 /* The one container. */
@@ -75,9 +77,9 @@
   max-width: var(--container-measure);
   margin-inline: auto;
 }
-.measure-prose {
+.measure-text {
   width: 100%;
-  max-width: var(--container-prose);
+  max-width: var(--container-text);
   margin-inline: auto;
 }
 
@@ -94,6 +96,37 @@
   .section-y { padding-block: var(--spacing-section-md); }
   .card-pad { padding: var(--spacing-card-md); }
   .grid-gap { gap: var(--spacing-grid-md); }
+}
+
+/* Indeterminate progress bar. Honest about not knowing how far along it is,
+   while making it obvious that something is happening. */
+@keyframes progress-sweep {
+  0%   { transform: translateX(-110%); }
+  100% { transform: translateX(340%); }
+}
+
+.progress-track {
+  position: relative;
+  overflow: hidden;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.progress-sweep {
+  position: absolute;
+  inset-block: 0;
+  width: 30%;
+  border-radius: 999px;
+  animation: progress-sweep 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-sweep {
+    animation: none;
+    width: 100%;
+    transform: none;
+    opacity: 0.6;
+  }
 }
 
 /* Headings and card titles never leave a single word on the last line. */

@@ -18,7 +18,7 @@ const BAR_STYLE: React.CSSProperties = {
 export default function PlanLoader({ className = '' }: { className?: string }) {
   return (
     <div
-      className={`flex items-end justify-center gap-sm ${className}`}
+      className={`flex items-end justify-center gap-s2 ${className}`}
       style={{ height: '64px' }}
       aria-hidden="true"
     >

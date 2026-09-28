@@ -45,7 +45,7 @@ export default function Header() {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-2xl">
+        <nav className="hidden md:flex items-center gap-s6">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
@@ -63,7 +63,7 @@ export default function Header() {
         {/* Desktop CTA */}
         <button
           onClick={handleAssessment}
-          className="hidden md:inline-flex items-center gap-sm rounded-full font-sans font-semibold text-sm cursor-pointer cta-shimmer gold-border shrink-0"
+          className="hidden md:inline-flex items-center gap-s2 rounded-full font-sans font-semibold text-sm cursor-pointer cta-shimmer gold-border shrink-0"
           style={{
             color: "#2D1A00",
             padding: "0.5rem 1.4rem",
@@ -75,7 +75,7 @@ export default function Header() {
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden flex flex-col justify-center gap-xs.5 p-sm cursor-pointer"
+          className="md:hidden flex flex-col justify-center gap-s1.5 p-s2 cursor-pointer"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
         >
@@ -116,7 +116,7 @@ export default function Header() {
       {/* Mobile menu */}
       {menuOpen && (
         <div
-          className="absolute top-[80px] left-0 right-0 flex flex-col items-center gap-5 py-xl md:hidden"
+          className="absolute top-[80px] left-0 right-0 flex flex-col items-center gap-5 py-s5 md:hidden"
           style={{
             background: "#0D1117",
           }}

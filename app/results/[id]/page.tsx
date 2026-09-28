@@ -79,13 +79,13 @@ export default async function ResultsPage({ params }: Props) {
         <div className="page-container relative">
           <div className="measure text-center">
           <p
-            className="mb-xl font-bold uppercase"
+            className="mb-s5 font-bold uppercase"
             style={{ color: 'var(--i2p-gold)', fontSize: '0.78rem', letterSpacing: '0.15em' }}
           >
             YOUR ASSESSMENT · RESULTS
           </p>
 
-          <div className="flex items-center justify-center gap-md mb-md">
+          <div className="flex items-center justify-center gap-s3 mb-s3">
             <Sparkles className="w-6 h-6 flex-shrink-0" style={{ color: 'var(--i2p-gold-bright)' }} />
             <h1
               className="font-serif"
