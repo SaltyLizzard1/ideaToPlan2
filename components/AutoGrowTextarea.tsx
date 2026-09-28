@@ -23,13 +23,18 @@ export default function AutoGrowTextarea({ className, style, ...rest }: Props) {
   const grow = useCallback(() => {
     const el = ref.current;
     if (!el) return;
-    // measure the content height, then the rows-based height, and take the
+    // Measure the content height, then the rows-based height, and take the
     // larger of the two so a short value never shrinks the field below its
-    // original size
+    // original size.
+    //
+    // scrollHeight is the padding box, but box-sizing is border-box here, so
+    // the border has to be added back or every field ends up exactly its
+    // border width too short and clips its last line.
     el.style.height = "auto";
-    const contentHeight = el.scrollHeight;
+    const borders = el.offsetHeight - el.clientHeight;
+    const contentHeight = el.scrollHeight + borders;
     el.style.height = "";
-    const rowsHeight = el.clientHeight;
+    const rowsHeight = el.offsetHeight;
     el.style.height = `${Math.max(contentHeight, rowsHeight)}px`;
   }, []);
 
