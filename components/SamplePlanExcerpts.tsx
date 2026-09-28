@@ -109,14 +109,6 @@ const DESKTOP = {
   containerH: 370,
 };
 
-const MOBILE = {
-  cardW: 118,
-  cardH: 157,           // ≈ 3:4
-  xOffsets: [-87, -29, 29, 87] as const,     // 58px between centers
-  rotations: [-4, -1.5, 1.5, 4] as const,
-  containerH: 210,
-};
-
 // ── Line renderer ──────────────────────────────────────────────────────────
 
 function renderLine(line: Line, i: number) {
@@ -168,24 +160,75 @@ function renderLine(line: Line, i: number) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
+// The face of one excerpt card. Identical in the fan and in the narrow row, so
+// the two layouts can never drift apart.
+function CardFace({ page, showFade }: { page: SamplePage; showFade: boolean }) {
+  return (
+    <>
+      {/* Gold top rule */}
+      <div
+        style={{
+          height: "3px",
+          borderRadius: "2px",
+          marginBottom: "11px",
+          background:
+            "linear-gradient(90deg, #8B6914 0%, #C9A030 30%, #F5D020 50%, #C9A030 70%, #8B6914 100%)",
+        }}
+      />
+
+      {/* Page title */}
+      <h3
+        className="font-serif font-bold"
+        style={{
+          fontSize: "14px",
+          lineHeight: 1.3,
+          color: "var(--i2p-ink)",
+          marginBottom: "10px",
+        }}
+      >
+        {page.title}
+      </h3>
+
+      {/* Content lines */}
+      <div>{page.lines.map((line, i) => renderLine(line, i))}</div>
+
+      {/* Bottom fade where the full page can never fit */}
+      {showFade && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: "36px",
+            background: "linear-gradient(to bottom, transparent, white)",
+            borderRadius: "0 0 12px 12px",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 export default function SamplePlanExcerpts() {
   const [focusedId, setFocusedId] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(false);
   const [prefersReduced, setPrefersReduced] = useState(false);
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 639px)");
+    const mq = window.matchMedia("(max-width: 767px)");
     const rmq = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-    setIsMobile(mq.matches);
+    setIsNarrow(mq.matches);
     setPrefersReduced(rmq.matches);
 
-    const onResize = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    const onResize = (e: MediaQueryListEvent) => setIsNarrow(e.matches);
     mq.addEventListener("change", onResize);
     return () => mq.removeEventListener("change", onResize);
   }, []);
 
-  const geo = isMobile ? MOBILE : DESKTOP;
+  const geo = DESKTOP;
   const anyFocused = focusedId !== null;
 
   function getCardStyle(index: number, isFocused: boolean): CSSProperties {
@@ -258,84 +301,70 @@ export default function SamplePlanExcerpts() {
           </p>
         </div>
 
-        {/* Fan */}
-        <div
-          className="relative mx-auto"
-          style={{ height: `${geo.containerH}px`, overflow: "visible" }}
-          onMouseLeave={() => setFocusedId(null)}
-        >
-          {SAMPLE_PAGES.map((page, index) => {
-            const isFocused = focusedId === page.id;
-            const topPx = Math.round((geo.containerH - geo.cardH) / 2);
-
-            return (
+        {/* Excerpts. A fan at 768 and up. Below that a swipeable row, because
+            four overlapping 118px cards left every title unreadable. */}
+        {isNarrow ? (
+          <div
+            className="bleed-row flex gap-s4 overflow-x-auto snap-x snap-mandatory"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {SAMPLE_PAGES.map((page) => (
               <div
                 key={page.id}
-                onMouseEnter={() => setFocusedId(page.id)}
-                onClick={() => setFocusedId(isFocused ? null : page.id)}
+                className="snap-center shrink-0 relative p-s4"
                 style={{
-                  position: "absolute",
-                  width: `${geo.cardW}px`,
-                  height: `${geo.cardH}px`,
-                  left: `calc(50% + ${geo.xOffsets[index]}px - ${geo.cardW / 2}px)`,
-                  top: `${topPx}px`,
-                  cursor: "pointer",
+                  width: "min(78vw, 260px)",
+                  aspectRatio: "3 / 4",
                   borderRadius: "12px",
                   background: "white",
                   border: "1px solid var(--i2p-cream-border)",
-                  padding: "16px",
                   overflow: "hidden",
                   boxSizing: "border-box",
-                  userSelect: "none",
-                  ...getCardStyle(index, isFocused),
+                  boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
                 }}
               >
-                {/* Gold top rule */}
-                <div
-                  style={{
-                    height: "3px",
-                    borderRadius: "2px",
-                    marginBottom: "11px",
-                    background:
-                      "linear-gradient(90deg, #8B6914 0%, #C9A030 30%, #F5D020 50%, #C9A030 70%, #8B6914 100%)",
-                  }}
-                />
+                <CardFace page={page} showFade />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div
+            className="relative mx-auto"
+            style={{ height: `${geo.containerH}px`, overflow: "visible" }}
+            onMouseLeave={() => setFocusedId(null)}
+          >
+            {SAMPLE_PAGES.map((page, index) => {
+              const isFocused = focusedId === page.id;
+              const topPx = Math.round((geo.containerH - geo.cardH) / 2);
 
-                {/* Page title */}
-                <h3
-                  className="font-serif font-bold"
+              return (
+                <div
+                  key={page.id}
+                  onMouseEnter={() => setFocusedId(page.id)}
+                  onClick={() => setFocusedId(isFocused ? null : page.id)}
+                  className="p-s4"
                   style={{
-                    fontSize: "14px",
-                    lineHeight: 1.3,
-                    color: "var(--i2p-ink)",
-                    marginBottom: "10px",
+                    position: "absolute",
+                    width: `${geo.cardW}px`,
+                    height: `${geo.cardH}px`,
+                    left: `calc(50% + ${geo.xOffsets[index]}px - ${geo.cardW / 2}px)`,
+                    top: `${topPx}px`,
+                    cursor: "pointer",
+                    borderRadius: "12px",
+                    background: "white",
+                    border: "1px solid var(--i2p-cream-border)",
+                    overflow: "hidden",
+                    boxSizing: "border-box",
+                    userSelect: "none",
+                    ...getCardStyle(index, isFocused),
                   }}
                 >
-                  {page.title}
-                </h3>
-
-                {/* Content lines */}
-                <div>{page.lines.map((line, i) => renderLine(line, i))}</div>
-
-                {/* Bottom fade — mobile only, where full text can never fit */}
-                {isMobile && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: "36px",
-                      background: "linear-gradient(to bottom, transparent, white)",
-                      borderRadius: "0 0 12px 12px",
-                      pointerEvents: "none",
-                    }}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  <CardFace page={page} showFade={false} />
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Caption */}
         <p

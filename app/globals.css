@@ -91,7 +91,18 @@
 .card-pad { padding: var(--spacing-card); }
 .grid-gap { gap: var(--spacing-grid); }
 
+/* A row that scrolls to the screen edges while its first item still starts on
+   the container's left edge. */
+.bleed-row {
+  margin-inline: calc(var(--spacing-gutter) * -1);
+  padding-inline: var(--spacing-gutter);
+}
+
 @media (min-width: 768px) {
+  .bleed-row {
+    margin-inline: calc(var(--spacing-gutter-md) * -1);
+    padding-inline: var(--spacing-gutter-md);
+  }
   .page-container { padding-inline: var(--spacing-gutter-md); }
   .section-y { padding-block: var(--spacing-section-md); }
   .card-pad { padding: var(--spacing-card-md); }
