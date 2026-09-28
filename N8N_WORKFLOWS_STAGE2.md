@@ -93,11 +93,13 @@ Rules, all enforced:
 - `category` is exactly one of `Business`, `Freelance`, `Remote Job`. Nothing
   else. It is shown as the card's eyebrow.
 - `saturation` is exactly one of `Low`, `Medium`, `High`. The ranking is the
-  only place saturation is decided, because the ranking already weighs it when
-  ordering the list. The card shows this badge as soon as the ranking lands,
-  before any detail arrives, and the detail is given this value and must
-  return it unchanged. Rate it here honestly: a High saturation idea should
-  rarely be ranked first.
+  only place saturation is decided. The card shows this badge as soon as the
+  ranking lands, before any detail arrives, and the detail is given this value
+  and must return it unchanged.
+- Ordering: keep your best-fit order, with one exception. Every `High`
+  saturation idea ranks after every `Low` and `Medium` one. `Low` and `Medium`
+  are not reshuffled against each other, so fit still decides the top of the
+  list and saturation only pushes the crowded ideas to the bottom.
 
 A bare array of 7 is also accepted, as is a single element array wrapping the
 object, which is what n8n's Respond to Webhook node produces when it is set to
@@ -113,11 +115,13 @@ category (exactly one of Business, Freelance, Remote Job),
 saturation (exactly one of Low, Medium, High),
 oneLiner (one sentence, plain, no hype).
 
-Rank by: uses their hard skills directly, fits their work style and values,
-achievable in their stated hours, income target realistic for the idea, and
-how crowded the market is. Saturation is decided here and nowhere else, so
-weigh it: do not rank a High saturation idea first unless the founder's fit
-is overwhelming.
+Rank by fit: uses their hard skills directly, fits their work style and
+values, achievable in their stated hours, income target realistic for the
+idea.
+
+Then apply one ordering rule: keep that best-fit order, except every High
+saturation idea goes after all the Low and Medium ones. Do not reshuffle Low
+against Medium. Saturation is decided here and nowhere else.
 
 No descriptions, no detail, no statistics at this stage.
 ```
