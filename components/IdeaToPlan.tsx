@@ -6,7 +6,8 @@ import {
   AlertCircle,
   Loader,
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import Portal from "@/components/Portal";
 import { getStripeLink } from "@/lib/stripe";
 import VisaWaitlistModal from "./VisaWaitlistModal";
 
@@ -214,9 +215,6 @@ const [paymentError, setPaymentError] = useState("");
           }
 
           setShowForm(true);
-          requestAnimationFrame(() => {
-            formScrollRef.current?.scrollTo({ top: 0 });
-          });
           history.replaceState(null, "", window.location.pathname);
         } else {
           setPaymentError(
@@ -325,11 +323,22 @@ const [paymentError, setPaymentError] = useState("");
     if (!overlayOpen) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    formScrollRef.current?.scrollTo({ top: 0 });
     return () => {
       document.body.style.overflow = previous;
     };
   }, [overlayOpen]);
+
+  // Before paint, and again once the pre-filled values have landed, so the
+  // form always opens on its heading rather than on the first empty field.
+  useLayoutEffect(() => {
+    if (!overlayOpen) return;
+    const el = formScrollRef.current;
+    if (!el) return;
+    el.scrollTop = 0;
+    const raf = requestAnimationFrame(() => { el.scrollTop = 0; });
+    const timer = setTimeout(() => { el.scrollTop = 0; }, 120);
+    return () => { cancelAnimationFrame(raf); clearTimeout(timer); };
+  }, [overlayOpen, showForm, paymentError]);
 
   return (
     <section
@@ -525,10 +534,15 @@ const [paymentError, setPaymentError] = useState("");
       </div>
 
       {overlayOpen && (
+        <Portal>
         <div
-          className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-s4 bg-black/60 backdrop-blur-sm overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center p-s4 bg-black/60 backdrop-blur-sm"
         >
-          <div ref={formRef} className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] my-auto flex flex-col">
+          <div
+            ref={formRef}
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden"
+            style={{ maxHeight: "calc(100dvh - 2 * var(--spacing-s4))" }}
+          >
             <div
               className="flex items-center justify-between px-s5 py-s4 border-b"
               style={{ borderColor: "#E8E4DB" }}
@@ -550,7 +564,11 @@ const [paymentError, setPaymentError] = useState("");
               </button>
             </div>
 
-            <div ref={formScrollRef} className="overflow-y-auto flex-1 card-pad">
+            <div
+              ref={formScrollRef}
+              className="overflow-y-auto flex-1 card-pad"
+              style={{ overflowAnchor: "none" }}
+            >
               {paymentError ? (
                 <div className="flex items-start gap-s3 bg-red-50 border border-red-200 rounded-lg p-s4">
                   <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -1020,6 +1038,7 @@ const [paymentError, setPaymentError] = useState("");
             </div>
           </div>
         </div>
+        </Portal>
       )}
       <VisaWaitlistModal isOpen={showVisaModal} onClose={() => setShowVisaModal(false)} />
     </section>

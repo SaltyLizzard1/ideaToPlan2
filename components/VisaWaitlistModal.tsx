@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Portal from "@/components/Portal";
 
 interface Props {
   isOpen: boolean;
@@ -47,13 +48,18 @@ export default function VisaWaitlistModal({ isOpen, onClose }: Props) {
   }
 
   return (
+    <Portal>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-s4 bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative rounded-2xl shadow-xl p-s6 w-full max-w-md"
-        style={{ background: "var(--i2p-cream)", border: "1px solid var(--i2p-cream-border)" }}
+        className="relative rounded-2xl shadow-xl p-s6 w-full max-w-md overflow-y-auto"
+        style={{
+          background: "var(--i2p-cream)",
+          border: "1px solid var(--i2p-cream-border)",
+          maxHeight: "calc(100dvh - 2 * var(--spacing-s4))",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -134,5 +140,6 @@ export default function VisaWaitlistModal({ isOpen, onClose }: Props) {
         )}
       </div>
     </div>
+    </Portal>
   );
 }
