@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Loader, RotateCcw } from 'lucide-react';
-import { getStripeLink, createClientReferenceId, appendPaymentParams } from '../lib/stripe';
+import PlanChooser from './PlanChooser';
 import type { MergedMatch } from '../lib/quiz';
 
 // One card, used by the assessment results and by a shared /results/[id] page.
@@ -94,24 +94,8 @@ export default function MatchCard({
   errorMessage,
   onRetry,
 }: MatchCardProps) {
-  const [redirecting, setRedirecting] = useState(false);
+  const [chooserOpen, setChooserOpen] = useState(false);
   const t = THEMES[variant];
-
-  const handleBuildPlan = (planType: 'Starter' | 'Growth' = 'Starter') => {
-    if (!resultId) {
-      console.error('Result ID not available');
-      return;
-    }
-    const clientRefId = createClientReferenceId(resultId, index);
-    if (!clientRefId) {
-      console.error('Failed to create client_reference_id');
-      return;
-    }
-    const link = getStripeLink(planType);
-    const linkWithParams = appendPaymentParams(link, clientRefId, userEmail);
-    setRedirecting(true);
-    window.location.href = linkWithParams;
-  };
 
   // A plan is built from the stored match, so the buttons stay out until the
   // detail exists. Buying against a stub would pre-fill an empty form.
@@ -206,22 +190,14 @@ export default function MatchCard({
             </p>
           )}
 
-          {/* Quick buy button, compact, right under the description */}
+          {/* One way in: the chooser decides the tier */}
           {canBuy && (
             <button
-              onClick={() => handleBuildPlan('Starter')}
-              disabled={redirecting}
-              className="w-full py-s2 mb-s4 text-sm font-semibold rounded-lg flex items-center justify-center gap-s2 disabled:opacity-60"
+              onClick={() => setChooserOpen(true)}
+              className="w-full py-s2 mb-s4 text-sm font-semibold rounded-lg flex items-center justify-center gap-s2"
               style={{ color: '#2D1A00', border: '1.5px solid #7A5C0A', backgroundColor: '#F5E070' }}
             >
-              {redirecting ? (
-                <>
-                  <Loader className="w-3 h-3 animate-spin" />
-                  Redirecting...
-                </>
-              ) : (
-                <>Build my plan for this idea · $25</>
-              )}
+              Turn this into a business plan
             </button>
           )}
 
@@ -280,28 +256,28 @@ export default function MatchCard({
             </p>
           )}
 
-          {canBuy && (
-            <div className="mt-s5">
-              <button
-                onClick={() => handleBuildPlan('Growth')}
-                disabled={redirecting}
-                className="w-full py-s2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-60"
-                style={{ borderColor: '#C9A030', color: '#5C4206', backgroundColor: '#FBF6E4' }}
-              >
-                Growth tier · $50
-              </button>
-            </div>
-          )}
         </>
       )}
     </>
   );
+
+  const chooser = resultId ? (
+    <PlanChooser
+      open={chooserOpen}
+      matchTitle={match.title}
+      resultId={resultId}
+      matchIndex={index}
+      userEmail={userEmail}
+      onClose={() => setChooserOpen(false)}
+    />
+  ) : null;
 
   if (t.goldBar) {
     return (
       <div className="rounded-2xl overflow-hidden" style={t.card}>
         <div className="gold-gradient" style={{ height: '4px' }} />
         <div className="card-pad">{body}</div>
+        {chooser}
       </div>
     );
   }
@@ -309,6 +285,7 @@ export default function MatchCard({
   return (
     <div className="rounded-2xl card-pad" style={t.card}>
       {body}
+      {chooser}
     </div>
   );
 }

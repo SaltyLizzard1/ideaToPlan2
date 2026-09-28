@@ -9,6 +9,8 @@ import {
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import Portal from "@/components/Portal";
 import { getStripeLink } from "@/lib/stripe";
+import { getPlan } from "@/lib/plans";
+import { useCheckoutRedirect } from "@/components/useCheckoutRedirect";
 import VisaWaitlistModal from "./VisaWaitlistModal";
 
 type FormData = {
@@ -125,9 +127,9 @@ export default function IdeaToPlan() {
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [stripeSessionId, setStripeSessionId] = useState<string | null>(null);
-  const [redirecting, setRedirecting] = useState(false);
 const [paymentError, setPaymentError] = useState("");
   const [planSelected, setPlanSelected] = useState(false);
+  const { redirecting, startRedirect } = useCheckoutRedirect();
   const [pulsing, setPulsing] = useState(false);
   const [showPrefillNote, setShowPrefillNote] = useState(false);
   const [showVisaModal, setShowVisaModal] = useState(false);
@@ -288,9 +290,7 @@ const [paymentError, setPaymentError] = useState("");
 
   const handlePaymentCTA = () => {
     const planType = form.planType === "Growth" ? "Growth" : "Starter";
-    const link = getStripeLink(planType as "Starter" | "Growth");
-    setRedirecting(true);
-    window.location.href = link;
+    startRedirect(getStripeLink(planType));
   };
 
   const handleGetStarted = () => {
@@ -394,22 +394,15 @@ const [paymentError, setPaymentError] = useState("");
               }
               onClick={() => { setForm((prev) => ({ ...prev, planType: "Starter" })); setPlanSelected(true); }}
             >
-              <h3 className="text-xl font-bold text-gray-900 mb-s1">Starter</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-s1">{getPlan("Starter").name}</h3>
               <p className="font-bold text-2xl mb-s1" style={{ color: "#0D1117" }}>
-                $25
+                {getPlan("Starter").price}
               </p>
               <p className="text-sm text-gray-500 mb-s4">
-                For founders who want a polished business plan without overpaying.
+                {getPlan("Starter").tagline}
               </p>
               <ul className="space-y-s2 text-sm text-gray-700 flex-1">
-                {[
-                  "Actionable business plan built around your idea",
-                  "Revenue model and pricing strategy",
-                  "90-day roadmap with clear milestones",
-                  "Professional PDF delivered in 72 hours",
-                  "Reviewed by a real person, never auto-sent",
-                  "Email follow-up to answer your questions",
-                ].map((item, i) => (
+                {getPlan("Starter").features.map((item, i) => (
                   <li key={i} className="flex items-start gap-s2">
                     <span className="font-bold mt-0.5" style={{ color: "#0D1117" }}>
                       ✓
@@ -420,7 +413,7 @@ const [paymentError, setPaymentError] = useState("");
               </ul>
             </div>
 
-            {/* Growth — Most Popular */}
+            {/* Growth */}
             <div
               className="border-2 rounded-2xl card-pad shadow-lg flex flex-col relative card-hover-lift-strong cursor-pointer transition-all scale-[1.02]"
               style={{
@@ -430,28 +423,15 @@ const [paymentError, setPaymentError] = useState("");
               }}
               onClick={() => { setForm((prev) => ({ ...prev, planType: "Growth" })); setPlanSelected(true); }}
             >
-              <div
-                className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-s4 py-s1 rounded-full"
-                style={GOLD_BUTTON_STYLE}
-              >
-                Most Popular
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-s1">Growth</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-s1">{getPlan("Growth").name}</h3>
               <p className="font-bold text-2xl mb-s1" style={{ color: "#0D1117" }}>
-                $50
+                {getPlan("Growth").price}
               </p>
               <p className="text-sm text-gray-500 mb-s4">
-                For entrepreneurs who want market validation and smarter positioning.
+                {getPlan("Growth").tagline}
               </p>
               <ul className="space-y-s2 text-sm text-gray-700 flex-1">
-                {[
-                  "Everything in Starter",
-                  "Competitor research and landscape analysis",
-                  "SWOT analysis",
-                  "Viability verdict with go/no-go assessment",
-                  "Reviewed by a real person, never auto-sent",
-                  "Email follow-up to answer your questions",
-                ].map((item, i) => (
+                {getPlan("Growth").features.map((item, i) => (
                   <li key={i} className="flex items-start gap-s2">
                     <span className="font-bold mt-0.5" style={{ color: "#0D1117" }}>
                       ✓
