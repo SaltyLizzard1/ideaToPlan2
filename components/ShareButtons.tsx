@@ -86,7 +86,7 @@ export default function ShareButtons({ url, title, text }: ShareButtonsProps) {
         <button
           type="button"
           onClick={handleNativeShare}
-          className="gold-gradient inline-flex items-center gap-s2 px-s5 py-s2.5 font-semibold rounded-lg transition-all hover:brightness-105 text-sm"
+          className="gold-gradient inline-flex items-center gap-s2 px-s5 py-2.5 font-semibold rounded-lg transition-all hover:brightness-105 text-sm"
           style={{ color: '#2D1A00', border: '1.5px solid #7A5C0A' }}
         >
           <Share2 className="w-4 h-4" />

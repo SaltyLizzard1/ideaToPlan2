@@ -75,7 +75,7 @@ export default function Header() {
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden flex flex-col justify-center gap-s1.5 p-s2 cursor-pointer"
+          className="md:hidden flex flex-col justify-center gap-1.5 p-s2 cursor-pointer"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
         >

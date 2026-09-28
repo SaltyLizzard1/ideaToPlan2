@@ -735,7 +735,7 @@ export default function AssessmentPage() {
               type="button"
               disabled={!canAdvance()}
               onClick={() => setStep((s) => s + 1)}
-              className="inline-flex items-center gap-s2 px-s5 py-s2.5 text-sm font-semibold rounded-lg cta-shimmer disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-s2 px-s5 py-2.5 text-sm font-semibold rounded-lg cta-shimmer disabled:opacity-40 disabled:cursor-not-allowed"
               style={GOLD_BUTTON_STYLE}
             >
               Next <ArrowRight className="w-4 h-4" />
