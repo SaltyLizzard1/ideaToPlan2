@@ -340,6 +340,9 @@ export default function AssessmentPage() {
         title: typeof r.title === 'string' ? r.title : '',
         category: typeof r.category === 'string' ? r.category : undefined,
         oneLiner: typeof r.oneLiner === 'string' ? r.oneLiner : undefined,
+        // The ranking decided this, so the badge shows straight away rather
+        // than waiting on the detail.
+        saturation: typeof r.saturation === 'string' ? r.saturation : undefined,
       }));
 
       setRankings(stubs);
