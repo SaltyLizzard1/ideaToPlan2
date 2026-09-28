@@ -50,6 +50,10 @@ export interface Ranking {
   title: string;
   category: RankingCategory;
   oneLiner: string;
+  // Rated once, at ranking time, because the ranking already uses saturation
+  // to order the list. The detail is told what it is and must agree, so a
+  // High saturation idea can never be ranked first and then contradicted.
+  saturation: Saturation;
 }
 
 export interface MatchDetail {
@@ -254,7 +258,20 @@ export function readRankings(data: unknown): Validated<Ranking[]> {
       );
     }
 
-    rankings.push({ index, title: title.value, category: category as RankingCategory, oneLiner: oneLiner.value });
+    const saturation = obj.saturation;
+    if (typeof saturation !== 'string' || !SATURATION_LEVELS.includes(saturation as Saturation)) {
+      return fail(
+        `rankings[${i}].saturation is ${JSON.stringify(saturation)}, expected one of ${SATURATION_LEVELS.join(', ')}`
+      );
+    }
+
+    rankings.push({
+      index,
+      title: title.value,
+      category: category as RankingCategory,
+      oneLiner: oneLiner.value,
+      saturation: saturation as Saturation,
+    });
   }
 
   rankings.sort((a, b) => a.index - b.index);
@@ -262,10 +279,14 @@ export function readRankings(data: unknown): Validated<Ranking[]> {
 }
 
 /**
- * The detail webhook response. All 13 fields, and the title must come back
- * unchanged so a detail can never be filed against the wrong match.
+ * The detail webhook response. All 13 fields. The title, category and
+ * saturation must come back exactly as they were sent: the ranking decided
+ * all three, and the detail is writing one of them up, not re-judging it.
  */
-export function readDetail(data: unknown, expectedTitle: string): Validated<MatchDetail> {
+export function readDetail(
+  data: unknown,
+  expected: { title: string; category: string; saturation: string }
+): Validated<MatchDetail> {
   const root = unwrapObject(data);
   if (typeof root !== 'object' || root === null || Array.isArray(root)) {
     return fail('detail is not an object');
@@ -278,18 +299,24 @@ export function readDetail(data: unknown, expectedTitle: string): Validated<Matc
 
   const title = readString(obj, 'title', MAX_TITLE);
   if (!title.ok) return title;
-  if (title.value !== expectedTitle.trim()) {
-    return fail(`title is ${JSON.stringify(title.value)}, expected ${JSON.stringify(expectedTitle.trim())}`);
+  if (title.value !== expected.title.trim()) {
+    return fail(`title is ${JSON.stringify(title.value)}, expected ${JSON.stringify(expected.title.trim())}`);
   }
 
   const category = obj.category;
   if (typeof category !== 'string' || !RANKING_CATEGORIES.includes(category as RankingCategory)) {
     return fail(`category is ${JSON.stringify(category)}, expected one of ${RANKING_CATEGORIES.join(', ')}`);
   }
+  if (category !== expected.category) {
+    return fail(`category is ${JSON.stringify(category)}, expected ${JSON.stringify(expected.category)} from the ranking`);
+  }
 
   const saturation = obj.saturation;
   if (typeof saturation !== 'string' || !SATURATION_LEVELS.includes(saturation as Saturation)) {
     return fail(`saturation is ${JSON.stringify(saturation)}, expected one of ${SATURATION_LEVELS.join(', ')}`);
+  }
+  if (saturation !== expected.saturation) {
+    return fail(`saturation is ${JSON.stringify(saturation)}, expected ${JSON.stringify(expected.saturation)} from the ranking`);
   }
 
   const prose: Record<string, string> = {};

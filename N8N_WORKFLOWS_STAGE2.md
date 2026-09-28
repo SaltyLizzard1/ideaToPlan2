@@ -75,6 +75,7 @@ one of `<5`, `5–10`, `10–20`, `20–30`, `30+`. `incomeTarget` is one of
       "index": 0,
       "title": "Executive Virtual Assistant",
       "category": "Freelance",
+      "saturation": "Medium",
       "oneLiner": "Run the calendar, inbox and travel for two or three founders."
     }
   ]
@@ -90,8 +91,13 @@ Rules, all enforced:
 - `oneLiner` is a non-empty string, at most 300 characters. One sentence, it is
   the only body text the card shows until the detail arrives.
 - `category` is exactly one of `Business`, `Freelance`, `Remote Job`. Nothing
-  else. It is shown as the card's eyebrow and it must match the category the
-  detail returns.
+  else. It is shown as the card's eyebrow.
+- `saturation` is exactly one of `Low`, `Medium`, `High`. The ranking is the
+  only place saturation is decided, because the ranking already weighs it when
+  ordering the list. The card shows this badge as soon as the ranking lands,
+  before any detail arrives, and the detail is given this value and must
+  return it unchanged. Rate it here honestly: a High saturation idea should
+  rarely be ranked first.
 
 A bare array of 7 is also accepted, as is a single element array wrapping the
 object, which is what n8n's Respond to Webhook node produces when it is set to
@@ -104,10 +110,14 @@ Generate exactly 7 ranked ideas for this founder, best fit first.
 
 Each entry: index (0 to 6, in order), title (5 to 10 words),
 category (exactly one of Business, Freelance, Remote Job),
+saturation (exactly one of Low, Medium, High),
 oneLiner (one sentence, plain, no hype).
 
 Rank by: uses their hard skills directly, fits their work style and values,
-achievable in their stated hours, income target realistic for the idea.
+achievable in their stated hours, income target realistic for the idea, and
+how crowded the market is. Saturation is decided here and nowhere else, so
+weigh it: do not rank a High saturation idea first unless the founder's fit
+is overwhelming.
 
 No descriptions, no detail, no statistics at this stage.
 ```
@@ -127,6 +137,7 @@ times out at 55 seconds.
   "matchIndex": 0,
   "title": "Executive Virtual Assistant",
   "category": "Freelance",
+  "saturation": "Medium",
   "oneLiner": "Run the calendar, inbox and travel for two or three founders.",
   "allTitles": [
     "Executive Virtual Assistant",
@@ -148,8 +159,11 @@ times out at 55 seconds.
 }
 ```
 
-`title` is the one to write up, and it comes back unchanged. `category` is the
-one the ranking gave this index: return it exactly, do not re-decide it.
+`title` is the one to write up, and it comes back unchanged. `category` and
+`saturation` are what the ranking decided for this index: return both exactly,
+do not re-decide either. Saturation in particular is already baked into the
+order of the list, so a detail that re-rates it contradicts the ranking that
+put the idea where it is.
 `oneLiner` is what the reader has already seen on the card, so the description
 has to keep that promise rather than contradict it. `allTitles` is all 7 in
 index order, so the write-up can stay off the other six rather than repeating
@@ -190,7 +204,10 @@ Rules, all enforced:
   against a detail being filed against the wrong match.
 - `category` must equal the `category` in the request, which is always one of
   `Business`, `Freelance`, `Remote Job`. It is sent for exactly this reason.
-- `saturation` exactly one of `Low`, `Medium`, `High`.
+- `saturation` must equal the `saturation` in the request, which is always one
+  of `Low`, `Medium`, `High`. Same reason: the ranking decided it.
+  `saturationNote` is still written here, and must justify the level given,
+  not argue for a different one.
 - `firstSteps` is an array of 4 to 8 non-empty strings.
 - Every other field is a non-empty string of at most 2000 characters:
   `description`, `targetCustomer`, `industry`, `problem`, `revenueModel`,
@@ -220,7 +237,8 @@ Hard rules:
 3. Stay off the other six titles in allTitles. This is the one they asked for.
 4. industry is specific, for example "Executive Support Services", never
    "Business" and never "General".
-5. Return category exactly as given in the request. Do not re-decide it.
+5. Return category and saturation exactly as given in the request. Do not
+   re-decide either. saturationNote explains the level you were given.
 6. Return title exactly as given.
 7. The description must agree with oneLiner, which the reader has already
    seen on the card.
@@ -281,7 +299,8 @@ curl -X POST https://n8n.ideatoplan.to/webhook/quiz-ranking-v1 \
 ```
 
 Check: 7 entries, indices 0 to 6 with none repeated, every category one of the
-three allowed values, every oneLiner one sentence.
+three allowed values, every saturation one of Low, Medium, High, every
+oneLiner one sentence.
 
 ```bash
 curl -X POST https://n8n.ideatoplan.to/webhook/quiz-detail-v1 \
@@ -292,6 +311,7 @@ curl -X POST https://n8n.ideatoplan.to/webhook/quiz-detail-v1 \
     "matchIndex": 0,
     "title": "Executive Virtual Assistant",
     "category": "Freelance",
+    "saturation": "Medium",
     "oneLiner": "Run the calendar, inbox and travel for two or three founders.",
     "allTitles": ["Executive Virtual Assistant","Copywriter for SaaS","Podcast Editor for Founders","Notion Systems Consultant","Remote Customer Success Lead","Course Operations Manager","Community Manager for B2B"],
     "answers": {
@@ -305,6 +325,6 @@ curl -X POST https://n8n.ideatoplan.to/webhook/quiz-detail-v1 \
   }'
 ```
 
-Check: a bare object, 13 fields and no others, `title` and `category` identical
-to the ones sent, `firstSteps` with 4 to 8 entries, no invented numbers
-anywhere.
+Check: a bare object, 13 fields and no others, `title`, `category` and
+`saturation` identical to the ones sent, `firstSteps` with 4 to 8 entries, no
+invented numbers anywhere.

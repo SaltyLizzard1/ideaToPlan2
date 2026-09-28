@@ -61,10 +61,11 @@ export async function GET(req: Request) {
     }
 
     const ranking = merged[indexNum];
-    if (!ranking.title || !ranking.category) {
+    if (!ranking.title || !ranking.category || !ranking.saturation) {
       console.error(
         `[quiz-detail] stored ranking is incomplete: resultId=${resultId} index=${indexNum} ` +
-          `title=${JSON.stringify(ranking.title)} category=${JSON.stringify(ranking.category)}`
+          `title=${JSON.stringify(ranking.title)} category=${JSON.stringify(ranking.category)} ` +
+          `saturation=${JSON.stringify(ranking.saturation)}`
       );
       return Response.json({ error: 'Stored ranking is incomplete' }, { status: 500 });
     }
@@ -116,10 +117,12 @@ export async function GET(req: Request) {
           resultId,
           matchIndex: indexNum,
           title: ranking.title,
-          // The detail has to return the same category and cannot guess it,
-          // so it is sent rather than inferred. oneLiner goes with it as the
-          // promise the write-up has to keep.
+          // The ranking decided the category and the saturation, and the
+          // saturation is part of how it ordered the list, so the detail is
+          // told both and has to return them unchanged. oneLiner goes with
+          // them as the promise the write-up has to keep.
           category: ranking.category,
+          saturation: ranking.saturation,
           oneLiner: ranking.oneLiner,
           // Every title, so the detail can be written to avoid overlapping
           // the other six.
@@ -150,7 +153,11 @@ export async function GET(req: Request) {
 
     // A detail that fails validation is logged with the reason and not saved.
     // The card shows a retry rather than a set of empty fields.
-    const detail = readDetail(parsed, ranking.title);
+    const detail = readDetail(parsed, {
+      title: ranking.title,
+      category: ranking.category,
+      saturation: ranking.saturation,
+    });
     if (!detail.ok) {
       console.error(
         `[quiz-detail] contract violation: resultId=${resultId} index=${indexNum} ${detail.reason} | body:`,
