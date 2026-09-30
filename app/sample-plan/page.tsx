@@ -100,7 +100,11 @@ export default function SamplePlanPage() {
 
                 {/* The plan itself */}
                 {SAMPLE_PAGES.map((page, index) => (
-                  <section key={page.id} className={index === SAMPLE_PAGES.length - 1 ? "" : "mb-s6"}>
+                  <section
+                    key={page.id}
+                    id={page.id}
+                    className={`plan-section ${index === SAMPLE_PAGES.length - 1 ? "" : "mb-s6"}`}
+                  >
                     <h2 className="font-serif font-bold mb-s4 flex items-baseline gap-s3">
                       <span
                         className="font-sans"

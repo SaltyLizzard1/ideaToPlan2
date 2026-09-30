@@ -140,6 +140,23 @@
   }
 }
 
+/* A section of the sample plan, arrived at from the homepage fan. :target
+   highlights whichever one the hash names, so clicking a card opens that page
+   on the section it promised. */
+.plan-section {
+  scroll-margin-top: 112px;
+  padding: var(--spacing-s3) var(--spacing-s4);
+  margin-inline: calc(var(--spacing-s4) * -1);
+  border-left: 3px solid transparent;
+  border-radius: 6px;
+  transition: background-color 400ms ease-out, border-color 400ms ease-out;
+}
+
+.plan-section:target {
+  background: #FDFBF4;
+  border-left-color: var(--i2p-gold);
+}
+
 /* Headings and card titles never leave a single word on the last line. */
 h1, h2, h3 {
   text-wrap: balance;

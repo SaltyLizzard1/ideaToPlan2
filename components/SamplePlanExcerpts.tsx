@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, CSSProperties } from "react";
+import Link from "next/link";
 import { SAMPLE_PAGES, type Line, type SamplePage } from "@/lib/samplePlan";
 
 // ── Fan geometry ───────────────────────────────────────────────────────────
@@ -216,9 +217,11 @@ export default function SamplePlanExcerpts() {
             style={{ scrollbarWidth: "none" }}
           >
             {SAMPLE_PAGES.map((page) => (
-              <div
+              <Link
                 key={page.id}
-                className="snap-center shrink-0 relative p-s4"
+                href={`/sample-plan#${page.id}`}
+                aria-label={`Read ${page.title} in full`}
+                className="snap-center shrink-0 relative p-s4 block"
                 style={{
                   width: "min(78vw, 260px)",
                   aspectRatio: "3 / 4",
@@ -231,7 +234,7 @@ export default function SamplePlanExcerpts() {
                 }}
               >
                 <CardFace page={page} showFade />
-              </div>
+              </Link>
             ))}
           </div>
         ) : (
@@ -245,11 +248,12 @@ export default function SamplePlanExcerpts() {
               const topPx = Math.round((geo.containerH - geo.cardH) / 2);
 
               return (
-                <div
+                <Link
                   key={page.id}
+                  href={`/sample-plan#${page.id}`}
+                  aria-label={`Read ${page.title} in full`}
                   onMouseEnter={() => setFocusedId(page.id)}
-                  onClick={() => setFocusedId(isFocused ? null : page.id)}
-                  className="p-s4"
+                  className="p-s4 block"
                   style={{
                     position: "absolute",
                     width: `${geo.cardW}px`,
@@ -267,7 +271,7 @@ export default function SamplePlanExcerpts() {
                   }}
                 >
                   <CardFace page={page} showFade={false} />
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -275,7 +279,7 @@ export default function SamplePlanExcerpts() {
 
         {/* Caption */}
         <p className="text-center font-sans text-xs mt-s5" style={{ color: "#a89f8a" }}>
-          Hover or tap to explore
+          Hover to preview, click to read in full
         </p>
 
         <p className="text-center font-sans text-sm mt-s3">
