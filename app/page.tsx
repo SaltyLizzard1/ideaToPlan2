@@ -53,7 +53,7 @@ export default function Home() {
             </p>
 
             <div className="font-sans text-sm mb-s6" style={{ color: "#6B6B66" }}>
-              <p>I built Quit Your Life and Travel using IdeaToPlan. The plan above is its actual pages.</p>
+              <p>The plan above is real and unedited. Nothing in it was written to be a sample.</p>
               <p className="font-serif italic mt-s1" style={{ color: "#0D1117", fontSize: "0.95rem" }}>
                 Elizabeth, Founder
               </p>
@@ -64,7 +64,7 @@ export default function Home() {
               className="cta-shimmer gold-border inline-flex items-center gap-s2 px-s6 py-s4 rounded-full font-sans font-semibold text-base cursor-pointer"
               style={{ color: "#2D1A00" }}
             >
-              Start My Assessment
+              Show me what fits me
               <svg
                 width="18"
                 height="18"

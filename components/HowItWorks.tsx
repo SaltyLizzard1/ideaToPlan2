@@ -99,7 +99,7 @@ export default function HowItWorks() {
       step: "02",
       title: "Receive 7 Personalized Matches",
       description:
-        "Our AI analyzes your profile and returns seven business ideas matched to your unique combination of skills, values, and lifestyle, with income ranges and first steps.",
+        "The method behind What Color Is Your Parachute?, in print since 1970, applied to businesses instead of jobs. Seven ideas, each with an income range, how crowded the market is, and first steps.",
     },
     {
       icon: (
@@ -122,7 +122,7 @@ export default function HowItWorks() {
       step: "03",
       title: "Get a Plan a Human Signed Off On",
       description:
-        "Love your top match? Submit it and we build your plan, then a real person reviews every page before it goes out. You get the finished plan within 72 hours, and you can email me questions about it any time.",
+        "Turn your top match into a plan, or ignore the matches and describe your own idea instead. Either way a real person reviews every page before it goes out, you get it within 72 hours, and you can email me questions any time.",
     },
   ];
 

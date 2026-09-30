@@ -55,7 +55,7 @@ export default function Hero() {
             textShadow: "0 0 20px rgba(201,160,48,0.4)",
           }}
         >
-          Free Skills Assessment
+          A method in print since 1970
         </p>
 
         {/* Headline */}
@@ -80,7 +80,7 @@ export default function Hero() {
             maxWidth: "620px",
           }}
         >
-          Take the free 5-minute assessment and discover seven business ideas matched to your skills, experience, interests, and goals.
+          The skills-matching method behind What Color Is Your Parachute?, pointed at businesses instead of jobs. Answer five questions and see seven paths built on what you already know.
         </p>
 
         {/* CTA block */}
