@@ -102,6 +102,17 @@ test('run date: the plan may not call a past date anomalous, and may say so for 
   assert.match(JSON.parse(cc.qa_payload).messages[0].content, /A source date on or before the RUN DATE is not anomalous/);
 });
 
+test('run date: the Starter writer is given the run date as well', async () => {
+  for (const iso of ['2026-10-04', '2031-03-05']) {
+    const out = await runNode('compute-financials.js', { 'Founder Context': { ...clock(iso), tier: 'Starter' } }, { choices: [{ message: { content: '' } }] });
+    assert.ok(out.starter_user_prompt.startsWith('RUN DATE: today is ' + iso), iso);
+    assert.match(out.starter_user_prompt, /timezone UTC/);
+  }
+  // The Starter writer node reads exactly this field.
+  const { readFileSync } = await import('node:fs');
+  assert.match(readFileSync(new URL('../compute-financials.js', import.meta.url), 'utf8'), /starter_user_prompt: runDate\.line \+/);
+});
+
 // ---------------- 2. Demand ----------------
 
 test('demand: competitor existence stated as buyers, demand or willingness to pay is blocking', async () => {
