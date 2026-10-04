@@ -1,19 +1,18 @@
 // Regression checks for citation integrity, run against the preserved output of execution 63211.
-// Run: node --test n8n/v2-test/tests/citation-integrity.test.mjs
+// Run: node --test n8n/v2-test/tests/citation-integrity.test.mjs n8n/v2-test/tests/source-verification.test.mjs
 // No network and no model calls. Each test runs the same code that is pasted into the n8n Code nodes.
+// Evidence is built through the whole evidence chain (Collect Evidence, Fetch Source Pages, Build Verification
+// Request, Build Evidence) with captured pages and a scripted verifier that calls every claim supported, so what
+// is tested here is source identity and the plan checks, not the verifier. See source-verification.test.mjs for that.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runNode, fixture, clone } from './harness.mjs';
+import { pipeline, research, withRenderedFB } from './pipeline.mjs';
 
-const research = () => ({
-  'Growth Research': fixture('Growth Research'),
-  'Market Research': fixture('Market Research'),
-  'Brave Search': fixture('Brave Search'),
-});
-const buildEvidence = (file = 'build-evidence.js', stubs = research()) => runNode(file, stubs);
-const parse = (ev) => ({ sources: JSON.parse(ev.sources), claims: JSON.parse(ev.research_ledger) });
+const run = (stubs) => pipeline({ stubs, pagesHook: withRenderedFB });
+const buildEvidence = async () => (await run()).ev;
 const siteOfClaim = (p, c) => p.sources.find((s) => s.id === c.source_ids[0]).domain;
-const about = (p, name) => p.claims.filter((c) => c.claim.startsWith(name));
+const about = (p, name) => p.ledger.filter((c) => c.claim.startsWith(name));
 
 // Citation Check with the delivered plan (or a variant of it) and a chosen evidence set.
 const citationCheck = async (ev, planText) => {
@@ -35,7 +34,8 @@ const INTEGRITY = ['CITATION ATTACHED TO THE WRONG COMPANY', 'CITATION NOT TIED 
 const on = (out, L) => out.det_issues.filter((i) => i.line === L);
 
 test('root cause: the pre-fix Build Evidence ties company claims to another company\'s page', async () => {
-  const p = parse(await buildEvidence('base/build-evidence.before.js'));
+  const ev = await runNode('base/build-evidence.before.js', research());
+  const p = { sources: JSON.parse(ev.sources), ledger: JSON.parse(ev.research_ledger) };
   const fb = about(p, 'Freedom & Beyond');
   assert.ok(fb.length >= 3, 'the research output contains Freedom & Beyond claims');
   fb.forEach((c) => assert.equal(siteOfClaim(p, c), 'larelocationgroup.com'));
@@ -46,28 +46,26 @@ test('root cause: the pre-fix Build Evidence ties company claims to another comp
   assert.match(p.sources.find((s) => s.domain === 'freedomandbeyond.co').published, /^2016-01-01/);
 });
 
-test('known mismatches: every company claim now sits on that company\'s own page', async () => {
-  const ev = await buildEvidence();
-  const p = parse(ev);
-  const expect = { 'Freedom & Beyond': 'freedomandbeyond.co', 'Harmony in the Wild': 'harmonyinthewild.com', 'Expats Living Abroad': 'expatslivingabroad.com', 'Global Citizen Life': 'globalcitizenlife.org', 'LA Relocation Group': 'larelocationgroup.com', 'Start Abroad': 'startabroad.com', 'Move Abroad Coach': 'moveabroadcoach.com', 'ExpatExact': 'expatexact.com' };
+test('known mismatches: every verified company claim sits on a page that names that company', async () => {
+  const p = await run();
+  const expect = { 'Freedom & Beyond': 'freedomandbeyond.co', 'Expats Living Abroad': 'expatslivingabroad.com', 'Global Citizen Life': 'globalcitizenlife.org', 'LA Relocation Group': 'larelocationgroup.com', 'Start Abroad': 'startabroad.com', 'Move Abroad Coach': 'moveabroadcoach.com', 'ExpatExact': 'expatexact.com' };
   for (const [name, domain] of Object.entries(expect)) {
     const mine = about(p, name);
     assert.ok(mine.length > 0, name + ' has claims in the ledger');
     mine.forEach((c) => assert.equal(siteOfClaim(p, c), domain, name));
   }
-  const price = p.claims.find((c) => /\$1,500.\$3,500/.test(c.claim));
-  assert.equal(siteOfClaim(p, price), 'freedomandbeyond.co');
-  assert.equal(price.attribution, 'remapped');
-  // LA Relocation Group's record no longer carries anyone else's price.
+  // Harmony in the Wild's page could not be read, so nothing about it is in the ledger at all.
+  assert.equal(about(p, 'Harmony in the Wild').length, 0);
+  // LA Relocation Group's record carries no one else's price.
   const la = p.sources.find((s) => s.domain === 'larelocationgroup.com').id;
-  assert.ok(!p.claims.some((c) => c.source_ids.includes(la) && /\$/.test(c.claim)));
-  assert.ok(ev.remapped_claims >= 20);
+  assert.ok(!p.ledger.some((c) => c.source_ids.includes(la) && /\$/.test(c.claim)));
 });
 
-test('source dates stay with their own source', async () => {
-  const p = parse(await buildEvidence());
-  assert.match(p.sources.find((s) => s.domain === 'harmonyinthewild.com').published, /^2016-01-01/);
-  assert.match(p.sources.find((s) => s.domain === 'freedomandbeyond.co').published, /^2026-07-18/);
+test('source dates come from the fetched page, never from another source or from the research tool', async () => {
+  const p = await run();
+  p.sources.filter((s) => s.kind === 'research').forEach((s) => assert.ok(!/2016/.test(String(s.published)), s.id));
+  assert.equal(p.sources.find((s) => s.domain === 'freedomandbeyond.co').published, 'date not shown');
+  assert.equal(p.sources.find((s) => s.domain === 'harmonyinthewild.com').published, 'date not shown');
 });
 
 test('source reordering: shuffling the returned source list does not move a claim to another company', async () => {
@@ -75,35 +73,37 @@ test('source reordering: shuffling the returned source list does not move a clai
     const stubs = research();
     const ann = stubs['Growth Research'].choices[0].message.annotations;
     stubs['Growth Research'].choices[0].message.annotations = order === 'reverse' ? ann.slice().reverse() : ann.slice(4).concat(ann.slice(0, 4));
-    const p = parse(await buildEvidence('build-evidence.js', stubs));
+    const p = await run(stubs);
     about(p, 'Freedom & Beyond').forEach((c) => assert.equal(siteOfClaim(p, c), 'freedomandbeyond.co', order));
-    about(p, 'Harmony in the Wild').forEach((c) => assert.equal(siteOfClaim(p, c), 'harmonyinthewild.com', order));
+    about(p, 'LA Relocation Group').forEach((c) => assert.equal(siteOfClaim(p, c), 'larelocationgroup.com', order));
     about(p, 'Traveling with Kristin').forEach((c) => assert.equal(siteOfClaim(p, c), 'travelingwithkristin.com', order));
-    assert.ok(about(p, 'Freedom & Beyond').length >= 3, order);
+    assert.ok(about(p, 'Freedom & Beyond').length >= 2, order);
+    assert.ok(about(p, 'LA Relocation Group').length >= 3, order);
   }
 });
 
 test('stable IDs: a URL keeps one ID and each ID maps to one URL', async () => {
-  const a = parse(await buildEvidence());
-  const b = parse(await buildEvidence());
+  const a = await run();
+  const b = await run();
   assert.deepEqual(a.sources.map((s) => [s.id, s.url]), b.sources.map((s) => [s.id, s.url]));
   assert.equal(new Set(a.sources.map((s) => s.id)).size, a.sources.length);
   assert.equal(new Set(a.sources.map((s) => s.url)).size, a.sources.length);
 });
 
-test('a claim with a page address is tied by that address, and an address that was not retrieved is discarded', async () => {
+test('a claim with a page address is checked against that page first, and a claim no page supports is discarded', async () => {
   const stubs = research();
   const msg = stubs['Growth Research'].choices[0].message;
   msg.content = '## C1 Direct competitors\n'
     + 'CLAIM: Freedom & Beyond lists a $400 strategy session. | SOURCE TYPE: company own website | PUBLISHED: date not shown | URL: https://freedomandbeyond.co/ [1]\n'
-    + 'CLAIM: Madeup Movers sells a $900 plan. | SOURCE TYPE: company own website | PUBLISHED: date not shown | URL: https://madeup-movers.example/pricing [2]\n';
-  const ev = await buildEvidence('build-evidence.js', stubs);
-  const p = parse(ev);
-  const fb = p.claims.find((c) => c.claim.startsWith('Freedom & Beyond'));
+    + 'CLAIM: Madeup Movers sells a $987 plan. | SOURCE TYPE: company own website | PUBLISHED: date not shown | URL: https://madeup-movers.example/pricing [2]\n';
+  const p = await run(stubs);
+  const fb = p.ledger.find((c) => c.claim.startsWith('Freedom & Beyond'));
   assert.equal(siteOfClaim(p, fb), 'freedomandbeyond.co');
-  assert.equal(fb.attribution, 'url_and_entity_verified');
-  assert.ok(!p.claims.some((c) => /Madeup Movers/.test(c.claim)));
-  assert.match(ev.research_gaps, /Madeup Movers/);
+  assert.match(fb.attribution, /page address given by the research tool/);
+  assert.ok(!p.ledger.some((c) => /Madeup Movers/.test(c.claim)));
+  assert.match(p.ev.research_gaps, /Madeup Movers/);
+  // The address the research tool wrote was not a retrieved source, so it was never fetched.
+  assert.ok(!p.ctx.calls.some((u) => /madeup-movers/.test(u)));
 });
 
 test('QA on the delivered plan: the four known wrong-company citations are blocking', async () => {
@@ -119,9 +119,6 @@ test('QA on the delivered plan: the four known wrong-company citations are block
   const fig = out.det_issues.filter((i) => i.type === 'FIGURE CITED TO THE WRONG SOURCE' && /S10/.test(i.detail) && /cites [^.]*\bS5\b/.test(i.detail));
   fig.forEach((i) => assert.equal(i.severity, 'BLOCKING'));
   assert.ok(fig.some((i) => /\b400\b/.test(i.detail)), 'the $400 figure is flagged where it cites S5');
-  // Lines 14 and 55 give the $1,500 to $3,500 range without naming the company. Both amounts also exist in the plan's own model.
-  assert.ok(fig.some((i) => i.line === 14 && /1500 and 3500/.test(i.detail)), 'the price range in the Executive Summary is flagged');
-  assert.ok(fig.some((i) => i.line === 55 && /1500 and 3500/.test(i.detail)), 'the price range in Market Opportunity is flagged');
 });
 
 test('QA on the delivered plan: the 2016 date note is on the wrong source', async () => {
@@ -153,8 +150,7 @@ test('an unsupported statistic on a cited line is blocking', async () => {
 test('correct citations raise no integrity finding', async () => {
   for (const line of [
     'The digital nomad services market grew from $44.65 billion in 2025 to $54.49 billion in 2026, at a CAGR of 22.1%, globally [S27].',
-    'Freedom and Beyond lists a $400 strategy call and a $1,500-$3,500 package [S10].',
-    '| Harmony in the Wild | A private coaching program | An alternative | [S11] Note: the source for this entry is dated 2016. |',
+    'Freedom and Beyond lists a $400 strategy call [S10].',
   ]) {
     const text = withLine(line);
     const out = await citationCheck(await buildEvidence(), text);

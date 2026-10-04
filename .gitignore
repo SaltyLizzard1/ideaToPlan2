@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Execution dumps, generated plans and PDFs from n8n test runs. Customer data: local only.
+/diagnostics/

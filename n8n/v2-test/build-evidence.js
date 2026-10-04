@@ -1,215 +1,277 @@
-// Build Evidence: merges both research calls and the Brave results into one source list and an evidence ledger.
+// Build Evidence: decides which candidate claims enter the evidence ledger, using the fetched pages and the
+// verifier's answers, and writes the ledger, the source list and the research gaps.
 //
-// SOURCE CONTRACT
-// - A source record is created once, keyed by its URL, and gets its ID at that moment. Nothing later renumbers it.
-// - Each record carries its URL, title, domain, entity keys, dates and the basis for each date.
-// - A claim is tied to a source by the page address the research model gives for it (URL field) when present.
-//   The numeric marker [n] is only a fallback, because the research model does not always number its markers in
-//   the order of the returned source list.
-// - A claim that names a company must resolve to a source that belongs to that company. If the marker points at a
-//   different company's page, the claim is moved to the right source when exactly one fits, and dropped otherwise.
-// - When a research call is shown to have unreliable markers, its remaining marker-only claims are dropped.
-// - Dropped claims go to RESEARCH GAPS with the reason. They never reach the ledger.
-const accessed = new Date().toISOString().slice(0, 10);
-const clean = (v) => (v === undefined || v === null) ? '' : String(v).trim();
-const stripTags = (v) => clean(v).replace(/<[^>]*>/g, '');
-const hostOf = (u) => { const m = String(u || '').match(/^https?:\/\/([^\/?#:]+)/i); return m ? m[1].replace(/^www\./i, '').toLowerCase() : ''; };
-const normUrl = (u) => clean(u).replace(/#.*$/, '').replace(/[)\].,;]+$/, '').replace(/\/+$/, '').replace(/^https?:\/\/(www\.)?/i, '').toLowerCase();
-const words = (v) => clean(v).toLowerCase().replace(/&/g, ' and ').replace(/['’]s\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
-const squash = (v) => words(v).join('');
-// The registrable part of a host: freedomandbeyond.co -> freedomandbeyond, relocations.moveoneinc.com -> moveoneinc.
-const siteOf = (host) => { const l = String(host || '').split('.').filter(Boolean); return l.length >= 2 ? l[l.length - 2] : (l[0] || ''); };
-const entityKeys = (title, host) => {
-  const keys = new Set();
-  const site = squash(siteOf(host));
-  if (site.length >= 5) keys.add(site);
-  const whole = squash(host.split('.').join(' '));
-  if (whole.length >= 5) keys.add(whole);
-  clean(title).split(/\s*[|—–:·•,]\s*|\s+-\s+/).forEach((seg) => { const k = squash(seg); if (k.length >= 7) keys.add(k); });
-  return [...keys];
-};
+// A claim enters the ledger only when ALL of these hold for one of its candidate sources:
+//  - the page was fetched and has readable text;
+//  - the verifier's answer for that page is readable and well formed, and its verdict is "supported";
+//  - the supporting excerpt is found in the fetched page text;
+//  - every number the claim states is in that excerpt;
+//  - the price checks pass: a starting price is not a fixed price, a range must be stated as a range, a per-month
+//    or living-cost figure is not a service price, and the currency matches;
+//  - a company the claim names is named on the page;
+//  - none of the verifier's reported checks is a mismatch or missing;
+//  - the source is credible for this kind of claim, with the basis recorded.
+// Anything else is excluded with its reason and reported as a research gap. A fetch failure, an empty page, or an
+// unreadable verifier answer never counts as verified. Source and claim IDs are the ones Collect Evidence issued.
+//
+// EXCERPT MATCHING: the only normalization is whitespace. Runs of spaces, tabs, line breaks, non-breaking spaces
+// and zero-width characters become one space, in both the excerpt and the page text. Letter case, punctuation,
+// quotes and dashes must match exactly. An excerpt may join passages with " ... "; each passage is matched alone.
+const ce = $('Collect Evidence').first().json;
+const fp = $('Fetch Source Pages').first().json;
+const sources = JSON.parse(ce.sources || '[]');
+const candidates = JSON.parse(ce.candidates || '[]');
+const entityList = JSON.parse(ce.entities || '[]');
+const gaps = JSON.parse(ce.gaps || '[]');
+const pages = JSON.parse(fp.pages || '[]');
+let requests = [];
+try { requests = $('Build Verification Request').all().map((i) => i.json); } catch (e) {}
+let responses = [];
+try { responses = $('Verify Claims').all().map((i) => i.json); } catch (e) {}
 
-// 1. Sources. One list across both research calls and the Brave results. The same URL keeps one ID.
-const sources = [];
-const urlToId = {};
-let unmatched = 0;
-const addSource = (kind, title, url, published, call) => {
-  const key = normUrl(url);
-  if (urlToId[key]) return urlToId[key];
-  const id = (kind === 'research' ? 'S' : 'W') + (sources.filter((s) => s.kind === kind).length + 1);
-  urlToId[key] = id;
-  const domain = hostOf(url);
-  sources.push({ id, kind, title: title || 'Untitled page', url, domain, site: siteOf(domain), entity_keys: entityKeys(title, domain), published, published_basis: kind === 'research' ? 'not provided' : 'search listing', identity: 'unverified', call, accessed });
-  return id;
-};
 const byId = (id) => sources.find((s) => s.id === id);
+const pageOf = {};
+pages.forEach((p) => { pageOf[p.source_id] = p; });
+const ws = (v) => String(v === undefined || v === null ? '' : v).replace(/[\s ​‌‍﻿]+/g, ' ').trim();
+const spaced = (v) => ' ' + String(v || '').toLowerCase().replace(/&/g, ' and ').replace(/['’]s\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
 
-// 2. Research calls. Each call's annotations become source records; each CLAIM line becomes a candidate claim.
-const failed = [];
-const candidates = [];
-const callReports = [];
-const gaps = [];
-const readCall = (nodeName) => {
-  let msg = {};
-  try { const r = $(nodeName).first().json; msg = (r && Array.isArray(r.choices) && r.choices[0] && r.choices[0].message) || {}; } catch (e) {}
-  if (!clean(msg.content)) { failed.push(nodeName); return; }
-  const annotations = Array.isArray(msg.annotations) ? msg.annotations : [];
-  const markerToId = {};
-  const callIds = [];
-  annotations.forEach((a, i) => {
-    const uc = a && a.type === 'url_citation' ? a.url_citation : null;
-    if (!uc || !uc.url) return;
-    const id = addSource('research', clean(uc.title), uc.url, 'not provided by the search tool', nodeName);
-    markerToId[i + 1] = id;
-    if (!callIds.includes(id)) callIds.push(id);
+// ---------- 1. Read the verifier's answers. One answer per page. ----------
+const VERDICTS = ['supported', 'contradicted', 'unverifiable'];
+const CHECKS = ['entity', 'amount', 'currency', 'scope', 'qualifier', 'period', 'population', 'geography', 'date'];
+const CHECK_VALUES = ['match', 'mismatch', 'not_stated', 'not_applicable'];
+const RATINGS = ['high', 'medium', 'low'];
+const answers = {};
+const pageMeta = {};
+const verifierProblems = [];
+let verifyCost = 0;
+requests.forEach((req, i) => {
+  if (!req || req.none || !req.source_id) return;
+  const res = responses[i];
+  const fail = (why) => { verifierProblems.push({ source_id: req.source_id, claim_ids: req.claim_ids, problem: why }); (req.claim_ids || []).forEach((cid) => { answers[cid + '|' + req.source_id] = { malformed: why }; }); };
+  if (!res) return fail('the verifier returned nothing for this page');
+  if (res.usage && typeof res.usage.cost === 'number') verifyCost += res.usage.cost;
+  if (res.error) return fail('the verifier call failed: ' + String((res.error && res.error.message) || res.error).slice(0, 160));
+  const content = res.choices && res.choices[0] && res.choices[0].message && res.choices[0].message.content;
+  if (typeof content !== 'string' || !content.trim()) return fail('the verifier returned no text');
+  let obj = null;
+  const a = content.indexOf('{');
+  const b = content.lastIndexOf('}');
+  if (a >= 0 && b > a) { try { obj = JSON.parse(content.slice(a, b + 1)); } catch (e) {} }
+  if (!obj || !Array.isArray(obj.claims)) return fail('the verifier output is not the required JSON');
+  if (obj.source_id !== req.source_id) return fail('the verifier output names source ' + String(obj.source_id).slice(0, 20) + ' instead of ' + req.source_id);
+  pageMeta[req.source_id] = { date_shown: typeof obj.date_shown === 'string' ? obj.date_shown : '', publisher: typeof obj.publisher === 'string' ? obj.publisher : '', injection_suspected: obj.injection_suspected === true };
+  (req.claim_ids || []).forEach((cid) => {
+    const mine = obj.claims.filter((x) => x && x.claim_id === cid);
+    const bad = (why) => { verifierProblems.push({ source_id: req.source_id, claim_ids: [cid], problem: why }); answers[cid + '|' + req.source_id] = { malformed: why }; };
+    if (mine.length !== 1) return bad(mine.length ? 'the verifier answered this claim more than once' : 'the verifier did not answer this claim');
+    const x = mine[0];
+    if (!VERDICTS.includes(x.verdict)) return bad('the verdict is not one of supported, contradicted, unverifiable');
+    if (typeof x.excerpt !== 'string' || typeof x.reasoning !== 'string' || !x.reasoning.trim()) return bad('the excerpt or the reasoning is missing');
+    if (!x.checks || typeof x.checks !== 'object' || CHECKS.some((k) => !CHECK_VALUES.includes(x.checks[k]))) return bad('the checks are missing or have an unknown value');
+    const cr = x.credibility;
+    if (!cr || typeof cr !== 'object' || !RATINGS.includes(cr.rating) || typeof cr.first_party !== 'boolean' || typeof cr.origin_stated !== 'boolean' || typeof cr.basis !== 'string' || cr.basis.trim().length < 15) return bad('the credibility assessment is missing or has no stated basis');
+    answers[cid + '|' + req.source_id] = x;
   });
-  const mine = [];
-  let question = '';
-  clean(msg.content).split('\n').forEach((line) => {
-    const t = line.trim().replace(/^[-*]\s*/, '');
-    const q = t.match(/^#+\s*([A-Z]\d\s.*)$/);
-    if (q) { question = q[1].trim(); return; }
-    if (/^NOT FOUND:/i.test(t)) { gaps.push((question ? question + ': ' : '') + t.replace(/^NOT FOUND:\s*/i, '')); return; }
-    const c = t.match(/^CLAIM:\s*(.+)$/i);
-    if (!c) return;
-    const parts = c[1].split('|').map((p) => p.trim());
-    const strip = (v) => v.replace(/\[\d+\]/g, '').trim();
-    const field = (name) => { const p = parts.find((x) => x.toUpperCase().startsWith(name + ':')); return p ? strip(p.slice(name.length + 1)) : ''; };
-    const markers = [...new Set((t.match(/\[(\d+)\]/g) || []).map((x) => parseInt(x.slice(1, -1), 10)))];
-    markers.forEach((n) => { if (!markerToId[n]) unmatched++; });
-    const urlField = field('URL');
-    const urlId = urlField && urlToId[normUrl(urlField)] && callIds.includes(urlToId[normUrl(urlField)]) ? urlToId[normUrl(urlField)] : '';
-    const positional = [...new Set(markers.map((n) => markerToId[n]).filter(Boolean))];
-    if (!urlId && !positional.length) return;
-    const claimText = strip(parts[0]);
-    const cand = { call: nodeName, question, claim: claimText, source_type: field('SOURCE TYPE'), published: field('PUBLISHED') || 'date not shown', urlId, url_given: !!urlField, positional, markers, callIds };
-    mine.push(cand);
-    candidates.push(cand);
-  });
-  callReports.push({ node: nodeName, sources_returned: callIds.length, markers_used: [...new Set(mine.flatMap((m) => m.markers))].sort((a, b) => a - b), claims: mine.length });
-};
-['Growth Research', 'Market Research'].forEach(readCall);
-
-// 3. Resolve each claim to a source and check that a named company matches the source it is tied to.
-const leadGrams = (text) => {
-  let w = words(text);
-  if (w[0] === 'adjacent') w = w.slice(1);
-  if (w[0] === 'the') w = w.slice(1);
-  const grams = new Map();
-  for (let k = 1; k <= Math.min(6, w.length); k++) grams.set(w.slice(0, k).join(''), k);
-  return grams;
-};
-// The company name as the claim writes it: the shortest run of leading words that spells the matched key.
-const displayName = (text, key) => {
-  const tokens = clean(text).replace(/^ADJACENT\s*:\s*/i, '').replace(/^the\s+/i, '').split(/\s+/);
-  for (let i = 0; i < Math.min(tokens.length, 8); i++) if (squash(tokens.slice(0, i + 1).join(' ')) === key) return tokens.slice(0, i + 1).join(' ').replace(/['’]s$/, '').replace(/[.,;:]+$/, '');
-  return key;
-};
-const entities = {};
-const resolve = (c) => {
-  const company = /company/i.test(c.source_type);
-  const grams = leadGrams(c.claim);
-  const minKey = company ? 5 : 15;
-  let best = 0;
-  const hits = [];
-  c.callIds.map(byId).forEach((s) => {
-    s.entity_keys.forEach((k) => { if (k.length >= minKey && grams.has(k)) { hits.push({ s, k }); if (k.length > best) best = k.length; } });
-  });
-  const matches = [...new Set(hits.filter((h) => h.k.length === best).map((h) => h.s.id))];
-  const sites = [...new Set(matches.map((id) => byId(id).site))];
-  const candidate = c.urlId || (c.positional.length === 1 ? c.positional[0] : '');
-  const named = () => { const h = hits.find((x) => x.k.length === best); const name = displayName(c.claim, h.k); return { key: h.k, name, words: words(name).join(' ') }; };
-  if (matches.length) {
-    const n = named();
-    if (sites.length > 1) return { ok: false, reason: 'the company it names matches more than one retrieved site' };
-    const id = matches.includes(candidate) ? candidate : matches[0];
-    const sameSite = sources.filter((s) => s.kind === 'research' && s.site === sites[0]).map((s) => s.id);
-    const e = entities[n.key] = entities[n.key] || { name: n.name, name_words: n.words, key: n.key, site: sites[0], source_ids: [] };
-    sameSite.forEach((x) => { if (!e.source_ids.includes(x)) e.source_ids.push(x); });
-    if (matches.includes(candidate)) return { ok: true, id, attribution: c.urlId ? 'url_and_entity_verified' : 'entity_verified', entity: n.name };
-    return { ok: true, id, attribution: 'remapped', entity: n.name, remapped_from: candidate || c.positional.join(',') || 'none' };
-  }
-  // The page address is the claim's own statement of where it comes from, so it binds the claim when it is a retrieved source.
-  if (c.urlId) return { ok: true, id: c.urlId, attribution: 'url_verified' };
-  if (c.url_given) return { ok: false, reason: 'the page address given for it is not one of the retrieved sources' };
-  if (company) return { ok: false, reason: 'it is a company claim with no page address, and no retrieved source belongs to the company it names' };
-  if (c.positional.length) return { ok: true, id: c.positional[0], ids: c.positional, attribution: 'positional' };
-  return { ok: false, reason: 'it has no usable source' };
-};
-candidates.forEach((c) => { c.res = resolve(c); });
-// A call in which a named company's claim pointed at another company's page has unreliable markers: that is positive
-// proof the numbering is off. Its marker-only claims cannot be trusted. A company claim that matches no retrieved
-// source is dropped by itself and proves nothing about the other markers.
-callReports.forEach((r) => {
-  const mine = candidates.filter((c) => c.call === r.node);
-  const broken = mine.some((c) => c.res.ok && c.res.attribution === 'remapped');
-  const checked = mine.some((c) => c.res.ok && /entity_verified/.test(c.res.attribution));
-  r.marker_order = broken ? 'unreliable' : checked ? 'consistent with the named companies' : 'not checkable (no company claims)';
-  if (broken) mine.forEach((c) => { if (c.res.ok && c.res.attribution === 'positional') c.res = { ok: false, reason: 'its only link to a source is a citation marker, and this research call numbered its markers out of order' }; });
-  r.verified = mine.filter((c) => c.res.ok && /verified/.test(c.res.attribution)).length;
-  r.remapped = mine.filter((c) => c.res.ok && c.res.attribution === 'remapped').length;
-  r.positional = mine.filter((c) => c.res.ok && c.res.attribution === 'positional').length;
-  r.dropped = mine.filter((c) => !c.res.ok).length;
 });
 
-// 4. Evidence ledger: one object per kept claim.
+// ---------- 2. Deterministic checks. ----------
+const CUR = { '$': 'USD', 'us$': 'USD', usd: 'USD', dollars: 'USD', dollar: 'USD', '€': 'EUR', eur: 'EUR', euros: 'EUR', euro: 'EUR', '£': 'GBP', gbp: 'GBP', pounds: 'GBP', cad: 'CAD', aud: 'AUD', thb: 'THB', baht: 'THB' };
+const UNIT = { k: 'k', thousand: 'k', m: 'm', million: 'm', b: 'b', bn: 'b', billion: 'b', trillion: 't' };
+const figRe = /(US\$|USD|EUR|GBP|CAD|AUD|THB|\$|€|£)?\s?(\d[\d,]*(?:\.\d+)?)(?:\s?(k|m|bn|b|million|billion|thousand|trillion)\b)?(\s?%)?(?:\s(USD|EUR|GBP|CAD|AUD|THB|dollars?|euros?|pounds|baht)\b)?/gi;
+const figures = (text) => {
+  const out = [];
+  const t = String(text || '');
+  let m;
+  figRe.lastIndex = 0;
+  while ((m = figRe.exec(t)) !== null) {
+    if (m.index === figRe.lastIndex) figRe.lastIndex++;
+    const num = m[2].replace(/,/g, '');
+    if (!/\d/.test(num)) continue;
+    const start = m.index + (m[0].length - m[0].trimStart().length);
+    const cur = CUR[String(m[1] || m[5] || '').toLowerCase()] || '';
+    out.push({ key: String(parseFloat(num)) + (m[3] ? UNIT[m[3].toLowerCase()] : '') + (m[4] ? '%' : ''), cur, start, end: m.index + m[0].length, raw: m[0].trim() });
+  }
+  return out;
+};
+const START_BEFORE = /(?:\bfrom|\bstarting(?:\s+(?:at|from))?|\bstarts?\s+(?:at|from)|\bas low as|\bbeginning at|\bminimum(?:\s+of)?|\bat least)\s*:?\s*$/i;
+const START_AFTER = /^\s*(?:\+|and up|or more|and above|upwards?)/i;
+const RANGE_TAIL = /^\s*(?:-|–|—|to)\s*(?:US\$|\$|€|£)?\s?\d[\d,]*(?:\.\d+)?\s?(?:k|m)?\b/i;
+const PERIOD_AFTER = /^\s*(?:(?:\/|per\s+|a\s+|an\s+|each\s+)\s*(month|mo|year|yr|annum|week|day|hour|hr|night)\b|(monthly|annually|yearly|weekly|daily|hourly)\b)/i;
+const PERIOD_NAME = { mo: 'month', monthly: 'month', yr: 'year', annum: 'year', annually: 'year', yearly: 'year', weekly: 'week', daily: 'day', hr: 'hour', hourly: 'hour' };
+const startQualified = (t, f) => START_BEFORE.test(t.slice(Math.max(0, f.start - 30), f.start)) || START_AFTER.test(t.slice(f.end, f.end + 12));
+const periodOf = (t, f) => { const m = t.slice(f.end, f.end + 60).replace(RANGE_TAIL, '').match(PERIOD_AFTER); if (!m) return ''; const p = (m[1] || m[2]).toLowerCase(); return PERIOD_NAME[p] || p; };
+const periodsNear = (t, f) => { const near = t.slice(Math.max(0, f.start - 45), f.end + 45).toLowerCase(); return ['month', 'year', 'week', 'day', 'hour', 'night'].filter((p) => new RegExp('\\b' + p + '(?:ly|s)?\\b|\\bper ' + p + '|\\/' + p.slice(0, 2)).test(near) || (p === 'year' && /annual|annum/.test(near))); };
+const sentenceAround = (t, f) => { const a = Math.max(t.lastIndexOf('. ', f.start), t.lastIndexOf('? ', f.start), t.lastIndexOf('! ', f.start)); const nexts = ['. ', '? ', '! '].map((d) => t.indexOf(d, f.end)).filter((x) => x >= 0); return t.slice(a < 0 ? 0 : a + 2, nexts.length ? Math.min(...nexts) + 1 : t.length); };
+const LIVING = /cost of living|living costs?|living expenses|\blive\b|lifestyle|\bbudget\b|\brent\b|\bsalary\b|\bearning\b|\bincome\b/i;
+const PRICE_CLAIM = /\b(package|priced?|prices|pricing|fees?|charges?|lists?|sells?|offers?|program|session|call|service|plan)\b/i;
+const LIVING_CLAIM = /cost of living|living costs?|living expenses|budget|income|salary|earn/i;
+const rangePairs = (t, figs) => { const out = []; for (let i = 0; i + 1 < figs.length; i++) { const between = t.slice(figs[i].end, figs[i + 1].start); if (/^\s*(?:-|–|—|to)\s*$/i.test(between) || (/^\s*and\s*$/i.test(between) && /\bbetween\s*$/i.test(t.slice(Math.max(0, figs[i].start - 12), figs[i].start)))) out.push([figs[i], figs[i + 1]]); } return out; };
+
+// Returns the list of reasons the excerpt fails to support the claim. An empty list means every check passed.
+const deterministic = (claim, entity, excerpt, page) => {
+  const reasons = [];
+  const pageText = ws(page.text);
+  const passages = ws(excerpt).split(/\s*(?:\.\.\.|…|\[\.\.\.\])\s*/).map((s) => s.trim()).filter(Boolean);
+  if (!passages.length || passages.join(' ').length < 15) return ['the verifier gave no supporting excerpt'];
+  const missing = passages.filter((p) => !pageText.includes(p));
+  if (missing.length) return ['the supporting excerpt is not in the fetched page text: "' + missing[0].slice(0, 80) + '"'];
+  const ex = passages.join(' ... ');
+  const cl = ws(claim);
+  const cf = figures(cl);
+  const ef = figures(ex);
+  const absent = [...new Set(cf.filter((f) => !ef.some((e) => e.key === f.key)).map((f) => f.raw))];
+  if (absent.length) reasons.push('the excerpt does not contain the figure' + (absent.length > 1 ? 's ' : ' ') + absent.join(', ') + ' that the claim states');
+  const priced = PRICE_CLAIM.test(cl) && !LIVING_CLAIM.test(cl);
+  const seen = new Set();
+  cf.forEach((f, idx) => {
+    const money = f.cur || (idx > 0 && cf[idx - 1].cur && /^\s*(?:-|–|—|to|and)\s*$/i.test(cl.slice(cf[idx - 1].end, f.start)));
+    const hits = ef.filter((e) => e.key === f.key);
+    if (!money || !hits.length || seen.has(f.key)) return;
+    seen.add(f.key);
+    if (hits.every((e) => startQualified(ex, e)) && !startQualified(cl, f)) reasons.push('the page gives ' + f.raw + ' as a starting price ("' + ws(ex.slice(Math.max(0, hits[0].start - 18), hits[0].end + 2)) + '"), and the claim states it without that qualifier');
+    const pagePeriods = hits.map((e) => periodOf(ex, e));
+    if (pagePeriods.every(Boolean) && !pagePeriods.some((p) => periodsNear(cl, f).includes(p))) reasons.push('the page gives ' + f.raw + ' per ' + pagePeriods[0] + ', and the claim does not');
+    if (priced && hits.every((e) => LIVING.test(sentenceAround(ex, e)) && !/\b(session|package|concierge|program|course|consult)/i.test(sentenceAround(ex, e)))) reasons.push('the page gives ' + f.raw + ' as a living cost, budget or income, not as the price of a service');
+    if (f.cur && hits.every((e) => e.cur && e.cur !== f.cur)) reasons.push('the claim gives ' + f.raw + ' in ' + f.cur + ', and the page gives it in ' + hits[0].cur);
+  });
+  rangePairs(cl, cf).filter((p) => p[0].cur || p[1].cur).forEach((p) => {
+    if (!rangePairs(ex, ef).some((q) => q[0].key === p[0].key && q[1].key === p[1].key)) reasons.push('the claim states the range ' + p[0].raw + ' to ' + p[1].raw + ', and the excerpt does not state those two amounts as a range');
+  });
+  // The company must be named in the page's own title or text, as words or run together (digitalnomads.world). The address alone does not count.
+  if (entity && entity.name_words) { const where = (page.title || '') + ' ' + page.text; if (!spaced(where).includes(' ' + entity.name_words + ' ') && !(entity.key && where.toLowerCase().replace(/[^a-z0-9]+/g, '').includes(entity.key))) reasons.push('the page does not name ' + entity.name); }
+  return reasons;
+};
+
+// A claim is a statistic when it states a count, a share or a market value about a population or market, as
+// opposed to a company describing its own offer. Statistics need a traceable origin, not just a page that repeats them.
+const isStatistic = (c) => /^M\d/.test(c.question || '') || figures(c.claim).some((f) => /[mbt%]$/.test(f.key));
+
+const evaluate = (c, sid) => {
+  const page = pageOf[sid];
+  const base = { source_id: sid, model_verdict: '', excerpt: '', reasoning: '', checks: null, credibility: null };
+  if (!page) return { ...base, status: 'unverifiable', kind: 'not_fetched', reasons: ['the page was not fetched'] };
+  if (page.outcome !== 'ok' || !page.text) return { ...base, status: 'unverifiable', kind: 'fetch_' + page.outcome, reasons: ['the page could not be read (' + page.outcome + (page.detail ? ': ' + page.detail : '') + ')'] };
+  const x = answers[c.claim_id + '|' + sid];
+  if (!x) return { ...base, status: 'unverifiable', kind: 'verifier_missing', reasons: ['no verifier answer exists for this claim and page'] };
+  if (x.malformed) return { ...base, status: 'unverifiable', kind: 'verifier_malformed', reasons: ['the verifier answer could not be used: ' + x.malformed] };
+  const rec = { ...base, model_verdict: x.verdict, excerpt: ws(x.excerpt), reasoning: ws(x.reasoning).slice(0, 500), checks: x.checks, credibility: { rating: x.credibility.rating, first_party: x.credibility.first_party, origin_stated: x.credibility.origin_stated, basis: ws(x.credibility.basis).slice(0, 400) } };
+  if (x.verdict === 'contradicted') return { ...rec, status: 'contradicted', kind: 'model', reasons: ['the page states something different: ' + rec.reasoning] };
+  if (x.verdict === 'unverifiable') return { ...rec, status: 'unverifiable', kind: 'model', reasons: ['the page does not state it: ' + rec.reasoning] };
+  const det = deterministic(c.claim, c.entity, x.excerpt, page);
+  if (det.length) return { ...rec, status: 'unverifiable', kind: 'deterministic', reasons: det };
+  const off = CHECKS.filter((k) => x.checks[k] === 'mismatch' || x.checks[k] === 'not_stated');
+  if (off.length) return { ...rec, status: 'unverifiable', kind: 'model_checks', reasons: ['the verifier marked it supported but reported ' + off.map((k) => k + ' ' + x.checks[k].replace('_', ' ')).join(', ')] };
+  if (x.credibility.rating === 'low') return { ...rec, status: 'not_credible', kind: 'credibility', reasons: ['the page states it, but the source is not credible evidence for it: ' + rec.credibility.basis] };
+  if (isStatistic(c) && !x.credibility.first_party && !x.credibility.origin_stated) return { ...rec, status: 'not_credible', kind: 'credibility', reasons: ['the page states it, but gives no traceable origin for the figure: ' + rec.credibility.basis] };
+  return { ...rec, status: 'supported', kind: 'verified', reasons: [] };
+};
+
+// ---------- 3. Decide each claim. ----------
+const RANK = { supported: 0, contradicted: 1, not_credible: 2, unverifiable: 3 };
 const claims = [];
-const remaps = [];
-const dropped = [];
+const excluded = [];
+const log = [];
+const moved = [];
 candidates.forEach((c) => {
-  const short = c.claim.length > 160 ? c.claim.slice(0, 157) + '...' : c.claim;
-  if (!c.res.ok) { dropped.push({ call: c.call, claim: short, reason: c.res.reason }); gaps.push((c.question ? c.question + ': ' : '') + 'A research claim was discarded because ' + c.res.reason + '. Do not use it: "' + short + '"'); return; }
-  const ids = c.res.ids || [c.res.id];
-  const entry = {
-    claim_id: 'E' + (claims.length + 1),
-    question: c.question,
-    claim: c.claim,
-    claim_type: 'external_research',
-    adjacent: /^ADJACENT\s*:/i.test(c.claim),
-    source_ids: ids,
-    source_type: c.source_type,
-    published: c.published,
-    anecdotal: /community|forum|reddit|social/i.test(c.source_type),
-    attribution: c.res.attribution,
-  };
-  if (c.res.entity) entry.entity = c.res.entity;
-  if (c.res.attribution === 'remapped') remaps.push({ claim_id: entry.claim_id, entity: c.res.entity, marker_pointed_at: c.res.remapped_from, resolved_to: c.res.id });
-  claims.push(entry);
-});
-// A source's date and identity come only from claims that are tied to it.
-claims.forEach((c) => {
-  if (c.source_ids.length !== 1) return;
-  const s = byId(c.source_ids[0]);
-  if (!s || s.kind !== 'research') return;
-  if (c.attribution !== 'positional') s.identity = 'matched to the company or page address named in the claim';
-  if (!/not shown/i.test(c.published) && /^not provided/.test(s.published)) {
-    s.published = c.published + ' (as reported by the research tool)';
-    s.published_basis = c.attribution === 'positional' ? 'research tool, source tied to the claim by citation marker only' : 'research tool, source identity checked against the claim';
+  const pairs = (c.candidate_source_ids || []).map((sid) => evaluate(c, sid));
+  log.push({ claim_id: c.claim_id, claim: c.claim, pairs: pairs.map((p) => ({ source_id: p.source_id, status: p.status, kind: p.kind, reasons: p.reasons, model_verdict: p.model_verdict, excerpt: p.excerpt, checks: p.checks, credibility: p.credibility })) });
+  const win = pairs.find((p) => p.status === 'supported');
+  if (win) {
+    const page = pageOf[win.source_id];
+    const basis = c.candidate_basis[c.candidate_source_ids.indexOf(win.source_id)];
+    if (c.candidate_source_ids[0] !== win.source_id) moved.push({ claim_id: c.claim_id, first_candidate: c.candidate_source_ids[0], verified_on: win.source_id, why: 'the first candidate page did not support it and this page did' });
+    const entry = {
+      claim_id: c.claim_id,
+      question: c.question,
+      claim: c.claim,
+      claim_type: 'external_research',
+      adjacent: /^ADJACENT\s*:/i.test(c.claim),
+      source_ids: [win.source_id],
+      source_type: c.source_type,
+      published: 'set below',
+      anecdotal: /community|forum|reddit|social/i.test(c.source_type),
+      attribution: 'verified on the fetched page (candidate from ' + basis + ')',
+      verification: 'supported',
+      page_excerpt: win.excerpt.slice(0, 400),
+      credibility: win.credibility.rating,
+      credibility_basis: win.credibility.basis,
+      retrieved_at: page.retrieved_at,
+    };
+    if (c.entity) entry.entity = c.entity.name;
+    claims.push(entry);
+    return;
   }
+  const worst = pairs.slice().sort((a, b) => RANK[a.status] - RANK[b.status])[0] || { status: 'unverifiable', kind: 'no_source', reasons: ['the research tool gave no retrievable source for it'], source_id: '' };
+  excluded.push({ claim_id: c.claim_id, question: c.question, claim: c.claim, entity: c.entity ? c.entity.name : '', entity_words: c.entity ? c.entity.name_words : '', status: worst.status, kind: worst.kind, reason: worst.reasons.join('; '), candidate_source_ids: c.candidate_source_ids, figures: [...new Set(figures(c.claim).map((f) => f.key))] });
 });
-failed.forEach((n) => gaps.unshift(n + ': this research call returned nothing. Treat its questions as not researched.'));
 
-// 5. Brave results: search listings only, kept with URL and date.
-let results = [];
-try { const br = $('Brave Search').first().json; results = br && br.web && Array.isArray(br.web.results) ? br.web.results : []; } catch (e) {}
-const snippets = [];
-results.forEach((r) => {
-  if (!r || !r.url) return;
-  const id = addSource('search_snippet', stripTags(r.title), r.url, r.page_age ? String(r.page_age).slice(0, 10) : 'date not shown', 'Brave Search');
-  snippets.push(id + ': ' + stripTags(r.title) + '. ' + stripTags(r.description));
+// ---------- 4. Source records: what was requested, what answered, and the date the page itself shows. ----------
+sources.forEach((s) => {
+  if (s.kind !== 'research') return;
+  const p = pageOf[s.id];
+  if (!p) { s.fetch = { outcome: 'not_requested' }; s.published = 'date not shown'; s.published_basis = 'page not fetched: no claim was tied to it'; return; }
+  s.fetch = { requested_url: p.requested_url, final_url: p.final_url, redirected: p.redirects.length > 0, retrieved_at: p.retrieved_at, http_status: p.http_status, outcome: p.outcome, detail: p.detail, text_chars: p.text_chars };
+  const meta = pageMeta[s.id];
+  const date = meta ? ws(meta.date_shown) : '';
+  if (p.outcome === 'ok' && date && /\d/.test(date) && !/©|\(c\)|copyright/i.test(date) && !/^\d{4}$/.test(date) && ws(p.text).includes(date)) { s.published = date; s.published_basis = 'shown on the fetched page'; }
+  else { s.published = 'date not shown'; s.published_basis = p.outcome === 'ok' ? 'no publication date found on the fetched page' : 'page could not be read (' + p.outcome + ')'; }
+  const n = claims.filter((c) => c.source_ids[0] === s.id).length;
+  s.identity = p.outcome !== 'ok' ? 'not read (' + p.outcome + ')' : n ? 'page read; ' + n + ' claim' + (n === 1 ? '' : 's') + ' verified against its text' : 'page read; no claim verified against it';
+  if (meta && meta.injection_suspected) s.injection_suspected = true;
 });
+claims.forEach((c) => { c.published = byId(c.source_ids[0]).published; });
+
+// ---------- 5. Entities: a company is tied to its own pages and to any page that verifiably states a claim about it. ----------
+const entities = entityList.map((e) => {
+  const mine = claims.filter((c) => c.entity === e.name);
+  const ids = (e.own_source_ids || []).slice();
+  mine.forEach((c) => { if (!ids.includes(c.source_ids[0])) ids.push(c.source_ids[0]); });
+  return { name: e.name, name_words: e.name_words, key: e.key, site: (e.sites || [])[0] || '', source_ids: ids, verified_claims: mine.length };
+});
+
+// ---------- 6. Research gaps. Figures are withheld so an excluded number cannot be copied into the plan. ----------
+const mask = (t) => { const s = String(t).replace(/(?:US\$|\$|€|£)?\s?\d[\d,]*(?:\.\d+)?\s?(?:%|k\b|million|billion|thousand)?/g, ' [figure withheld] ').replace(/\s+/g, ' ').trim(); return s.length > 150 ? s.slice(0, 147) + '...' : s; };
+const LABEL = { contradicted: 'the source page contradicts it', not_credible: 'its source is not credible evidence for it', unverifiable: 'it could not be verified on its source page' };
+excluded.forEach((x) => gaps.push((x.question ? x.question + ': ' : '') + 'Excluded claim ' + x.claim_id + ' (' + LABEL[x.status] + '). It is not evidence. Do not state it, its figures, or anything derived from it: "' + mask(x.claim) + '"'));
+entities.filter((e) => !e.verified_claims).forEach((e) => gaps.push('No verified evidence exists about ' + e.name + '. Do not describe its offer, price, customers or history, and do not cite a source for it.'));
+let failedCalls = [];
+try { failedCalls = JSON.parse(ce.failed_calls || '[]'); } catch (e) {}
+
+const count = (st) => excluded.filter((x) => x.status === st).length;
+const incomplete = verifierProblems.length;
+const verification = {
+  candidate_claims: candidates.length,
+  verified: claims.length,
+  excluded: excluded.length,
+  contradicted: count('contradicted'),
+  not_credible: count('not_credible'),
+  unverifiable: count('unverifiable'),
+  excluded_by_code_after_model_said_supported: excluded.filter((x) => x.kind === 'deterministic').length,
+  pages_requested: pages.length,
+  pages_read: pages.filter((p) => p.outcome === 'ok').length,
+  verifier_calls: requests.filter((r) => r && !r.none).length,
+  verifier_problems: verifierProblems,
+  fetch_ms: fp.fetch_ms || 0,
+  verify_ms: requests.length && requests[0].t_ms ? Date.now() - requests[0].t_ms : 0,
+  verify_cost_usd: Math.round(verifyCost * 10000) / 10000,
+};
 
 return {
   sources: JSON.stringify(sources),
   research_ledger: claims.length
     ? JSON.stringify(claims, null, 1)
-    : 'Structured parsing failed. No research claim could be tied to a source. Treat every research question as not researched.',
+    : 'No research claim passed source-page verification. Treat every research question as not researched.',
   research_gaps: gaps.join('\n'),
-  snippets: snippets.join('\n'),
-  entities: JSON.stringify(Object.values(entities)),
-  source_integrity: JSON.stringify({ calls: callReports, remapped: remaps, dropped }, null, 1),
-  remapped_claims: remaps.length,
-  dropped_claims: dropped.length,
-  unmatched_markers: unmatched,
+  snippets: ce.snippets || '',
+  entities: JSON.stringify(entities),
+  excluded_claims: JSON.stringify(excluded),
+  source_integrity: JSON.stringify({ calls: JSON.parse(ce.calls || '[]'), failed_calls: failedCalls, verification, verified_on_another_candidate: moved }, null, 1),
+  verification_log: JSON.stringify(log),
+  verified_claims: claims.length,
+  excluded_claim_count: excluded.length,
+  verification_incomplete: incomplete,
+  remapped_claims: moved.length,
+  dropped_claims: excluded.length,
+  unmatched_markers: ce.unmatched_markers || 0,
   t_ms: Date.now(),
 };

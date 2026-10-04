@@ -22,7 +22,7 @@ let entities = [];
 try { const p = JSON.parse(entitiesJson); if (Array.isArray(p)) entities = p; } catch (e) {}
 const srcById = {};
 sources.forEach((x) => { srcById[x.id] = x; });
-const spaced = (v) => ' ' + String(v || '').toLowerCase().replace(/&/g, ' and ').replace(/['\\u2019]s\\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+const spaced = (v) => ' ' + String(v || '').toLowerCase().replace(/&/g, ' and ').replace(/['’]s\\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
 const entityOfSource = {};
 entities.forEach((e) => (e.source_ids || []).forEach((id) => { entityOfSource[id] = e; }));
 const statRe = /\\$\\s?\\d[\\d,]*(?:\\.\\d+)?\\s?(?:k|m|b|bn|million|billion|thousand)?\\b|\\b\\d[\\d,]*(?:\\.\\d+)?\\s?%|\\b\\d[\\d,]*(?:\\.\\d+)?\\s?(?:million|billion|thousand)\\b/gi;
@@ -112,5 +112,90 @@ if (integrity && Array.isArray(integrity.calls)) integrity.calls.forEach((c) => 
   {
     find: "The user message lists LINES FLAGGED BY CODE FOR WORDING, with the matched words in brackets.",
     replace: "21. Attribution: for every cited claim, find the EVIDENCE LEDGER entry it rests on. The source ID must be one of that entry's source_ids, and any company the sentence names must be the company that entry is about. A source ID that exists in SOURCES but belongs to a different company, or to a ledger entry that says something else, is BLOCKING: a real ID on the wrong claim is as serious as an invented one. A price must keep its currency, what it buys, and whether it is a fixed price, a starting price, or a range, exactly as the ledger entry states. A statistic must keep the population, geography, and year the ledger entry states. A note about a source's age must sit on the source it describes: check it against that source's published value in SOURCES. A figure from a source that is undated, a vendor blog, or a list article must be worded as that source's estimate every time it appears, including in the Executive Summary and the Viability Assessment; repeating a figure does not make it established. Ledger entries marked attribution remapped were moved by code to the page of the company they name: the source_ids they carry now are the correct ones.\nThe user message lists LINES FLAGGED BY CODE FOR WORDING, with the matched words in brackets.",
+  },
+  // ---------- Source-page verification (added after the citation ID fix). These apply on top of the patches above. ----------
+  {
+    find: "entitiesJson = '[]', integrity = null;",
+    replace: "entitiesJson = '[]', integrity = null, excludedJson = '[]', verificationIncomplete = 0, verificationRan = false, verificationProblems = [];",
+  },
+  {
+    find: "try { integrity = JSON.parse(ev.source_integrity || 'null'); } catch (e2) {} }",
+    replace: "try { integrity = JSON.parse(ev.source_integrity || 'null'); } catch (e2) {} excludedJson = ev.excluded_claims || '[]'; verificationIncomplete = ev.verification_incomplete || 0; verificationRan = typeof ev.verified_claims === 'number'; verificationProblems = (integrity && integrity.verification && integrity.verification.verifier_problems) || []; }",
+  },
+  {
+    find: "String(srcById[id].published || '').startsWith(yr[1])",
+    replace: "String(srcById[id].published || '').includes(yr[1])",
+  },
+  {
+    find: "if (integrity && Array.isArray(integrity.calls)) integrity.calls.forEach(",
+    replace: `// ---------- EXCLUDED CLAIMS ----------
+// Build Evidence checked every research claim against its fetched page. Claims that failed are not evidence.
+// The plan is blocked when it still presents one of them as evidence, and when verification did not finish.
+let excludedClaims = [];
+try { const p = JSON.parse(excludedJson); if (Array.isArray(p)) excludedClaims = p; } catch (e) {}
+if (G && !verificationRan) add('BLOCKING', 'SOURCE VERIFICATION DID NOT RUN', 'The evidence for this plan was not checked against its source pages. No research claim may be treated as verified.');
+if (verificationIncomplete > 0) add('BLOCKING', 'SOURCE VERIFICATION INCOMPLETE', 'The verifier output could not be read for ' + verificationIncomplete + ' page or claim check' + (verificationIncomplete === 1 ? '' : 's') + ' (' + verificationProblems.slice(0, 4).map((v) => v.source_id + ': ' + v.problem).join('; ') + '). Those claims were kept out of the ledger, and the plan is held until verification is rerun.');
+const unverifiedEntities = entities.filter((e) => e.verified_claims === 0);
+const exclusionSeen = new Set();
+let exRowEntity = null;
+lines.forEach((line, i) => {
+  const t = line.trim();
+  const L = i + 1;
+  if (!t) { exRowEntity = null; return; }
+  const isRow = /^\\|.*\\|$/.test(t);
+  if (!isRow) exRowEntity = null;
+  if (t.startsWith('#') || /^\\|?\\s*:?-{2,}/.test(t)) return;
+  if (isRow) {
+    const cells = t.replace(/^\\||\\|$/g, '').split('|').map((c) => c.trim());
+    if (cells.length === 2 && cells[1] === '' && cells[0]) { exRowEntity = entities.find((e) => spaced(cells[0]).includes(' ' + e.name_words + ' ')) || null; if (exRowEntity && exRowEntity.verified_claims === 0 && !exclusionSeen.has(L + '|' + exRowEntity.name)) { exclusionSeen.add(L + '|' + exRowEntity.name); add('MAJOR', 'UNVERIFIED COMPANY DESCRIBED', 'The plan profiles ' + exRowEntity.name + ', but no claim about it could be verified on a source page. Remove the profile or say plainly that nothing about it was verified.', short(t), L); } return; }
+  }
+  segmentsOf(t).forEach((seg) => {
+    const cited = [...new Set(seg.match(/\\b[SW]\\d+\\b/g) || [])].filter((id) => srcById[id]);
+    const sp = spaced(seg);
+    const segToks = statsIn(seg);
+    excludedClaims.forEach((x) => {
+      const candidates = x.candidate_source_ids || [];
+      // Figures that only the excluded claim gives for its source. A figure that a verified ledger entry also gives for that source is fine.
+      const only = statsIn(x.claim).filter((tok) => !(statOwners[tok] && candidates.some((id) => statOwners[tok].has(id))));
+      if (!only.length || !only.every((tok) => segToks.includes(tok))) return;
+      const aboutIt = !!x.entity_words && (sp.includes(' ' + x.entity_words + ' ') || (exRowEntity && exRowEntity.name_words === x.entity_words));
+      const citesIt = cited.some((id) => candidates.includes(id));
+      const foreignStat = only.some((tok) => !ownStats.has(tok));
+      if (!aboutIt && !citesIt && !foreignStat) return;
+      const key = L + '|' + x.claim_id;
+      if (exclusionSeen.has(key)) return;
+      exclusionSeen.add(key);
+      add('BLOCKING', 'EXCLUDED CLAIM USED AS EVIDENCE', 'This text gives ' + only.join(' and ') + (aboutIt ? ' for ' + x.entity : '') + (cited.length ? ', citing ' + cited.join(', ') : '') + '. That is research claim ' + x.claim_id + ', which was excluded from the evidence (' + x.status.replace('_', ' ') + '): ' + String(x.reason || '').slice(0, 260) + '. Remove the statement, or keep the figure only as a clearly labeled planning assumption with no source and no company attached.', short(seg), L);
+    });
+    // A company with no verified claim at all: any cited statement about it rests on excluded material.
+    unverifiedEntities.forEach((e) => {
+      const aboutIt = sp.includes(' ' + e.name_words + ' ') || exRowEntity === e;
+      if (!aboutIt) return;
+      const key = L + '|' + e.name;
+      if (exclusionSeen.has(key)) return;
+      exclusionSeen.add(key);
+      if (cited.length) add('BLOCKING', 'EXCLUDED CLAIM USED AS EVIDENCE', 'This text describes ' + e.name + ' and cites ' + cited.join(', ') + ', but no claim about ' + e.name + ' could be verified on a source page. Every research claim about it was excluded.', short(seg), L);
+      else add('MAJOR', 'UNVERIFIED COMPANY DESCRIBED', 'This text describes ' + e.name + ', but no claim about it could be verified on a source page. Remove it or say plainly that nothing about it was verified.', short(seg), L);
+    });
+  });
+});
+
+if (integrity && Array.isArray(integrity.calls)) integrity.calls.forEach(`,
+  },
+  {
+    find: "Ledger entries marked attribution remapped were moved by code to the page of the company they name: the source_ids they carry now are the correct ones.",
+    replace: "Every ledger entry was checked by code against the text of the page in its source_ids, and its page_excerpt is the passage that supports it: those source_ids are the correct ones.",
+  },
+  {
+    find: "The user message lists LINES FLAGGED BY CODE FOR WORDING, with the matched words in brackets.",
+    replace: "22. Excluded claims: the user message lists EXCLUDED CLAIMS. Each was reported by the research tool and then failed verification against its source page: the page contradicted it, did not state it, could not be read, or is not credible evidence for it. None of them is evidence. Any plan statement that presents an excluded claim, its figures, or a conclusion drawn from it as fact or as sourced is BLOCKING, with or without a source ID, and in any wording. A company listed there with no verified claim must not be profiled, priced, or compared. A figure the plan uses as its own planning assumption is acceptable only when the sentence labels it as an assumption, gives no source ID, and attributes it to no company or study. A plan statement that goes beyond what a ledger entry's claim and page_excerpt say, for example turning a starting price into a fixed price or a range, or a monthly cost into a service price, is BLOCKING.\nThe user message lists LINES FLAGGED BY CODE FOR WORDING, with the matched words in brackets.",
+  },
+  {
+    find: "You can check citations only against the EVIDENCE LEDGER. You cannot see the source pages.",
+    replace: "You can check citations only against the EVIDENCE LEDGER. You cannot see the source pages; each ledger entry's page_excerpt is the passage of its page that code confirmed.",
+  },
+  {
+    find: "  '', 'RESEARCH GAPS', gaps || 'None recorded.',\n];",
+    replace: "  '', 'RESEARCH GAPS', gaps || 'None recorded.',\n  '', 'EXCLUDED CLAIMS (failed source-page verification; none of these is evidence)', excludedClaims.length ? excludedClaims.map((x) => x.claim_id + ' | ' + x.status.replace('_', ' ') + ' | ' + x.claim + ' | Reason: ' + String(x.reason || '').slice(0, 200)).join('\\n') : 'None.',\n];",
   },
 ];

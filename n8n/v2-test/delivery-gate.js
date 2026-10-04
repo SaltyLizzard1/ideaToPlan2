@@ -7,7 +7,7 @@ const fp = $('Finalize Plan').first().json;
 let findings = [];
 try { findings = $('Plan Revision Request').first().json.findings || []; } catch (e) {}
 
-const CITATION = /CITATION|FIGURE CITED TO THE WRONG SOURCE|UNSUPPORTED STATISTIC|SOURCE DATE NOTE|UNKNOWN SOURCE ID|UNVERIFIED FIGURE|CITED SOURCE MISSING|URL WRITTEN BY MODEL|citation|attribution|source quality/i;
+const CITATION = /CITATION|EXCLUDED CLAIM|SOURCE VERIFICATION|UNVERIFIED COMPANY|FIGURE CITED TO THE WRONG SOURCE|UNSUPPORTED STATISTIC|SOURCE DATE NOTE|UNKNOWN SOURCE ID|UNVERIFIED FIGURE|CITED SOURCE MISSING|URL WRITTEN BY MODEL|citation|attribution|source quality/i;
 const status = String(fp.status || '').toUpperCase();
 const blockers = findings.filter((f) => f.severity === 'BLOCKING');
 const known = ['SEND', 'REVIEW', 'HOLD'].includes(status);
