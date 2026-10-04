@@ -102,9 +102,10 @@ if (rev && res.qa_usage) addCall('Verification', 'Final QA (verification)', res.
 // Source verification: one model call per fetched page. Usage is summed from the responses that reported it.
 let verifierItems = [];
 try { verifierItems = $('Verify Claims').all().map((i) => i.json); } catch (e) {}
+try { verifierItems = verifierItems.concat($('Verify Corrections').all().map((i) => i.json)); } catch (e) {}
 const verifierMeasured = verifierItems.filter((r) => r && r.usage && typeof r.usage.cost === 'number');
 const verifierUnknown = verifierItems.length - verifierMeasured.length;
-if (verifierItems.length) calls.push({ stage: 'Source verification', node: 'Verify Claims', model: (verifierMeasured[0] && verifierMeasured[0].model) || '', call_count: verifierItems.length, calls_with_unknown_usage: verifierUnknown, input_tokens: verifierMeasured.reduce((p, r) => p + (r.usage.prompt_tokens || 0), 0), output_tokens: verifierMeasured.reduce((p, r) => p + (r.usage.completion_tokens || 0), 0), cost_usd: verifierMeasured.length ? verifierMeasured.reduce((p, r) => p + r.usage.cost, 0) : null });
+if (verifierItems.length) calls.push({ stage: 'Source verification', node: 'Verify Claims and Verify Corrections', model: (verifierMeasured[0] && verifierMeasured[0].model) || '', call_count: verifierItems.length, calls_with_unknown_usage: verifierUnknown, input_tokens: verifierMeasured.reduce((p, r) => p + (r.usage.prompt_tokens || 0), 0), output_tokens: verifierMeasured.reduce((p, r) => p + (r.usage.completion_tokens || 0), 0), cost_usd: verifierMeasured.length ? verifierMeasured.reduce((p, r) => p + r.usage.cost, 0) : null });
 let verifyStats = null;
 try { verifyStats = JSON.parse($('Build Evidence').first().json.source_integrity).verification; } catch (e) {}
 const unmetered = [];

@@ -40,6 +40,11 @@ const user = [
   '- A verified source is not a verified claim. Cite a source ID only for what one ledger entry states. Do not add detail about a company or page that its ledger entries do not state.',
   '- A conclusion you draw from the evidence is IdeaToPlan\'s inference. Word it as an inference and give it no source ID.',
   '- Competitors existing shows that competing offers exist. It is not evidence of buyers, sales, or willingness to pay. State demand as confirmed only when a ledger entry reports customers paying, spending, survey, or search-behavior evidence, and cite that entry. Otherwise state demand as a hypothesis that requires validation.',
+  '- The offer\'s own price is a planning assumption. Label it as one and give it no source ID. A page that states no price cannot support, inform, or benchmark a price: cite such pages only for the service descriptions they support. Never say the price is validated by the market.',
+  '- A competitor price in the ledger is the price of that competitor\'s own offer. Give its amount, currency, what it buys, its length, and any qualifier exactly as the ledger entry states them. Keep separate offers separate. Call it an adjacent reference point; never call it equivalent to this offer.',
+  '- Say that providers are paid, charge, or sell only when a ledger entry states a price or a charge for them. Otherwise describe what they offer.',
+  '- A market existing means offers are available. It is not demonstrated demand. Say that competing offers exist.',
+  '- One company\'s page supports statements about that company only. Do not generalize it to competitors, and do not add audiences, track records, or reputation that the ledger entry does not state.',
   '- W IDs are pages found by web search. They appear in the ledger only when verified and are used exactly like S IDs. Search listings themselves are not evidence and are not provided.',
   '- Judge source dates against the RUN DATE. Never call a date on or before the RUN DATE anomalous or future-dated.',
 ].join('\n');

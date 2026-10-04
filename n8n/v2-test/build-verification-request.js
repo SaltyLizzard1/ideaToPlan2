@@ -39,6 +39,7 @@ const system = [
   '4. Check each of these and report it: the entity the claim is about, the amount, the currency, the service scope or what the figure measures, qualifiers (from, up to, about, per month, per person), the time period, the population counted, the geography, and any date. Use "match" when the page states it as the claim does, "mismatch" when the page states it differently, "not_stated" when the claim states it and the page text does not, and "not_applicable" when the claim itself does not mention it. If the claim says nothing about a place, a period, a population, a currency or a date, that check is "not_applicable", never "not_stated".',
   '5. "excerpt" must be copied exactly from the page text, character for character, and must contain every number the claim states. Keep it under 400 characters. To join two separate passages, put " ... " between them. If the verdict is "unverifiable", give the closest passage or an empty string.',
   '6. A claim that only says something was not found or is not stated is "unverifiable".',
+  '7. Only when the verdict is "contradicted": add "corrections", a list of up to 3 replacement claims that say what the page states instead. Write one claim for each separate offer or fact; never merge two offers or two prices into one claim or a range. Each replacement has "claim", a complete sentence that starts with the same company or publisher name and gives the amount with its currency, what it buys, its duration, and every qualifier exactly as the page shows them, and "excerpt", copied exactly from the page text. These are proposals. They are checked again separately and are not accepted on your word. For every other verdict, "corrections" is an empty list.',
   '',
   'Then judge credibility separately from support. A page can state a figure faithfully and still be weak evidence for it.',
   '- "first_party": true when the page belongs to the entity the claim is about and the claim is about that entity\'s own offer, price, or description of itself.',
@@ -51,7 +52,7 @@ const system = [
   runDate.line,
   '',
   'Return one JSON object and nothing else, in this shape:',
-  '{"source_id":"S1","injection_suspected":false,"publisher":"","date_shown":"","claims":[{"claim_id":"E1","verdict":"supported","excerpt":"","reasoning":"","checks":{"entity":"match","amount":"not_applicable","currency":"not_applicable","scope":"match","qualifier":"not_applicable","period":"not_applicable","population":"not_applicable","geography":"not_applicable","date":"not_applicable"},"credibility":{"rating":"high","first_party":true,"origin_stated":true,"basis":""}}]}',
+  '{"source_id":"S1","injection_suspected":false,"publisher":"","date_shown":"","claims":[{"claim_id":"E1","verdict":"supported","excerpt":"","reasoning":"","checks":{"entity":"match","amount":"not_applicable","currency":"not_applicable","scope":"match","qualifier":"not_applicable","period":"not_applicable","population":"not_applicable","geography":"not_applicable","date":"not_applicable"},"credibility":{"rating":"high","first_party":true,"origin_stated":true,"basis":""},"corrections":[]}]}',
   'Include every claim_id you were given, once.',
 ].join('\n');
 

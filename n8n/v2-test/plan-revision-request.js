@@ -130,6 +130,8 @@ HOW TO FIX
 - Mismatched citation: use the source ID the EVIDENCE LEDGER gives for that exact claim, or remove the claim.
 - A verified source is not a verified claim. Keep a source ID only on what one ledger entry states. Put a conclusion in IdeaToPlan's own voice with no source ID.
 - Demand: competitors existing is not evidence of buyers, sales, or willingness to pay. Reword any such statement as a hypothesis that requires validation.
+- Price: the offer's own price is a planning assumption with no source ID. Remove a source ID from any sentence that ties the price to pages that state no price, and keep those pages only on the service descriptions they support. Never write that the price is market-validated. A competitor price keeps its amount, currency, what it buys, and its length, and is never called equivalent to this offer.
+- Payment and market: do not write that providers are paid or charge unless a ledger entry states a price for them. A market existing means offers are available, not that demand is shown. One company's page supports statements about that company only.
 - Dates: judge every date against the RUN DATE at the top of the user message. Never add a remark that a date is anomalous, future-dated, or suspicious, and remove such a remark when a finding asks for it.
 - Never add an external fact, number, source ID, URL, or name that is not in the EVIDENCE LEDGER.
 - Every financial figure you write must be copied exactly from FINANCIAL FACTS. Never calculate, total, or round. If the right figure is not there, reword without a number.

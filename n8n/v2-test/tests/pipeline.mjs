@@ -32,7 +32,8 @@ export const agreeable = ({ requests, pages, candidates }) => requests.map((r) =
 });
 
 // runMs sets the run clock (Founder Context.run_started_ms). Without it the nodes fall back to the real clock.
-export async function pipeline({ stubs = research(), ctx = replayContext(), pagesHook = (p) => p, verifier = agreeable, runMs } = {}) {
+// recheckVerifier answers the second, separate check of claims extracted after a contradiction. null means that check did not run.
+export async function pipeline({ stubs = research(), ctx = replayContext(), pagesHook = (p) => p, verifier = agreeable, recheckVerifier = agreeable, runMs } = {}) {
   const clock = runMs ? { 'Founder Context': { run_started_ms: runMs } } : {};
   const ce = await runNode('collect-evidence.js', { ...stubs, ...clock });
   const fp = await runNode('fetch-source-pages.js', { 'Collect Evidence': ce }, undefined, ctx);
@@ -44,9 +45,16 @@ export async function pipeline({ stubs = research(), ctx = replayContext(), page
   const responses = verifier ? verifier({ requests, pages, candidates }) : null;
   const evStubs = { 'Collect Evidence': ce, 'Fetch Source Pages': fp, 'Build Verification Request': reqItems, ...clock };
   if (responses) evStubs['Verify Claims'] = responses;
+  let recheck = [];
+  if (responses) {
+    const items = (await runNode('build-recheck-request.js', { 'Collect Evidence': ce, 'Build Verification Request': reqItems, 'Verify Claims': responses })).map((i) => i.json);
+    evStubs['Build Recheck Request'] = items;
+    recheck = items.filter((r) => !r.none);
+    if (recheck.length && recheckVerifier) evStubs['Verify Corrections'] = recheckVerifier({ requests: recheck, pages, candidates: recheck.flatMap((r) => r.corrections.map((k) => ({ claim_id: k.claim_id, claim: k.claim }))) });
+  }
   const ev = await runNode('build-evidence.js', evStubs);
   return {
-    ce, fp, pages, requests, candidates, ev, ctx,
+    ce, fp, pages, requests, candidates, ev, ctx, recheck,
     sources: JSON.parse(ev.sources),
     ledger: ev.verified_claims ? JSON.parse(ev.research_ledger) : [],
     excluded: JSON.parse(ev.excluded_claims),

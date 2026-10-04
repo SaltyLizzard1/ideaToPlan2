@@ -348,6 +348,40 @@ const DEMAND_VERB = /\b(?:confirm(?:s|ed|ing)?|prov(?:es|en|ed|ing)|demonstrat(?
 const DEMAND_NOUN = /\b(?:demand|willingness to pay|buyers|paying customers)\b/i;
 const DEMAND_HEDGE = /\b(?:no|not|none|never|without|neither|nor|cannot|unvalidated|untested|unproven|unknown|unconfirmed|hypothes[ie]s|assum\w*|whether|if|until|before|once|test(?:s|ed|ing)?|validate|to be (?:confirmed|validated|tested)|requires? validation|remains?|question|would|could|might|may)\b/i;
 const paysEvidence = (id) => (ledgerBySource[id] || []).some((c) => /^M3\b/.test(c.question || ''));
+// ---------- COMMERCIAL CLAIMS: PRICE, PAYMENT, MARKET, AND WHO A SOURCE SPEAKS FOR ----------
+// Evidence that a price or a payment exists on a page: a verified ledger entry on that source that states an amount of money.
+const MONEY_IN = /(?:US\$|\$|€|£)\s?\d|\b\d[\d,.]*\s?(?:USD|EUR|GBP)\b/;
+const priceEvidence = (id) => (ledgerBySource[id] || []).some((c) => MONEY_IN.test(String(c.claim || '') + ' ' + String(c.page_excerpt || '')));
+const ledgerHasPrice = evClaims.some((c) => MONEY_IN.test(String(c.claim || '') + ' ' + String(c.page_excerpt || '')));
+// A price said to rest on sources: "informed by", "based on", "benchmarked against", and the like.
+const PRICE_BASIS = /(?:\$\s?\d[\d,]*|\bprice(?:s|d)?\b|\bpricing\b|\bfees?\b)[^.]{0,200}?\b(?:informed by|based on|benchmark(?:ed)?(?: against)?|reference point|derived from|drawn from|supported by|consistent with|in line with|anchored (?:to|on|in)|reflect(?:s|ing))\b|\b(?:informed by|based on|benchmark(?:ed)?(?: against)?|derived from|drawn from|supported by|anchored (?:to|on|in))\b[^.]{0,200}?(?:\$\s?\d[\d,]*|\bprice(?:s|d)?\b|\bpricing\b)/i;
+const PRICE_VALIDATED = /\b(?:market[- ]validated|validated by (?:the )?market|market[- ]tested|proven price|price (?:point )?(?:is|has been) (?:validated|proven|confirmed|established)|(?:in line|consistent|competitive) with (?:what )?(?:the )?(?:market|competitors?)|(?:the )?(?:market|going) rate|competitively priced|what the market (?:pays|will bear|accepts))\b/i;
+const PRICE_EQUIVALENT = /\b(?:equivalent|the same (?:kind|type|service|offer|session)|like[- ]for[- ]like|directly comparable|identical|same as (?:this|our|your))\b/i;
+// "Paid" needs evidence of charging. A page that describes a service does not show that the service is charged for.
+const PAID_CLAIM = /\bpaid (?:relocation|lifestyle|consulting|coaching|guidance|planning|services?|help|support|sessions?|offers?|offerings?|programs?|advice|providers?)\b|\bcharg(?:e|es|ing) (?:for|clients|customers|a fee|fees)\b|\b(?:customers|clients|people|buyers) (?:pay|are paying|have paid|paid) for\b/i;
+const ABOUT_OTHERS = /\b(?:competitors?|providers?|compan(?:y|ies)|firms?|players?|rivals?|incumbents?|market|category|industry|sector|space|research)\b/i;
+// "A market exists" is a demand claim. Offers being available is not demand being shown.
+const MARKET_CLAIM = /\b(?:a |the )?market (?:for [^.,;]{0,120}? )?(?:exists|is real|is established|is proven|has been (?:established|proven|confirmed))\b|\bconfirm\w* (?:that )?(?:there is )?(?:a |the )?market\b|\bmarket (?:demand|need) (?:exists|is (?:real|proven|established|confirmed))\b/i;
+// One company's page cannot carry a claim about competitors in general.
+const MANY = /\b(?:competitors|providers|companies|firms|players|rivals|incumbents)\b/i;
+const EXEMPLAR = /\b(?:such as|including|for example|for instance|e\.g\.|like|one of|among)\b/i;
+// Source-date notes. They are checked as date statements (right source, right date, right age), not as commercial claims.
+const MONTH3 = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const DATE_TEXT = '(?:(?:\\d{1,2}(?:st|nd|rd|th)?\\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?\\s+(?:\\d{1,2}(?:st|nd|rd|th)?,?\\s+)?(?:19|20)\\d{2}|(?:19|20)\\d{2}-\\d{2}-\\d{2})';
+const DATED_NOTE = new RegExp('\\b(?:last\\s+)?(?:updated|published|dated)\\b\\s+(?:in\\s+|on\\s+|as\\s+of\\s+)?' + DATE_TEXT, 'i');
+const UNDATED_NOTE = /\bundated\b|\b(?:no|without a) (?:publication )?date\b/i;
+const statedDates = (s) => { const out = []; let m; const a = /\b(?:(\d{1,2})(?:st|nd|rd|th)?\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(?:(\d{1,2})(?:st|nd|rd|th)?,?\s+)?((?:19|20)\d{2})\b/gi; while ((m = a.exec(s)) !== null) out.push({ y: +m[4], mo: MONTH3.indexOf(m[2].toLowerCase()) }); const b = /\b((?:19|20)\d{2})-(\d{2})-\d{2}\b/g; while ((m = b.exec(s)) !== null) out.push({ y: +m[1], mo: +m[2] - 1 }); return out; };
+// The date-note wording is removed before a sentence is compared with the verified claims, so a note about a source's
+// age is not mistaken for an unsupported claim. Whatever else the sentence says is still compared.
+const stripDateNotes = (s) => String(s)
+  .replace(/\((?:sources?|note)\b[^)]*\)/gi, ' ')
+  .replace(new RegExp('\\b(?:was|is|were|are)?\\s*(?:last\\s+)?(?:updated|published|dated)\\b\\s+(?:in\\s+|on\\s+|as\\s+of\\s+)?' + DATE_TEXT, 'gi'), ' ')
+  .replace(/,?\s*\b(?:which is\s+)?(?:more|less) than \d+ months (?:before|old|ago)[^.;]*/gi, ' ')
+  .replace(/\b(?:all\s+)?(?:competitor\s+)?sources?(?:\s+cited\s+(?:below|above|here))?\s+(?:are|is)\s+undated\b/gi, ' ')
+  .replace(/\bsources?\s+undated\b|\bundated\b/gi, ' ')
+  .replace(/\bverify currency[^.;]*/gi, ' ')
+  .replace(/\bservice details may have changed\b/gi, ' ')
+  .replace(/^\s*note:\s*/i, ' ');
 const claimSeen = new Set();
 lines.forEach((line, i) => {
   const t = line.trim();
@@ -365,7 +399,8 @@ lines.forEach((line, i) => {
     const backed = cited.filter((id) => ledgerBySource[id]);
     if (backed.length) {
       const evidence = new Set(backed.flatMap((id) => ledgerBySource[id].flatMap((c) => contentWords(c.claim + ' ' + (c.page_excerpt || '') + ' ' + (c.entity || '')))));
-      const said = contentWords(seg);
+      // Date-note wording is checked separately (check 5) and is left out of this comparison; the rest of the sentence is not.
+      const said = contentWords(stripDateNotes(seg));
       const missing = said.filter((w) => !evidence.has(w));
       if (said.length >= 8 && (said.length - missing.length) / said.length < 0.25 && !claimSeen.has(L + '|beyond|' + backed.join())) {
         claimSeen.add(L + '|beyond|' + backed.join());
@@ -377,6 +412,56 @@ lines.forEach((line, i) => {
       if (!(DEMAND_FLAT.test(clause) || (DEMAND_VERB.test(clause) && DEMAND_NOUN.test(clause))) || DEMAND_HEDGE.test(clause) || claimSeen.has(L + '|demand')) return;
       claimSeen.add(L + '|demand');
       add('BLOCKING', 'DEMAND STATED AS CONFIRMED', 'This text states that buyers, demand, or willingness to pay exist, and no cited ledger entry reports customers paying, spending, or survey evidence. Competitors existing shows that competing offers exist; it does not show buyers, sales, or willingness to pay. Reword it as a hypothesis that requires validation.', short(clause), L);
+    });
+    // 5. A source-date note must name the right source, the right date, and the right age.
+    if (cited.length && (DATED_NOTE.test(seg) || UNDATED_NOTE.test(seg))) {
+      const wrong = [];
+      const stated = DATED_NOTE.test(seg) ? statedDates(seg) : [];
+      cited.forEach((id) => {
+        const src = srcById[id];
+        const iso = String(src.published_iso || '');
+        if (!stated.length) { if (!/date not shown/i.test(String(src.published || ''))) wrong.push(id + ' is called undated, but its page shows "' + src.published + '"'); return; }
+        if (!iso) { if (cited.length === 1) wrong.push('the text gives ' + id + ' a date, but no date was verified on its page'); return; }
+        const y = +iso.slice(0, 4), mo = +iso.slice(5, 7) - 1;
+        if (!stated.some((d) => d.y === y && (d.mo < 0 || d.mo === mo))) wrong.push('the text dates ' + id + ' differently from its page, which shows "' + src.published + '"');
+        const age = seg.match(/\b(more|less) than (\d+) months\b/i);
+        if (age) { const months = (runDate.ms - Date.parse(iso + 'T00:00:00Z')) / (30.4375 * 86400000); const n = +age[2]; if ((/more/i.test(age[1]) && !(months > n)) || (/less/i.test(age[1]) && !(months < n))) wrong.push('the text says ' + id + ' is ' + age[0].toLowerCase() + ' before the plan date, but its page date ' + iso + ' is ' + Math.round(months) + ' months before the run date ' + runDate.iso); }
+      });
+      if (wrong.length && !claimSeen.has(L + '|datenote')) { claimSeen.add(L + '|datenote'); add('BLOCKING', 'SOURCE DATE NOTE IS WRONG', 'A note about a source date does not match the record: ' + wrong.join('; ') + '. Correct the note or remove it.', short(seg), L); }
+    }
+    seg.split(/,\s*(?:but|though|although|however|yet|while)\b|\s+but\s+|;/i).forEach((clause) => {
+      const hedged = DEMAND_HEDGE.test(clause);
+      const cl = [...new Set(clause.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);
+      const citedHere = cl.length ? cl : cited;
+      // 6. A price said to rest on sources that state no price.
+      if (PRICE_BASIS.test(clause) && citedHere.length) {
+        const hollow = citedHere.filter((id) => !priceEvidence(id));
+        if (hollow.length && !claimSeen.has(L + '|pricebasis')) { claimSeen.add(L + '|pricebasis'); add('BLOCKING', 'PRICE CITED TO SOURCES WITHOUT PRICES', 'This text ties a price to ' + hollow.join(', ') + ', but no verified claim from ' + (hollow.length === 1 ? 'that page' : 'those pages') + ' states a price. A page with no price cannot support an amount. Keep the price as a clearly labeled planning assumption with no source ID, and cite those pages only for the service descriptions they support.', short(clause), L); }
+      }
+      // 7. A price presented as validated by the market.
+      if (PRICE_VALIDATED.test(clause) && !hedged && /\$\s?\d|\bprice|\bpricing|\bpriced\b/i.test(clause) && !claimSeen.has(L + '|pricevalid')) { claimSeen.add(L + '|pricevalid'); add('BLOCKING', 'PRICE STATED AS MARKET-VALIDATED', 'This text presents a price as validated by the market or in line with competitors. Nothing in the evidence validates this offer\'s price. State it as a planning assumption that has not been tested.', short(clause), L); }
+      // 8. A competitor's price treated as the price of an equivalent offer.
+      if (PRICE_EQUIVALENT.test(clause) && !hedged && citedHere.some(priceEvidence) && /\$\s?\d/.test(clause) && !claimSeen.has(L + '|priceequiv')) { claimSeen.add(L + '|priceequiv'); add('BLOCKING', 'COMPETITOR PRICE TREATED AS EQUIVALENT', 'This text treats a competitor\'s price as the price of an equivalent offer. A cited price is the price of that competitor\'s own offer, with its own length and scope. Say what it buys and call it an adjacent reference point, not an equivalent.', short(clause), L); }
+      // 8b. A price cited to a page must be a price that was verified on that page. The existing figure check lets an
+      //     amount through when it can be derived from the plan's own model, so cited prices are checked here as well.
+      if (citedHere.length && citedHere.every(priceEvidence)) {
+        const verifiedAmounts = new Set(citedHere.flatMap((id) => ledgerBySource[id].flatMap((c) => (String(c.claim || '') + ' ' + String(c.page_excerpt || '')).match(/\$\s?\d[\d,]*(?:\.\d+)?/g) || [])).map((m) => m.replace(/[\s,$]/g, '').replace(/\.00$/, '')));
+        const strange = [...new Set((clause.match(/\$\s?\d[\d,]*(?:\.\d+)?/g) || []).filter((m) => !verifiedAmounts.has(m.replace(/[\s,$]/g, '').replace(/\.00$/, '')) && !allowed.has(normMoney(m))))];
+        if (strange.length && !claimSeen.has(L + '|citedprice')) { claimSeen.add(L + '|citedprice'); add('BLOCKING', 'CITED PRICE NOT IN THE VERIFIED CLAIM', 'This text gives ' + strange.join(' and ') + ' and cites ' + citedHere.join(', ') + ', but the prices verified on ' + (citedHere.length === 1 ? 'that page' : 'those pages') + ' are ' + ([...verifiedAmounts].map((v) => '$' + v).join(', ') || 'none') + '. Give the price exactly as the ledger entry states it.', short(clause), L); }
+      }
+      // 9. "Paid" stated about other providers with no evidence that anything is charged.
+      if (PAID_CLAIM.test(clause) && !hedged && (citedHere.length || ABOUT_OTHERS.test(clause))) {
+        const shown = citedHere.length ? citedHere.every(priceEvidence) : ledgerHasPrice;
+        if (!shown && !claimSeen.has(L + '|paid')) { claimSeen.add(L + '|paid'); add('BLOCKING', 'PAYMENT STATED WITHOUT EVIDENCE', 'This text says the services are paid for or charged for' + (citedHere.length ? ', citing ' + citedHere.join(', ') : '') + ', but ' + (citedHere.length ? 'no verified claim from ' + citedHere.filter((id) => !priceEvidence(id)).join(', ') + ' states a price or a charge' : 'the evidence ledger holds no price or charge at all') + '. A page that describes a service does not show that it is paid for. Describe what the providers offer, without "paid", or cite a verified price.', short(clause), L); }
+      }
+      // 10. "A market exists" stated as confirmed. Available offers are not demonstrated demand.
+      if (MARKET_CLAIM.test(clause) && !hedged && !citedHere.some(paysEvidence) && !claimSeen.has(L + '|demand')) { claimSeen.add(L + '|demand'); add('BLOCKING', 'DEMAND STATED AS CONFIRMED', 'This text says a market exists or is confirmed. The evidence shows that offers are available; it does not show demand, buyers, or sales. Say that competing offers exist, and state demand as a hypothesis that requires validation.', short(clause), L); }
+      // 11. One company's page cited for a statement about competitors in general.
+      if (MANY.test(clause) && !EXEMPLAR.test(clause) && citedHere.length) {
+        const owners = [...new Set(citedHere.map((id) => entityOfSource[id]).filter(Boolean).map((e) => e.name))];
+        const named = entities.some((e) => spaced(clause).includes(' ' + e.name_words + ' '));
+        if (owners.length === 1 && citedHere.every((id) => entityOfSource[id]) && !named && !claimSeen.has(L + '|many')) { claimSeen.add(L + '|many'); add('BLOCKING', 'ONE SOURCE CITED FOR A CLAIM ABOUT MANY', 'This text makes a statement about competitors in general and cites only ' + citedHere.join(', ') + ', the page of ' + owners[0] + '. One company\'s page supports a statement about that company only. Name the company and say what its page states, or remove the general claim.', short(clause), L); }
+      }
     });
     // 4. A source date that is on or before the run date is not anomalous, and the plan must not say it is.
     const lineCited = [...new Set(t.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);
@@ -402,6 +487,15 @@ const hintOf = (l) => {
   banned.forEach(([, re]) => { const b = l.match(re); if (b) hits.push(b[0]); });
   return [...new Set(hits.map((h) => h.toLowerCase()))];
 };
+// Lines that make a commercial claim. Code cannot judge meaning, so the reviewer is given each one to judge.
+const commercialRe = /\b(demand|buyers?|paying|paid|pays?|willing(?:ness)? to pay|market|price[ds]?|pricing|charg(?:e|es|ing)|sales|revenue|audiences?|customer base|track records?|established)\b/gi;
+const commercialLines = lines.map((l, i) => {
+  const t = l.trim();
+  if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || /computed\]/.test(t)) return '';
+  const words = [...new Set((t.match(commercialRe) || []).map((w) => w.toLowerCase()))];
+  if (!words.length || !(/\b[SW]\d+\b/.test(t) || /\b(?:confirm|prov|establish|validat|show|demonstrat|indicat|suggest)\w*/i.test(t))) return '';
+  return '[L' + (i + 1) + '] [' + words.join(', ') + '] ' + t.slice(0, 420);
+}).filter(Boolean).slice(0, 60).join('\n');
 const claimLines = lines.map((l, i) => {
   const t = l.trim();
   if (!t || t.startsWith('#') || protectedText.has(t)) return '';
@@ -449,7 +543,10 @@ CHECKS
 20. Source quality: W sources are pages found by web search. A search listing is not evidence. A W ID is usable only through a ledger entry verified on that page, exactly like an S ID; a W ID with no ledger entry is BLOCKING. A market figure or trend resting on a source whose kind or domain shows a vendor blog, list article, or directory. A material claim whose ledger entry is itself vague about what the source states. You cannot open the source pages, so do not report "could not confirm the page" as a finding. Judge only the sources the plan cites. A source that was retrieved but is never cited is not part of the delivered plan and is not printed in its Sources section: never report it, and never report a claim as possibly resting on it.
 21. Attribution: for every cited claim, find the EVIDENCE LEDGER entry it rests on. A verified source is not a verified claim: the ledger lists what was verified on each page, and nothing else about that page or company is sourced. A sentence may carry a source ID only for what one ledger entry's claim and page_excerpt state. A conclusion drawn from an entry (demand, buyers, market size, a trend, a gap) must be worded as IdeaToPlan's inference and must not read as if the source said it; when it reads as sourced, it is BLOCKING. The source ID must be one of that entry's source_ids, and any company the sentence names must be the company that entry is about. A source ID that exists in SOURCES but belongs to a different company, or to a ledger entry that says something else, is BLOCKING: a real ID on the wrong claim is as serious as an invented one. A price must keep its currency, what it buys, and whether it is a fixed price, a starting price, or a range, exactly as the ledger entry states. A statistic must keep the population, geography, and year the ledger entry states. A note about a source's age must sit on the source it describes: check it against that source's published value in SOURCES. A figure from a source that is undated, a vendor blog, or a list article must be worded as that source's estimate every time it appears, including in the Executive Summary and the Viability Assessment; repeating a figure does not make it established. Every ledger entry was checked by code against the text of the page in its source_ids, and its page_excerpt is the passage that supports it: those source_ids are the correct ones.
 22. Excluded claims: the user message lists EXCLUDED CLAIMS. Each was reported by the research tool and then failed verification against its source page: the page contradicted it, did not state it, could not be read, or is not credible evidence for it. None of them is evidence. Any plan statement that presents an excluded claim, its figures, or a conclusion drawn from it as fact or as sourced is BLOCKING, with or without a source ID, and in any wording. A company listed there with no verified claim must not be profiled, priced, or compared. A figure the plan uses as its own planning assumption is acceptable only when the sentence labels it as an assumption, gives no source ID, and attributes it to no company or study. A plan statement that goes beyond what a ledger entry's claim and page_excerpt say, for example turning a starting price into a fixed price or a range, or a monthly cost into a service price, is BLOCKING.
-23. Demand: the existence of competitors shows that competing offers exist. It does not show buyers, sales, or willingness to pay. A statement that demand, buyers, paying customers, a customer base, or willingness to pay exists or is confirmed, proven, or established needs a ledger entry that reports customers paying, spending, survey, or search-behavior evidence, cited on that sentence. Without one it is BLOCKING, including when it is softened with suggests or indicates. The acceptable wording is a hypothesis that requires validation.
+23. Demand: the existence of competitors shows that competing offers exist. A market existing means offers are available; it is not demonstrated demand. It does not show buyers, sales, or willingness to pay. A statement that demand, buyers, paying customers, a customer base, or willingness to pay exists or is confirmed, proven, or established needs a ledger entry that reports customers paying, spending, survey, or search-behavior evidence, cited on that sentence. Without one it is BLOCKING, including when it is softened with suggests or indicates. The acceptable wording is a hypothesis that requires validation.
+24. Prices and payment. The offer's own price is a planning assumption unless the founder reports sales at it; it must be labeled as an assumption and carry no source ID. A page that states no price cannot support, inform, or benchmark a price, and a sentence that ties the price to such pages is BLOCKING. A competitor price in the ledger is the price of that competitor's own offer: the sentence must keep its amount, currency, what it buys, its length, and any qualifier exactly as the ledger entry and its page_excerpt state them, must keep separate offers separate, and must not call it equivalent to this offer or say it validates this offer's price. Saying that providers are paid, charge, or sell needs a ledger entry that states a price or a charge for those providers; a service description alone does not show it. Any statement that this offer's price is validated by the market is BLOCKING.
+25. Who a source speaks for. One company's page supports statements about that company only. A statement about competitors, providers, or the market in general that cites one company's page, or adds detail the page does not state (for example audiences, track records, or reputation), is BLOCKING.
+26. Meaning, not keywords. The user message lists LINES THAT MAKE COMMERCIAL CLAIMS. Read each one for what it asserts. Decide whether it claims demand, buyers, sales, payment, a market, or a validated price, in any wording, and whether a ledger entry cited on that line states it. Report every line that asserts more than its evidence, under the check it breaks. A line that only says offers exist, or that labels demand or price as an assumption or hypothesis, is acceptable.
 The user message lists LINES FLAGGED BY CODE FOR WORDING, with the matched words in brackets. Judge every one of those lines under checks 1, 4, 16 and 17. Report the ones that are unsupported; ignore the ones that are already framed as an assumption, a hypothesis, a test, or a recommendation, or that sit inside a quoted founder answer.
 
 You can check citations only against the EVIDENCE LEDGER. You cannot see the source pages; each ledger entry's page_excerpt is the passage of its page that code confirmed.
@@ -493,6 +590,7 @@ if (!attempt) {
     ...shared,
     '', 'AUTOMATED CHECK RESULTS', qcReport,
     '', 'LINES FLAGGED BY CODE FOR WORDING (matched words in brackets; report only the real problems)', claimLines,
+    '', 'LINES THAT MAKE COMMERCIAL CLAIMS (matched words in brackets; judge the meaning of each under checks 21, 23, 24, 25 and 26)', commercialLines || 'None.',
     '', 'PLAN TO REVIEW', numbered,
   ].join('\n');
 } else {

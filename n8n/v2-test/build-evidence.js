@@ -55,9 +55,9 @@ const answers = {};
 const pageMeta = {};
 const verifierProblems = [];
 let verifyCost = 0;
-requests.forEach((req, i) => {
+const readBatch = (reqs, resps) => reqs.forEach((req, i) => {
   if (!req || req.none || !req.source_id) return;
-  const res = responses[i];
+  const res = resps[i];
   const fail = (why) => { verifierProblems.push({ source_id: req.source_id, claim_ids: req.claim_ids, problem: why }); (req.claim_ids || []).forEach((cid) => { answers[cid + '|' + req.source_id] = { malformed: why }; }); };
   if (!res) return fail('the verifier returned nothing for this page');
   if (res.usage && typeof res.usage.cost === 'number') verifyCost += res.usage.cost;
@@ -84,6 +84,24 @@ requests.forEach((req, i) => {
     answers[cid + '|' + req.source_id] = x;
   });
 });
+readBatch(requests, responses);
+
+// Corrections. A contradicted claim may come with a proposal of what the page says instead. Build Recheck Request
+// turned each proposal into a new candidate claim, and a second, separate verifier call checked it. Those answers are
+// read exactly like the first ones, and the new claims then pass through the same code checks below. Nothing is
+// accepted because the first verifier proposed it.
+let recheckRequests = [];
+try { recheckRequests = $('Build Recheck Request').all().map((i) => i.json).filter((r) => r && !r.none && r.source_id); } catch (e) {}
+let recheckResponses = [];
+try { recheckResponses = $('Verify Corrections').all().map((i) => i.json); } catch (e) {}
+readBatch(recheckRequests, recheckResponses);
+const firstPass = {};
+candidates.forEach((c) => { firstPass[c.claim_id] = c; });
+recheckRequests.forEach((r) => (r.corrections || []).forEach((k) => {
+  const o = firstPass[k.corrects];
+  if (!o || !k.claim_id || firstPass[k.claim_id]) return;
+  candidates.push({ claim_id: k.claim_id, call: o.call, question: o.question, claim: k.claim, source_type: o.source_type, reported_published: 'date not shown', url_given: '', markers: [], entity: o.entity, candidate_source_ids: [r.source_id], candidate_basis: ['the fetched page, after research claim ' + k.corrects + ' was contradicted'], corrects: k.corrects });
+}));
 
 // ---------- 2. Deterministic checks. ----------
 const CUR = { '$': 'USD', 'us$': 'USD', usd: 'USD', dollars: 'USD', dollar: 'USD', '€': 'EUR', eur: 'EUR', euros: 'EUR', euro: 'EUR', '£': 'GBP', gbp: 'GBP', pounds: 'GBP', cad: 'CAD', aud: 'AUD', thb: 'THB', baht: 'THB' };
@@ -217,12 +235,16 @@ candidates.forEach((c) => {
       retrieved_at: page.retrieved_at,
     };
     if (c.entity) entry.entity = c.entity.name;
+    if (c.corrects) { entry.derived_from = c.corrects; entry.attribution = 'extracted from the fetched page after research claim ' + c.corrects + ' was contradicted, then verified by a separate check'; }
     claims.push(entry);
     return;
   }
   const worst = pairs.slice().sort((a, b) => RANK[a.status] - RANK[b.status])[0] || { status: 'unverifiable', kind: 'no_source', reasons: ['the research tool gave no retrievable source for it'], source_id: '' };
-  excluded.push({ claim_id: c.claim_id, question: c.question, claim: c.claim, entity: c.entity ? c.entity.name : '', entity_words: c.entity ? c.entity.name_words : '', status: worst.status, kind: worst.kind, reason: worst.reasons.join('; '), candidate_source_ids: c.candidate_source_ids, figures: [...new Set(figures(c.claim).map((f) => f.key))] });
+  excluded.push({ claim_id: c.claim_id, question: c.question, claim: c.claim, entity: c.entity ? c.entity.name : '', entity_words: c.entity ? c.entity.name_words : '', status: worst.status, kind: worst.kind, reason: worst.reasons.join('; '), candidate_source_ids: c.candidate_source_ids, figures: [...new Set(figures(c.claim).map((f) => f.key))], corrects: c.corrects || '' });
 });
+// Correction history: each rejected original keeps the list of claims extracted in its place and what became of them.
+const correctionHistory = candidates.filter((c) => c.corrects).map((c) => ({ original: c.corrects, claim_id: c.claim_id, claim: c.claim, outcome: claims.some((k) => k.claim_id === c.claim_id) ? 'verified' : 'excluded', reason: (excluded.find((x) => x.claim_id === c.claim_id) || {}).reason || '' }));
+excluded.forEach((x) => { const mine = correctionHistory.filter((h) => h.original === x.claim_id); if (mine.length) x.corrections = mine.map((h) => ({ claim_id: h.claim_id, outcome: h.outcome })); });
 
 // The latest calendar date written in a string, as a UTC timestamp, or null when none can be read.
 const MONTH_NO = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
@@ -282,7 +304,7 @@ const entities = entityList.map((e) => {
 // Search listings are not research questions: they get one summary line and no detail.
 const LABEL = { contradicted: 'the source page contradicts it', not_credible: 'its source is not credible evidence for it', unverifiable: 'it could not be verified on its source page' };
 const fromSearch = (x) => /^W /.test(x.question || '');
-excluded.filter((x) => !fromSearch(x)).forEach((x) => gaps.push((x.question ? x.question + ': ' : '') + 'Excluded claim ' + x.claim_id + ' (' + LABEL[x.status] + ')' + (x.entity ? ', about ' + x.entity : '') + '. It is not evidence. Its content is withheld. Do not state anything this research question would have answered unless a ledger entry states it.'));
+excluded.filter((x) => !fromSearch(x) && !x.corrects).forEach((x) => gaps.push((x.question ? x.question + ': ' : '') + 'Excluded claim ' + x.claim_id + ' (' + LABEL[x.status] + ')' + (x.entity ? ', about ' + x.entity : '') + '. It is not evidence. Its content is withheld. Do not state anything this research question would have answered unless a ledger entry states it.'));
 const listingsExcluded = excluded.filter(fromSearch).length;
 if (listingsExcluded) gaps.push(listingsExcluded + ' page' + (listingsExcluded === 1 ? '' : 's') + ' found by web search could not be verified. They are not evidence and are not listed.');
 entities.filter((e) => !e.verified_claims).forEach((e) => gaps.push('No verified evidence exists about ' + e.name + '. Do not describe its offer, price, customers or history, and do not cite a source for it.'));
@@ -302,12 +324,14 @@ const verification = {
   excluded_for_punctuation_only: excluded.filter((x) => x.kind === 'deterministic_punctuation').length,
   pages_requested: pages.length,
   pages_read: pages.filter((p) => p.outcome === 'ok').length,
-  verifier_calls: requests.filter((r) => r && !r.none).length,
+  verifier_calls: requests.filter((r) => r && !r.none).length + recheckRequests.length,
+  corrections_proposed: correctionHistory.length,
+  corrections_verified: correctionHistory.filter((h) => h.outcome === 'verified').length,
   verifier_problems: verifierProblems,
   fetch_ms: fp.fetch_ms || 0,
   verify_ms: requests.length && requests[0].t_ms ? Date.now() - requests[0].t_ms : 0,
   verify_cost_usd: Math.round(verifyCost * 10000) / 10000,
-  verify_calls_without_cost: responses.filter((r) => !(r && r.usage && typeof r.usage.cost === 'number')).length,
+  verify_calls_without_cost: responses.concat(recheckResponses).filter((r) => !(r && r.usage && typeof r.usage.cost === 'number')).length,
   run_date: runDate.iso,
 };
 
@@ -321,7 +345,7 @@ return {
   run_date: runDate.iso,
   entities: JSON.stringify(entities),
   excluded_claims: JSON.stringify(excluded),
-  source_integrity: JSON.stringify({ calls: JSON.parse(ce.calls || '[]'), failed_calls: failedCalls, verification, verified_on_another_candidate: moved }, null, 1),
+  source_integrity: JSON.stringify({ calls: JSON.parse(ce.calls || '[]'), failed_calls: failedCalls, verification, verified_on_another_candidate: moved, corrections: correctionHistory }, null, 1),
   verification_log: JSON.stringify(log),
   verified_claims: claims.length,
   excluded_claim_count: excluded.length,
