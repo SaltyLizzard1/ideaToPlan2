@@ -1,0 +1,35 @@
+// Delivery Gate: decides whether this plan version may enter the approval flow.
+// A plan with any BLOCKING finding is held: its version row is written as changes_requested, no approval email is
+// sent, and so there is no Approve button that could release it. MAJOR and MINOR findings are warnings; they go to
+// the reviewer in the approval email and do not stop the approval flow.
+// The gate fails closed: an unreadable or unexpected review status is treated as a block.
+const fp = $('Finalize Plan').first().json;
+let findings = [];
+try { findings = $('Plan Revision Request').first().json.findings || []; } catch (e) {}
+
+const CITATION = /CITATION|FIGURE CITED TO THE WRONG SOURCE|UNSUPPORTED STATISTIC|SOURCE DATE NOTE|UNKNOWN SOURCE ID|UNVERIFIED FIGURE|CITED SOURCE MISSING|URL WRITTEN BY MODEL|citation|attribution|source quality/i;
+const status = String(fp.status || '').toUpperCase();
+const blockers = findings.filter((f) => f.severity === 'BLOCKING');
+const known = ['SEND', 'REVIEW', 'HOLD'].includes(status);
+const blocked = !known || status === 'HOLD' || blockers.length > 0;
+const citationBlockers = blockers.filter((f) => CITATION.test(String(f.check || '')));
+
+const line = (f) => '- ' + (f.id || 'no id') + ' | ' + (f.check || 'unnamed check') + (f.line ? ' | L' + f.line : '') + ': ' + String(f.problem || '').slice(0, 320);
+const reason = !known
+  ? 'The review status could not be read (' + (fp.status === undefined ? 'missing' : String(fp.status)) + '), so the plan is held.'
+  : blockers.length
+    ? blockers.length + ' blocking finding' + (blockers.length === 1 ? '' : 's') + ' remain' + (blockers.length === 1 ? 's' : '') + ', ' + citationBlockers.length + ' of them about citations or sources.'
+    : status === 'HOLD' ? 'The final review set the status to HOLD. See the review report.' : '';
+
+return {
+  blocked,
+  version_status: blocked ? 'changes_requested' : 'awaiting_approval',
+  review_status: known ? status : 'HOLD',
+  reason,
+  blocker_count: blockers.length,
+  citation_blocker_count: citationBlockers.length,
+  warning_count: findings.filter((f) => f.severity === 'MAJOR').length,
+  minor_count: findings.filter((f) => f.severity === 'MINOR').length,
+  blockers_text: blockers.length ? blockers.map(line).join('\n') : 'None listed. See the review report.',
+  warnings_text: findings.filter((f) => f.severity === 'MAJOR').map(line).join('\n') || 'None.',
+};

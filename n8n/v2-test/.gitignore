@@ -1,0 +1,3 @@
+# Raw execution output from n8n. Holds founder inputs and generated plans, so it stays local.
+# The regression tests read these files; without them the tests cannot run.
+fixtures/
