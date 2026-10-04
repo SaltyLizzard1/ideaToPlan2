@@ -2,12 +2,14 @@
 // Run: node n8n/v2-test/tests/capture-pages.mjs
 // It runs the real Fetch Source Pages code with a live request helper and saves every response, one per hop,
 // to fixtures/pages/replay.json. A plain GET with the same headers the node sends. Nothing is rendered or altered.
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { runNode, fixture, PAGES } from './harness.mjs';
 
-const saved = {};
+// Addresses already captured are replayed, not fetched again, so earlier fixtures stay exactly as they were.
+const saved = existsSync(PAGES) ? JSON.parse(readFileSync(PAGES, 'utf8')) : {};
 const ctx = { helpers: { httpRequest: async (opts) => {
+  if (saved[opts.url]) { const o = saved[opts.url]; if (o.error) { const e = new Error(o.error); e.code = o.code; throw e; } return { statusCode: o.statusCode, headers: o.headers || {}, body: o.body }; }
   try {
     const r = await fetch(opts.url, { method: 'GET', redirect: 'manual', headers: opts.headers, signal: AbortSignal.timeout(opts.timeout) });
     const headers = {};

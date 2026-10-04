@@ -101,7 +101,9 @@ test('a claim with a page address is checked against that page first, and a clai
   assert.equal(siteOfClaim(p, fb), 'freedomandbeyond.co');
   assert.match(fb.attribution, /page address given by the research tool/);
   assert.ok(!p.ledger.some((c) => /Madeup Movers/.test(c.claim)));
-  assert.match(p.ev.research_gaps, /Madeup Movers/);
+  assert.ok(p.excluded.some((x) => /Madeup Movers/.test(x.claim)));
+  // The excluded claim's own words are withheld from the writer.
+  assert.ok(!/Madeup Movers|987/.test(p.ev.research_gaps));
   // The address the research tool wrote was not a retrieved source, so it was never fetched.
   assert.ok(!p.ctx.calls.some((u) => /madeup-movers/.test(u)));
 });

@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { runNode, fixture, clone, replayContext } from './harness.mjs';
 import { pipeline, research, withRenderedFB, RENDERED_FB, answer, reply, agreeable, excerptNear, ws } from './pipeline.mjs';
 
-const growthOnly = (lines) => { const s = research(); s['Growth Research'].choices[0].message.content = '## C1 Direct competitors\n' + lines.join('\n') + '\n'; s['Market Research'] = { choices: [{ message: { content: '' } }] }; return s; };
+const growthOnly = (lines) => { const s = research(); s['Growth Research'].choices[0].message.content = '## C1 Direct competitors\n' + lines.join('\n') + '\n'; s['Market Research'] = { choices: [{ message: { content: '' } }] }; s['Brave Search'] = { web: { results: [] } }; return s; };
 const FB = (text) => 'CLAIM: ' + text + ' | SOURCE TYPE: company own website | PUBLISHED: date not shown | URL: https://freedomandbeyond.co/ [10]';
 const scripted = (byClaim) => ({ requests, pages, candidates }) => requests.map((r) => reply(r.source_id, r.claim_ids.map((id) => { const c = candidates.find((x) => x.claim_id === id); const page = pages.find((p) => p.source_id === r.source_id); const over = byClaim(c, page, r) || {}; return answer(id, { excerpt: excerptNear(c.claim, page.text), ...over }); })));
 const excludedOf = (r, re) => r.excluded.find((x) => re.test(x.claim));
@@ -31,7 +31,7 @@ test('[code] fetch: each address is requested once, and only pages a claim could
   const r = await pipeline();
   const first = r.ctx.calls.filter((u) => r.pages.some((p) => p.requested_url === u));
   assert.equal(new Set(first).size, first.length, 'no address is requested twice');
-  assert.equal(r.pages.length, 25);
+  assert.equal(r.pages.length, 30);
   const cited = new Set(r.candidates.flatMap((c) => c.candidate_source_ids));
   r.pages.forEach((p) => assert.ok(cited.has(p.source_id)));
   r.pages.forEach((p) => { assert.ok(p.requested_url && p.retrieved_at && p.outcome); assert.match(p.retrieved_at, /^\d{4}-\d\d-\d\dT/); });
@@ -189,7 +189,7 @@ test('[code, given the model\'s answer] the 72 million statistic does not pass b
   assert.match(excludedOf(med, /72 million/).reason, /no traceable origin/);
   // The excluded figure is withheld from what the writer sees.
   assert.ok(!/72 million/.test(low.ev.research_gaps));
-  assert.match(low.ev.research_gaps, /Excluded claim E36 \(its source is not credible evidence for it\)/);
+  assert.match(low.ev.research_gaps, /Excluded claim E36 \(its source is not credible evidence for it\)\. It is not evidence\. Its content is withheld/);
   // LIMIT, stated on purpose: if the model rates the page credible and says the origin is stated, code alone does not exclude it.
   assert.ok(base.ledger.some(is72), 'with an always-agreeing verifier the figure passes; this part rests on model judgment');
 });
@@ -259,7 +259,7 @@ test('[code] stable IDs: source and claim IDs are issued once and survive verifi
   const all = (r) => r.ledger.map((c) => [c.claim_id, c.claim]).concat(r.excluded.map((c) => [c.claim_id, c.claim])).sort((x, y) => parseInt(x[0].slice(1), 10) - parseInt(y[0].slice(1), 10));
   assert.deepEqual(all(a), a.candidates.map((c) => [c.claim_id, c.claim]));
   assert.deepEqual(all(a), all(b), 'a claim keeps its ID whether it is verified or excluded');
-  assert.equal(a.ledger.length + a.excluded.length, 50);
+  assert.equal(a.ledger.length + a.excluded.length, 55);
 });
 
 test('[code] one failed page or claim does not discard unrelated verified evidence', async () => {
@@ -309,7 +309,7 @@ test('[code] malformed verifier output never counts as verified and holds the pl
   // The verifier did not run at all: nothing is verified and the plan is held.
   const off = await pipeline({ verifier: null });
   assert.equal(off.ledger.length, 0);
-  assert.ok(off.ev.verification_incomplete > 0 || off.excluded.length === 50);
+  assert.ok(off.ev.verification_incomplete > 0 || off.excluded.length === 55);
   assert.match(off.ev.research_ledger, /No research claim passed source-page verification/);
 });
 

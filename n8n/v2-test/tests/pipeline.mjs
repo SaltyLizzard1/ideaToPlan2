@@ -31,16 +31,18 @@ export const agreeable = ({ requests, pages, candidates }) => requests.map((r) =
   return reply(r.source_id, r.claim_ids.map((id) => answer(id, { excerpt: excerptNear(candidates.find((c) => c.claim_id === id).claim, page.text) })));
 });
 
-export async function pipeline({ stubs = research(), ctx = replayContext(), pagesHook = (p) => p, verifier = agreeable } = {}) {
-  const ce = await runNode('collect-evidence.js', stubs);
+// runMs sets the run clock (Founder Context.run_started_ms). Without it the nodes fall back to the real clock.
+export async function pipeline({ stubs = research(), ctx = replayContext(), pagesHook = (p) => p, verifier = agreeable, runMs } = {}) {
+  const clock = runMs ? { 'Founder Context': { run_started_ms: runMs } } : {};
+  const ce = await runNode('collect-evidence.js', { ...stubs, ...clock });
   const fp = await runNode('fetch-source-pages.js', { 'Collect Evidence': ce }, undefined, ctx);
   const pages = pagesHook(JSON.parse(fp.pages));
   fp.pages = JSON.stringify(pages);
-  const reqItems = (await runNode('build-verification-request.js', { 'Collect Evidence': ce, 'Fetch Source Pages': fp })).map((i) => i.json);
+  const reqItems = (await runNode('build-verification-request.js', { 'Collect Evidence': ce, 'Fetch Source Pages': fp, ...clock })).map((i) => i.json);
   const candidates = JSON.parse(ce.candidates);
   const requests = reqItems.filter((r) => !r.none);
   const responses = verifier ? verifier({ requests, pages, candidates }) : null;
-  const evStubs = { 'Collect Evidence': ce, 'Fetch Source Pages': fp, 'Build Verification Request': reqItems };
+  const evStubs = { 'Collect Evidence': ce, 'Fetch Source Pages': fp, 'Build Verification Request': reqItems, ...clock };
   if (responses) evStubs['Verify Claims'] = responses;
   const ev = await runNode('build-evidence.js', evStubs);
   return {

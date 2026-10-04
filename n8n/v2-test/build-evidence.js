@@ -29,6 +29,17 @@ try { requests = $('Build Verification Request').all().map((i) => i.json); } cat
 let responses = [];
 try { responses = $('Verify Claims').all().map((i) => i.json); } catch (e) {}
 
+// RUN DATE: the date this run started, read from the workflow clock. It is never hardcoded and never left to a
+// model's own sense of the current year. Every prompt that judges a date is given this line.
+const runDate = (() => {
+  let ms = Date.now();
+  try { const c = $('Founder Context').first().json; if (c && Number(c.run_started_ms) > 0) ms = Number(c.run_started_ms); } catch (e) {}
+  const d = new Date(ms);
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const iso = d.toISOString().slice(0, 10);
+  return { ms, iso, line: 'RUN DATE: today is ' + iso + ' (' + d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear() + '), timezone UTC. This is the current date. Do not rely on your own sense of the current year. A date on or before ' + iso + ' is in the past and is not an error. Only a date after ' + iso + ' is in the future; a future publication date is an error to report and is never treated as published.' };
+})();
+
 const byId = (id) => sources.find((s) => s.id === id);
 const pageOf = {};
 pages.forEach((p) => { pageOf[p.source_id] = p; });
@@ -100,7 +111,8 @@ const PERIOD_AFTER = /^\s*(?:(?:\/|per\s+|a\s+|an\s+|each\s+)\s*(month|mo|year|y
 const PERIOD_NAME = { mo: 'month', monthly: 'month', yr: 'year', annum: 'year', annually: 'year', yearly: 'year', weekly: 'week', daily: 'day', hr: 'hour', hourly: 'hour' };
 const startQualified = (t, f) => START_BEFORE.test(t.slice(Math.max(0, f.start - 30), f.start)) || START_AFTER.test(t.slice(f.end, f.end + 12));
 const periodOf = (t, f) => { const m = t.slice(f.end, f.end + 60).replace(RANGE_TAIL, '').match(PERIOD_AFTER); if (!m) return ''; const p = (m[1] || m[2]).toLowerCase(); return PERIOD_NAME[p] || p; };
-const periodsNear = (t, f) => { const near = t.slice(Math.max(0, f.start - 45), f.end + 45).toLowerCase(); return ['month', 'year', 'week', 'day', 'hour', 'night'].filter((p) => new RegExp('\\b' + p + '(?:ly|s)?\\b|\\bper ' + p + '|\\/' + p.slice(0, 2)).test(near) || (p === 'year' && /annual|annum/.test(near))); };
+const PERIODS = ['month', 'year', 'week', 'day', 'hour', 'night'];
+const periodsNear = (t, f) => { const near = t.slice(Math.max(0, f.start - 45), f.end + 45).toLowerCase(); return PERIODS.filter((p) => new RegExp('\\b' + p + '(?:ly|s)?\\b|\\bper ' + p + '|\\/' + p.slice(0, 2)).test(near) || (p === 'year' && /annual|annum/.test(near))); };
 const sentenceAround = (t, f) => { const a = Math.max(t.lastIndexOf('. ', f.start), t.lastIndexOf('? ', f.start), t.lastIndexOf('! ', f.start)); const nexts = ['. ', '? ', '! '].map((d) => t.indexOf(d, f.end)).filter((x) => x >= 0); return t.slice(a < 0 ? 0 : a + 2, nexts.length ? Math.min(...nexts) + 1 : t.length); };
 const LIVING = /cost of living|living costs?|living expenses|\blive\b|lifestyle|\bbudget\b|\brent\b|\bsalary\b|\bearning\b|\bincome\b/i;
 const PRICE_CLAIM = /\b(package|priced?|prices|pricing|fees?|charges?|lists?|sells?|offers?|program|session|call|service|plan)\b/i;
@@ -112,9 +124,16 @@ const deterministic = (claim, entity, excerpt, page) => {
   const reasons = [];
   const pageText = ws(page.text);
   const passages = ws(excerpt).split(/\s*(?:\.\.\.|…|\[\.\.\.\])\s*/).map((s) => s.trim()).filter(Boolean);
-  if (!passages.length || passages.join(' ').length < 15) return ['the verifier gave no supporting excerpt'];
+  if (!passages.length || passages.join(' ').length < 15) { reasons.push('the verifier gave no supporting excerpt'); return reasons; }
   const missing = passages.filter((p) => !pageText.includes(p));
-  if (missing.length) return ['the supporting excerpt is not in the fetched page text: "' + missing[0].slice(0, 80) + '"'];
+  if (missing.length) {
+    // Known limitation, kept on purpose: only whitespace is normalized. When the passage would match if quote marks
+    // and dashes were also normalized, the exclusion is recorded as punctuation-related so it can be counted.
+    const loose = (v) => v.replace(/[‘’‛′]/g, "'").replace(/[“”″]/g, '"').replace(/[‐-―−]/g, '-').replace(/…/g, '...');
+    const punctuationOnly = missing.every((p) => loose(pageText).includes(loose(p)));
+    reasons.push('the supporting excerpt is not in the fetched page text' + (punctuationOnly ? ' (PUNCTUATION ONLY: it matches once quote marks and dashes are normalized, which is not allowed)' : '') + ': "' + missing[0].slice(0, 80) + '"');
+    return reasons;
+  }
   const ex = passages.join(' ... ');
   const cl = ws(claim);
   const cf = figures(cl);
@@ -158,7 +177,7 @@ const evaluate = (c, sid) => {
   if (x.verdict === 'contradicted') return { ...rec, status: 'contradicted', kind: 'model', reasons: ['the page states something different: ' + rec.reasoning] };
   if (x.verdict === 'unverifiable') return { ...rec, status: 'unverifiable', kind: 'model', reasons: ['the page does not state it: ' + rec.reasoning] };
   const det = deterministic(c.claim, c.entity, x.excerpt, page);
-  if (det.length) return { ...rec, status: 'unverifiable', kind: 'deterministic', reasons: det };
+  if (det.length) return { ...rec, status: 'unverifiable', kind: det.some((r) => /PUNCTUATION ONLY/.test(r)) ? 'deterministic_punctuation' : 'deterministic', reasons: det };
   const off = CHECKS.filter((k) => x.checks[k] === 'mismatch' || x.checks[k] === 'not_stated');
   if (off.length) return { ...rec, status: 'unverifiable', kind: 'model_checks', reasons: ['the verifier marked it supported but reported ' + off.map((k) => k + ' ' + x.checks[k].replace('_', ' ')).join(', ')] };
   if (x.credibility.rating === 'low') return { ...rec, status: 'not_credible', kind: 'credibility', reasons: ['the page states it, but the source is not credible evidence for it: ' + rec.credibility.basis] };
@@ -205,6 +224,25 @@ candidates.forEach((c) => {
   excluded.push({ claim_id: c.claim_id, question: c.question, claim: c.claim, entity: c.entity ? c.entity.name : '', entity_words: c.entity ? c.entity.name_words : '', status: worst.status, kind: worst.kind, reason: worst.reasons.join('; '), candidate_source_ids: c.candidate_source_ids, figures: [...new Set(figures(c.claim).map((f) => f.key))] });
 });
 
+// The latest calendar date written in a string, as a UTC timestamp, or null when none can be read.
+const MONTH_NO = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+const latestDate = (text) => {
+  const t = String(text || '');
+  const found = [];
+  const push = (y, m, d) => { const v = Date.UTC(+y, m, +d || 1); if (!isNaN(v) && +y > 1900 && +y < 2200) found.push(v); };
+  const M = '(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?';
+  let m;
+  const iso = /(\d{4})-(\d{2})-(\d{2})/g;
+  while ((m = iso.exec(t)) !== null) push(m[1], +m[2] - 1, m[3]);
+  const mdy = new RegExp(M + '\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})', 'gi');
+  while ((m = mdy.exec(t)) !== null) push(m[3], MONTH_NO[m[1].toLowerCase()], m[2]);
+  const dmy = new RegExp('(\\d{1,2})(?:st|nd|rd|th)?\\s+' + M + ',?\\s+(\\d{4})', 'gi');
+  while ((m = dmy.exec(t)) !== null) push(m[3], MONTH_NO[m[2].toLowerCase()], m[1]);
+  const my = new RegExp('(?:^|[^\\d\\s]\\s*|\\s)' + M + '\\s+(\\d{4})', 'gi');
+  while ((m = my.exec(t)) !== null) push(m[2], MONTH_NO[m[1].toLowerCase()], 1);
+  return found.length ? Math.max(...found) : null;
+};
+
 // ---------- 4. Source records: what was requested, what answered, and the date the page itself shows. ----------
 sources.forEach((s) => {
   if (s.kind !== 'research') return;
@@ -213,8 +251,18 @@ sources.forEach((s) => {
   s.fetch = { requested_url: p.requested_url, final_url: p.final_url, redirected: p.redirects.length > 0, retrieved_at: p.retrieved_at, http_status: p.http_status, outcome: p.outcome, detail: p.detail, text_chars: p.text_chars };
   const meta = pageMeta[s.id];
   const date = meta ? ws(meta.date_shown) : '';
-  if (p.outcome === 'ok' && date && /\d/.test(date) && !/©|\(c\)|copyright/i.test(date) && !/^\d{4}$/.test(date) && ws(p.text).includes(date)) { s.published = date; s.published_basis = 'shown on the fetched page'; }
-  else { s.published = 'date not shown'; s.published_basis = p.outcome === 'ok' ? 'no publication date found on the fetched page' : 'page could not be read (' + p.outcome + ')'; }
+  const shown = p.outcome === 'ok' && date && /\d/.test(date) && !/©|\(c\)|copyright/i.test(date) && !/^\d{4}$/.test(date) && ws(p.text).includes(date);
+  const when = shown ? latestDate(date) : null;
+  if (shown && when !== null && when > runDate.ms + 36 * 3600 * 1000) {
+    // A date after the run date cannot be a publication date. It is kept for the record and not used.
+    s.published = 'date not shown';
+    s.published_basis = 'the page shows "' + date + '", which is after the run date ' + runDate.iso + ', so it is not recorded as a publication date';
+    s.future_date_shown = date;
+  } else if (shown) {
+    s.published = date;
+    s.published_basis = 'shown on the fetched page' + (when === null ? ' (not parsed, so not compared with the run date)' : ', on or before the run date ' + runDate.iso);
+    if (when !== null) s.published_iso = new Date(when).toISOString().slice(0, 10);
+  } else { s.published = 'date not shown'; s.published_basis = p.outcome === 'ok' ? 'no publication date found on the fetched page' : 'page could not be read (' + p.outcome + ')'; }
   const n = claims.filter((c) => c.source_ids[0] === s.id).length;
   s.identity = p.outcome !== 'ok' ? 'not read (' + p.outcome + ')' : n ? 'page read; ' + n + ' claim' + (n === 1 ? '' : 's') + ' verified against its text' : 'page read; no claim verified against it';
   if (meta && meta.injection_suspected) s.injection_suspected = true;
@@ -229,10 +277,14 @@ const entities = entityList.map((e) => {
   return { name: e.name, name_words: e.name_words, key: e.key, site: (e.sites || [])[0] || '', source_ids: ids, verified_claims: mine.length };
 });
 
-// ---------- 6. Research gaps. Figures are withheld so an excluded number cannot be copied into the plan. ----------
-const mask = (t) => { const s = String(t).replace(/(?:US\$|\$|€|£)?\s?\d[\d,]*(?:\.\d+)?\s?(?:%|k\b|million|billion|thousand)?/g, ' [figure withheld] ').replace(/\s+/g, ' ').trim(); return s.length > 150 ? s.slice(0, 147) + '...' : s; };
+// ---------- 6. Research gaps. An excluded claim's text and figures are withheld, so nothing from a claim that failed
+// verification can be copied into the plan. The writer is told only that a claim on that topic was excluded and why.
+// Search listings are not research questions: they get one summary line and no detail.
 const LABEL = { contradicted: 'the source page contradicts it', not_credible: 'its source is not credible evidence for it', unverifiable: 'it could not be verified on its source page' };
-excluded.forEach((x) => gaps.push((x.question ? x.question + ': ' : '') + 'Excluded claim ' + x.claim_id + ' (' + LABEL[x.status] + '). It is not evidence. Do not state it, its figures, or anything derived from it: "' + mask(x.claim) + '"'));
+const fromSearch = (x) => /^W /.test(x.question || '');
+excluded.filter((x) => !fromSearch(x)).forEach((x) => gaps.push((x.question ? x.question + ': ' : '') + 'Excluded claim ' + x.claim_id + ' (' + LABEL[x.status] + ')' + (x.entity ? ', about ' + x.entity : '') + '. It is not evidence. Its content is withheld. Do not state anything this research question would have answered unless a ledger entry states it.'));
+const listingsExcluded = excluded.filter(fromSearch).length;
+if (listingsExcluded) gaps.push(listingsExcluded + ' page' + (listingsExcluded === 1 ? '' : 's') + ' found by web search could not be verified. They are not evidence and are not listed.');
 entities.filter((e) => !e.verified_claims).forEach((e) => gaps.push('No verified evidence exists about ' + e.name + '. Do not describe its offer, price, customers or history, and do not cite a source for it.'));
 let failedCalls = [];
 try { failedCalls = JSON.parse(ce.failed_calls || '[]'); } catch (e) {}
@@ -246,7 +298,8 @@ const verification = {
   contradicted: count('contradicted'),
   not_credible: count('not_credible'),
   unverifiable: count('unverifiable'),
-  excluded_by_code_after_model_said_supported: excluded.filter((x) => x.kind === 'deterministic').length,
+  excluded_by_code_after_model_said_supported: excluded.filter((x) => /^deterministic/.test(x.kind)).length,
+  excluded_for_punctuation_only: excluded.filter((x) => x.kind === 'deterministic_punctuation').length,
   pages_requested: pages.length,
   pages_read: pages.filter((p) => p.outcome === 'ok').length,
   verifier_calls: requests.filter((r) => r && !r.none).length,
@@ -254,6 +307,8 @@ const verification = {
   fetch_ms: fp.fetch_ms || 0,
   verify_ms: requests.length && requests[0].t_ms ? Date.now() - requests[0].t_ms : 0,
   verify_cost_usd: Math.round(verifyCost * 10000) / 10000,
+  verify_calls_without_cost: responses.filter((r) => !(r && r.usage && typeof r.usage.cost === 'number')).length,
+  run_date: runDate.iso,
 };
 
 return {
@@ -262,7 +317,8 @@ return {
     ? JSON.stringify(claims, null, 1)
     : 'No research claim passed source-page verification. Treat every research question as not researched.',
   research_gaps: gaps.join('\n'),
-  snippets: ce.snippets || '',
+  snippets: '',
+  run_date: runDate.iso,
   entities: JSON.stringify(entities),
   excluded_claims: JSON.stringify(excluded),
   source_integrity: JSON.stringify({ calls: JSON.parse(ce.calls || '[]'), failed_calls: failedCalls, verification, verified_on_another_candidate: moved }, null, 1),

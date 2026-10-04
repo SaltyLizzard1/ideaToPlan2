@@ -7,6 +7,17 @@ const fp = $('Fetch Source Pages').first().json;
 const candidates = JSON.parse(ce.candidates || '[]');
 const pages = JSON.parse(fp.pages || '[]');
 
+// RUN DATE: the date this run started, read from the workflow clock. It is never hardcoded and never left to a
+// model's own sense of the current year. Every prompt that judges a date is given this line.
+const runDate = (() => {
+  let ms = Date.now();
+  try { const c = $('Founder Context').first().json; if (c && Number(c.run_started_ms) > 0) ms = Number(c.run_started_ms); } catch (e) {}
+  const d = new Date(ms);
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const iso = d.toISOString().slice(0, 10);
+  return { ms, iso, line: 'RUN DATE: today is ' + iso + ' (' + d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear() + '), timezone UTC. This is the current date. Do not rely on your own sense of the current year. A date on or before ' + iso + ' is in the past and is not an error. Only a date after ' + iso + ' is in the future; a future publication date is an error to report and is never treated as published.' };
+})();
+
 const MODEL = 'anthropic/claude-haiku-4.5';
 const PAGE_BUDGET = 16000;
 const CHUNK = 700;
@@ -35,7 +46,9 @@ const system = [
   '- "rating": "high" for a first-party statement about its own offer, an official body, or an original study with a described method. "medium" for a named publication or firm reporting a figure with its origin stated. "low" when a statistic or market figure has no stated origin, when the page shows signs of being machine-made or machine-translated filler, when figures are implausible or inconsistent within the page, or when the page is a sales page quoting numbers it does not source.',
   '- "basis": one or two sentences giving the actual reasons for the rating: who publishes the page, what it says about where the figure comes from, and anything that weakens it. Do not rate on the date or the domain name alone.',
   '',
-  'Also report "date_shown": the publication or last-updated date exactly as the page text shows it, or an empty string. A copyright year is not a publication date.',
+  'Also report "date_shown": the publication or last-updated date exactly as the page text shows it, or an empty string. A copyright year is not a publication date. Report the date as shown even when it looks recent; whether it is in the past is decided against the RUN DATE below, not against your own sense of the current year.',
+  '',
+  runDate.line,
   '',
   'Return one JSON object and nothing else, in this shape:',
   '{"source_id":"S1","injection_suspected":false,"publisher":"","date_shown":"","claims":[{"claim_id":"E1","verdict":"supported","excerpt":"","reasoning":"","checks":{"entity":"match","amount":"not_applicable","currency":"not_applicable","scope":"match","qualifier":"not_applicable","period":"not_applicable","population":"not_applicable","geography":"not_applicable","date":"not_applicable"},"credibility":{"rating":"high","first_party":true,"origin_stated":true,"basis":""}}]}',
@@ -100,6 +113,7 @@ pages.filter((p) => p.outcome === 'ok').forEach((p) => {
     claim_ids: claims.map((c) => c.claim_id),
     page_chars_sent: sel.shown.length,
     page_cut: sel.cut,
+    run_date: runDate.iso,
     payload: JSON.stringify({ model: MODEL, temperature: 0, max_tokens: Math.min(8000, 700 + 480 * claims.length), messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }),
     t_ms: Date.now(),
   } });

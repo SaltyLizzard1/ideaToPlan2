@@ -2,8 +2,18 @@
 const d = $('Prepare Client Data').first().json;
 const clean = (v) => (v === undefined || v === null) ? '' : String(v).replace(/\s+/g, ' ').trim();
 const orNA = (v) => clean(v) || 'NOT PROVIDED';
+// RUN DATE: the date this run started, read from the workflow clock. It is never hardcoded and never left to a
+// model's own sense of the current year. Every prompt that judges a date is given this line.
+const runDate = (() => {
+  let ms = Date.now();
+  try { const c = $('Founder Context').first().json; if (c && Number(c.run_started_ms) > 0) ms = Number(c.run_started_ms); } catch (e) {}
+  const d = new Date(ms);
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const iso = d.toISOString().slice(0, 10);
+  return { ms, iso, line: 'RUN DATE: today is ' + iso + ' (' + d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear() + '), timezone UTC. This is the current date. Do not rely on your own sense of the current year. A date on or before ' + iso + ' is in the past and is not an error. Only a date after ' + iso + ' is in the future; a future publication date is an error to report and is never treated as published.' };
+})();
 
-const research_system = 'You are a research assistant collecting evidence for a business plan. Report only what your sources state. Do not give advice, opinions, estimates, or conclusions. Do not calculate averages or ranges yourself. Never invent a source, figure, name, or date.';
+const research_system = 'You are a research assistant collecting evidence for a business plan. Report only what your sources state. Do not give advice, opinions, estimates, or conclusions. Do not calculate averages or ranges yourself. Never invent a source, figure, name, or date. ' + runDate.line;
 
 const business = [
   'BUSINESS BEING RESEARCHED (the founder\'s own description, not verified)',
@@ -31,7 +41,7 @@ const format = [
 
 const rules = [
   'RULES',
-  '- Prefer sources from the last 24 months for prices, features, rules, and market figures. Always give the date shown on the source.',
+  '- Prefer sources from the 24 months before the RUN DATE for prices, features, rules, and market figures. Always give the date shown on the source, exactly as shown. Never report a date later than the RUN DATE.',
   '- Prefer primary and authoritative sources: government data, statistics offices, regulators, company websites, industry organizations, established research firms. Use list articles and vendor blogs only when nothing better exists, and label them honestly.',
   '- Do not write typically, on average, industry standard, research shows, or similar unless a specific cited source states it.',
   '- Do not say that no competitors exist or that a market is underserved. Report only what you found.',
@@ -68,6 +78,7 @@ const market_prompt = [
 ].join('\n');
 
 return {
+  run_date: runDate.iso,
   query: [d.business_idea, d.target_customer, d.industry, d.location].map(clean).filter(Boolean).join(' | '),
   research_system,
   research_prompt,

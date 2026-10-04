@@ -6,6 +6,9 @@
 // - A source record is created once, keyed by its URL, and gets its ID at that moment. Nothing later renumbers it.
 // - A claim gets its ID (E1, E2, ...) here, in the order the research output states it. The ID stays with the
 //   claim whether it is later verified or excluded, so ledger IDs can have gaps.
+// - A search listing is not evidence. The first few listings are turned into candidate claims (what the listing says
+//   the page is), so they are fetched and verified like every other claim, or excluded. Nothing reaches the writer
+//   from a search result without that check.
 // - Each claim lists the sources it could rest on, in this order: the page address the research model gave for it,
 //   pages of the company it names, and the page its citation marker points at. These are candidates only. Which
 //   source a claim is attributed to is decided by what the fetched pages say, never by a domain name or a marker.
@@ -146,22 +149,43 @@ const readCall = (nodeName) => {
 Object.values(entities).forEach((e) => { e.own_source_ids = sources.filter((s) => s.kind === 'research' && e.sites.includes(s.site)).map((s) => s.id); });
 failed.forEach((n) => gaps.unshift(n + ': this research call returned nothing. Treat its questions as not researched.'));
 
-// 3. Brave results: search listings only, kept with URL and date. They are not fetched and are not ledger evidence.
+// 3. Brave results. A listing only tells us a page exists. Each of the first SEARCH_LISTING_LIMIT listings becomes a
+//    candidate claim about its own page, tied to that page alone. The rest are recorded as sources and not used.
+const SEARCH_LISTING_LIMIT = 8;
 let results = [];
 try { const br = $('Brave Search').first().json; results = br && br.web && Array.isArray(br.web.results) ? br.web.results : []; } catch (e) {}
-const snippets = [];
+let listingClaims = 0;
+let listingsSkipped = 0;
 results.forEach((r) => {
   if (!r || !r.url) return;
-  const id = addSource('search_snippet', stripTags(r.title), r.url, r.page_age ? String(r.page_age).slice(0, 10) : 'date not shown', 'Brave Search');
-  snippets.push(id + ': ' + stripTags(r.title) + '. ' + stripTags(r.description));
+  const title = stripTags(r.title).replace(/\s+/g, ' ');
+  const description = stripTags(r.description).replace(/\s+/g, ' ');
+  const id = addSource('search_snippet', title, r.url, 'date not shown', 'Brave Search');
+  if (listingClaims >= SEARCH_LISTING_LIMIT || !description) { listingsSkipped++; return; }
+  if (candidates.some((c) => c.call === 'Brave Search' && c.candidate_source_ids[0] === id)) return;
+  listingClaims++;
+  candidates.push({
+    claim_id: 'E' + (candidates.length + 1),
+    call: 'Brave Search',
+    question: 'W Pages found by web search',
+    claim: 'The page "' + title + '" says: ' + description,
+    source_type: 'search listing',
+    reported_published: 'date not shown',
+    url_given: r.url,
+    markers: [],
+    entity: null,
+    candidate_source_ids: [id],
+    candidate_basis: ['page found by web search'],
+  });
 });
+callReports.push({ node: 'Brave Search', sources_returned: results.length, claims: listingClaims, listings_not_checked: listingsSkipped });
 
 return {
   sources: JSON.stringify(sources),
   candidates: JSON.stringify(candidates),
   entities: JSON.stringify(Object.values(entities)),
   gaps: JSON.stringify(gaps),
-  snippets: snippets.join('\n'),
+  snippets: '',
   calls: JSON.stringify(callReports),
   failed_calls: JSON.stringify(failed),
   candidate_claims: candidates.length,
