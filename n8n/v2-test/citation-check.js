@@ -16,6 +16,11 @@ const runDate = (() => {
 
 let plan = '', attempt = 0, rev = null;
 try { const r = $('Apply Revisions').first().json; if (r && typeof r.text === 'string' && r.text) { plan = r.text; attempt = 1; rev = r; } } catch (e) {}
+// THE CLAIM CONTRACT IS THE DEFAULT. The final review of the whole plan is made sentence by sentence (Build Claim Review,
+// Combine Claim Review). The older review, one verdict per listed line in a single response, runs only when a node
+// named "Line Review" exists and returns on: true. No such node is in the workflow.
+let lineReview = false;
+try { lineReview = $('Line Review').first().json.on === true; } catch (e) {}
 let assembly = [];
 try { const asm = $('Assemble Plan').first().json; if (!plan) plan = asm.text || ''; assembly = asm.assembly_notes || []; } catch (e) {}
 
@@ -1386,11 +1391,15 @@ if (attempt) {
     '', 'SOURCE DATES BY SECTION OF THE REVISED PLAN (judge every finding about undated or dated sources against this list, not against the sources named in the finding: a source the section no longer cites needs no note there)',
     sectionDates.filter((d) => d.used.length).map((d) => 'Section ' + d.no + '. ' + d.title + ' | cites ' + d.used.join(', ') + ' | undated: ' + (d.undated.join(', ') || 'none') + ' | dated: ' + (d.dated.join(', ') || 'none') + ' | date notes at: ' + (d.note_lines.map((n) => 'L' + n).join(', ') || 'none') + ' | undated sources with no note: ' + (d.missing.join(', ') || 'none')).join('\n') || 'No section cites a source.',
     '', 'SOURCES CITED IN THE REVISED PLAN', JSON.stringify(sources.filter((x) => citedInPlan.has(x.id)).map(({ id, kind, title, domain, published }) => ({ id, kind, title, domain, published })), null, 1),
+    // The whole-plan review is made claim by claim, in separate bounded requests (Build Claim Review). This request
+    // carries the line list only when the older line-by-line review is switched on.
+    ...(lineReview ? [
     '', 'LINES TO REVIEW (' + reviewCoverage.needing_a_verdict + ' lines need a verdict; what each one is about is in brackets)',
     reviewLines.filter((r) => r.kind !== 'source_row' && r.kind !== 'date_note').map((r) => 'L' + r.line + ' [' + (r.company ? 'profile of ' + r.company + (r.entries.length ? '; its ledger entries: ' + r.entries.join(', ') : '; no ledger entry is about it') : r.kind === 'founder' ? 'about the founder, the audience, or the offer: check it against FOUNDER CONTEXT' : r.kind === 'external' ? 'uncited statement about customers, channels, or the market' : r.kind === 'company' ? 'names a company' : r.kind === 'cited' ? 'cites a source' : 'edited') + (r.edited ? '; edited by ' + r.edited : '') + ']').join('\n') || 'None.',
     '', 'NOT ON THE LIST (' + reviewCoverage.not_listed.length + ' other lines of the plan; code found no source, company, or cue on them, and you may still report any of them)', reviewCoverage.not_listed.map((n) => 'L' + n).join(', ') || 'None.',
     '', 'COMPARISONS CODE COULD NOT DECIDE (the words of these lines are not in the entries they cite; that may be a paraphrase or an expansion, and your plan_review verdict for the line decides it)',
     issues.filter((x) => x.needs_judgment && x.line).map((x) => 'L' + x.line + ' | ' + x.type + ' | ' + x.detail.slice(0, 300)).join('\n') || 'None.',
+    ] : ['', 'LINES TO REVIEW', 'None in this request. The whole plan is reviewed claim by claim in separate requests. Return "plan_review": [] and "no_external_claim": [].']),
     '', 'REVISED PLAN (complete, for the whole-plan review)', numbered,
   ].join('\n');
 }
@@ -1405,5 +1414,9 @@ return {
   section_dates: sectionDates,
   review_lines: reviewLines,
   review_coverage: reviewCoverage,
+  claim_contract: !lineReview,
+  // Every line of text, for Build Claim Review: whether code produced it, whose profile it is in, and whether code
+  // already decides it (a source-only row, a date note).
+  claim_lines: attempt ? lines.map((l, i) => ({ l: l.trim(), n: i + 1 })).filter(({ l }) => l && !l.startsWith('#') && !/^\|?\s*:?-{2,}/.test(l)).map(({ l, n }) => { const r = reviewLines.find((x) => x.line === n) || {}; return { line: n, computed: protectedText.has(l), company: profileOwner[n] || '', kind: r.kind === 'source_row' || r.kind === 'date_note' ? r.kind : '', ...(r.kind === 'date_note' ? { date_note_ok: r.date_note_ok } : {}), edited: editedAt[n] || '' }; }) : [],
   qa_payload: JSON.stringify({ model: 'anthropic/claude-sonnet-4.6', max_tokens: attempt ? 16000 : 8000, temperature: 0, messages: [{ role: 'system', content: attempt ? verifySystem : reviewSystem }, { role: 'user', content: runDate.line + '\n\n' + qaUser }] }),
 };

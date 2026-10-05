@@ -29,7 +29,7 @@ const only = (list, re) => list.filter((x) => re.test(x));
 // replay does not ask for it (review_lines: []). It is tested on its own in exec-63226.test.mjs.
 const secondPass = async (rev = fx('Apply Revisions'), qa = fx('Final QA')[1]) => {
   const cc = await check(rev.text, { rev });
-  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': { ...cc, review_lines: [] }, 'Apply Revisions': rev, 'Build Evidence': EV }, qa);
+  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': { ...cc, review_lines: [], claim_contract: false }, 'Apply Revisions': rev, 'Build Evidence': EV }, qa);
   return { cc, out };
 };
 const gate = (findings) => runNode('delivery-gate.js', { 'Finalize Plan': { status: 'HOLD', final_findings: [] }, 'Plan Revision Request': { findings } });
@@ -155,7 +155,7 @@ test('repeat: earlier confirmed repeats are still confirmed under the propositio
     const f = (n) => JSON.parse(readFileSync(path.join(ROOT, 'fixtures', dir, n + '.json'), 'utf8'));
     const rev = f('Apply Revisions');
     const cc = await runNode('citation-check.js', { 'Founder Context': f('Founder Context'), 'Compute Financials': f('Compute Financials'), 'Assemble Plan': f('Assemble Plan'), 'Build Evidence': f('Build Evidence'), 'Growth Plan Generator1': f('Growth Plan Generator1'), 'Apply Revisions': rev });
-    const out = await runNode('plan-revision-request.js', { 'Founder Context': f('Founder Context'), 'Compute Financials': f('Compute Financials'), 'Citation Check': { ...cc, review_lines: [] }, 'Apply Revisions': rev, 'Build Evidence': f('Build Evidence') }, f('Final QA')[1]);
+    const out = await runNode('plan-revision-request.js', { 'Founder Context': f('Founder Context'), 'Compute Financials': f('Compute Financials'), 'Citation Check': { ...cc, review_lines: [], claim_contract: false }, 'Apply Revisions': rev, 'Build Evidence': f('Build Evidence') }, f('Final QA')[1]);
     return out.findings.filter((x) => x.check === 'SAME CLAIM STILL PRESENT ELSEWHERE').map((x) => x.line).sort((a, b) => a - b);
   };
   assert.deepEqual(await of('exec-63222'), [40, 297]);     // the price inference; "established firms"

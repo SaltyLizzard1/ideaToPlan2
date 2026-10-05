@@ -23,7 +23,9 @@ export async function runNode(file, stubs, input, ctx) {
     const items = (Array.isArray(stubs[name]) ? stubs[name] : [stubs[name]]).map((json) => ({ json }));
     return { first: () => items[0], all: () => items };
   };
-  const $input = { first: () => ({ json: input || {} }), all: () => [{ json: input || {} }] };
+  // input: one json object, or { __items: [json, ...] } for a node that receives several items.
+  const ins = (input && Array.isArray(input.__items) ? input.__items : [input || {}]).map((json) => ({ json }));
+  const $input = { first: () => ins[0], all: () => ins };
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
   // ctx.workflow stands in for n8n's $workflow. Without it $workflow is undefined, as in a node that does not use it.
   return await new AsyncFunction('$', '$input', '$workflow', code).call(ctx || {}, $, $input, ctx && ctx.workflow);

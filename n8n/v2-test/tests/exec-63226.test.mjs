@@ -19,7 +19,7 @@ const LEDGER = JSON.parse(EV.research_ledger);
 const lineOf = (n) => HELD_PLAN.split('\n')[n - 1];
 const src = (file) => readFileSync(path.join(ROOT, file), 'utf8');
 
-const check = async (text = HELD_PLAN, { ev = EV, rev } = {}) => runNode('citation-check.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Assemble Plan': fx('Assemble Plan'), 'Build Evidence': ev, 'Growth Plan Generator1': fx('Growth Plan Generator1'), 'Apply Revisions': rev || { ...fx('Apply Revisions'), text } });
+const check = async (text = HELD_PLAN, { ev = EV, rev } = {}) => runNode('citation-check.js', { 'Line Review': { on: true }, 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Assemble Plan': fx('Assemble Plan'), 'Build Evidence': ev, 'Growth Plan Generator1': fx('Growth Plan Generator1'), 'Apply Revisions': rev || { ...fx('Apply Revisions'), text } });
 const at = (out, line) => out.det_issues.filter((i) => i.line === line).map((i) => i.severity + ' ' + i.type);
 const onLast = async (line, opts) => { const text = HELD_PLAN.replace(/\n+$/, '') + '\n\n' + line + '\n'; return at(await check(text, opts), text.replace(/\n+$/, '').split('\n').length); };
 const withLine = async (n, replacement, opts) => { const l = HELD_PLAN.split('\n'); l[n - 1] = replacement; return at(await check(l.join('\n'), opts), n); };
@@ -49,7 +49,7 @@ const verifierAnswer = (unchanged) => {
 // The whole-plan review is asked for only where a test is about it. The saved verifier answer of the run predates it.
 const secondPass = async (rev, qa = fx('Final QA')[1], { review = false, ev = EV } = {}) => {
   const cc = await check(rev.text, { rev, ev });
-  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': review ? cc : { ...cc, review_lines: [] }, 'Apply Revisions': rev, 'Build Evidence': ev }, qa);
+  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': review ? cc : { ...cc, review_lines: [], claim_contract: false }, 'Apply Revisions': rev, 'Build Evidence': ev }, qa);
   return { cc, out };
 };
 const gateOf = (out) => runNode('delivery-gate.js', { 'Finalize Plan': { status: 'HOLD', final_findings: [] }, 'Plan Revision Request': out });

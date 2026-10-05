@@ -27,7 +27,7 @@ const TEXT = PLAN.split('\n');
 const resp = (o) => ({ choices: [{ message: { content: JSON.stringify(o) } }], usage: {} });
 const LABELS = /\b(?:hypothesis|assumption|not established|not confirmed|to test|IdeaToPlan (?:recommends|notes|suggests))\b/i;
 
-const check = (rev = SAVED_REV) => runNode('citation-check.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Assemble Plan': ASSEMBLE, 'Build Evidence': EV, 'Growth Plan Generator1': f26('Growth Plan Generator1'), 'Apply Revisions': rev });
+const check = (rev = SAVED_REV) => runNode('citation-check.js', { 'Line Review': { on: true }, 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Assemble Plan': ASSEMBLE, 'Build Evidence': EV, 'Growth Plan Generator1': f26('Growth Plan Generator1'), 'Apply Revisions': rev });
 const withText = (text) => ({ ...SAVED_REV, text });
 const at = (out, line) => out.det_issues.filter((i) => i.line === line).map((i) => i.severity + (i.needs_judgment ? ' (needs judgment) ' : ' ') + i.type);
 const swap = async (n, replacement) => { const l = TEXT.slice(); l[n - 1] = replacement; return at(await check(withText(l.join('\n'))), n); };
@@ -331,7 +331,7 @@ test('intake: L27 and L251 say the audience does not exist, and the intake does 
   const labelled = TEXT[250].replace('they depend on an audience that does not yet exist and', 'they depend on an audience, and this plan assumes, as a planning assumption you should correct if it is wrong, that you have not built one yet, and');
   assert.deepEqual(await swap(251, labelled), []);
   // When the intake does say so, the same sentence is the founder's own fact.
-  const told = await runNode('citation-check.js', { 'Founder Context': { ...FOUNDER, assets_state: 'none' }, 'Compute Financials': FIN, 'Assemble Plan': ASSEMBLE, 'Build Evidence': EV, 'Growth Plan Generator1': f26('Growth Plan Generator1'), 'Apply Revisions': SAVED_REV });
+  const told = await runNode('citation-check.js', { 'Line Review': { on: true }, 'Founder Context': { ...FOUNDER, assets_state: 'none' }, 'Compute Financials': FIN, 'Assemble Plan': ASSEMBLE, 'Build Evidence': EV, 'Growth Plan Generator1': f26('Growth Plan Generator1'), 'Apply Revisions': SAVED_REV });
   assert.deepEqual(at(told, 27).filter((x) => /UNKNOWN STATED AS NONE/.test(x)), FOUNDER.assets_state === 'unknown' ? [] : at(cc, 27).filter((x) => /UNKNOWN STATED AS NONE/.test(x)));
 });
 
@@ -444,7 +444,7 @@ test('attribution: the customer\'s stated doubt is not the plan asserting feasib
   assert.match(TEXT[24], /who feel stuck because they do not know whether it is realistic, affordable, or logistically possible/);
   assert.deepEqual(at(await check(), 25), []);
   // The reviewer and the verifier are both told the difference.
-  const p = JSON.parse(j('Citation Check')[0].qa_payload ? (await runNode('citation-check.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Assemble Plan': ASSEMBLE, 'Build Evidence': EV, 'Growth Plan Generator1': f26('Growth Plan Generator1') })).qa_payload : '{}');
+  const p = JSON.parse(j('Citation Check')[0].qa_payload ? (await runNode('citation-check.js', { 'Line Review': { on: true }, 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Assemble Plan': ASSEMBLE, 'Build Evidence': EV, 'Growth Plan Generator1': f26('Growth Plan Generator1') })).qa_payload : '{}');
   assert.match(p.messages[0].content, /AN OCCURRENCE IS A LINE THAT HAS TO CHANGE: never list a line that your own fix says is acceptable as written\./);
   assert.match(p.messages[0].content, /A sentence that reports the customer's doubt .* is not the plan asserting feasibility\./);
   assert.match(JSON.parse((await check()).qa_payload).messages[0].content, /Do not confuse the customer's own doubt with the plan's assurance/);

@@ -130,6 +130,23 @@ if (rev) {
     const cov = pr.coverage;
     if (cov) lines.push('COVERAGE: ' + cov.listed + ' of ' + cov.prose_lines + ' lines of text were on the review list (' + Object.keys(cov.by_kind).map((k) => cov.by_kind[k] + ' ' + k.replace('_', ' ')).join(', ') + '). NOT ON THE LIST (' + cov.not_listed.length + '): ' + (ranges(cov.not_listed) || 'none') + '. Code found no source, company, profile, customer, market, founder, or offer wording on those lines. A statement of fact on one of them is read only if the reviewer reports it unprompted.');
   }
+  const cr = res.claim_review;
+  if (cr) {
+    const span = (list) => { const out = []; list.slice().sort((a, b) => a - b).forEach((n) => { const last = out[out.length - 1]; if (last && n === last[1] + 1) last[1] = n; else out.push([n, n]); }); return out.map((r) => (r[0] === r[1] ? 'L' + r[0] : 'L' + r[0] + '-' + r[1])).join(', '); };
+    const by = cr.settled_by_class || {};
+    lines.push('', 'CLAIM REVIEW, SENTENCE BY SENTENCE: ' + cr.claims + ' claims, reviewed in ' + cr.batches + ' requests. Settled: ' + cr.settled + ' (' + (['FOUNDER', 'EXTERNAL', 'ASSUMPTION', 'RECOMMENDATION', 'NONE'].map((k) => (by[k] || 0) + ' ' + ({ FOUNDER: 'founder facts linked to the intake', EXTERNAL: 'external claims linked to ledger entries', ASSUMPTION: 'labelled assumptions', RECOMMENDATION: 'recommendations', NONE: 'with no factual assertion' })[k]).join(', ')) + '). Confirmed defects: ' + cr.defects.length + '. Not reviewed: ' + cr.open.length + '.' + (cr.defects.length || cr.open.length ? '' : ' This is the model\'s reading, with every reference it gave checked by code. It is not proof that every sentence is supported.'));
+    if (cr.defects.length) lines.push('Confirmed defects (' + cr.defects.length + '):');
+    cr.defects.forEach((d) => lines.push('- ' + d.id + ' L' + d.line + ' | ' + d.check + ' | "' + String(d.text).slice(0, 160) + '" ' + d.why));
+    if (cr.open.length) lines.push('Not reviewed: no usable verdict (' + cr.open.length + '). These are incomplete checks, not findings:');
+    cr.open.slice(0, 40).forEach((o) => lines.push('- ' + o.id + ' L' + o.line + ': ' + o.why));
+    if (cr.open.length > 40) lines.push('- and ' + (cr.open.length - 40) + ' more: ' + cr.open.slice(40).map((o) => o.id + ' L' + o.line).join(', '));
+    (cr.failed_batches || []).forEach((b) => lines.push('- REQUEST ' + b.batch + ' of ' + cr.batches + ': ' + b.why + ' (' + b.claims + ' claims).'));
+    if ((cr.duplicates || []).length) lines.push('Answered twice with the same verdict, counted once: ' + cr.duplicates.join(', ') + '.');
+    if ((cr.stray || []).length) lines.push('Verdicts given for a claim that was not in the request, ignored: ' + cr.stray.map((x) => x.id + ' (in request ' + x.batch + ')').join(', ') + '.');
+    (cr.judged || []).forEach((j) => lines.push('- DECIDED BY THE CLAIM REVIEW L' + j.line + ': ' + j.check + ' -> ' + j.verdict + '. Code could not judge the meaning and asked.'));
+    const cv = cr.coverage || {};
+    lines.push('COVERAGE: ' + (cv.prose_lines || 0) + ' lines of text. ' + (cv.lines_with_claims || 0) + ' yielded the ' + cr.claims + ' claims. Decided by code: ' + (cv.source_rows || []).length + ' source-only rows, ' + (cv.date_notes || []).length + ' date notes checked against the source records, ' + (cv.computed_lines || 0) + ' lines of computed financial content, ' + (cv.table_headers || []).length + ' table header rows. Labels with nothing to assert (' + (cv.label_only || []).length + '): ' + (span(cv.label_only || []) || 'none') + '. Lines with no claim and no reason (' + (cr.unclassified_lines || []).length + '): ' + (span(cr.unclassified_lines || []) || 'none') + '.');
+  }
   const closedNoEdit = res.closed_without_edit || [];
   if (closedNoEdit.length) { lines.push('', 'MAJOR FINDINGS CLOSED WITHOUT AN EDIT (' + closedNoEdit.length + '). The verifier read the unchanged passage and justified each one. Read the justification.'); closedNoEdit.forEach((v) => lines.push('- ' + v.id + ' | ' + v.check + ' | ' + v.note)); }
   const noClose = res.unjustified_closures || [];
@@ -194,6 +211,7 @@ const qa1 = rev ? rev.first_qa_usage : res.qa_usage;
 if (qa1) addCall('QA', 'Final QA (review)', qa1);
 addCall('Revision', 'Revise Plan', rev ? nodeJson('Revise Plan') : null);
 if (rev && res.qa_usage) addCall('Verification', 'Final QA (verification)', res.qa_usage);
+if (res.claim_review && res.claim_review.usage) { const u = res.claim_review.usage; calls.push({ stage: 'Claim review', node: 'Review Claims x' + u.requests, model: u.model || '', input_tokens: u.prompt_tokens || 0, output_tokens: u.completion_tokens || 0, cost_usd: u.cost_known ? u.cost : null }); }
 // Source verification: one model call per fetched page. Usage is summed from the responses that reported it.
 let verifierItems = [];
 try { verifierItems = $('Verify Claims').all().map((i) => i.json); } catch (e) {}

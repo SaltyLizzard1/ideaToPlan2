@@ -6,6 +6,13 @@ const ctx = $('Founder Context').first().json;
 const fin = $('Compute Financials').first().json;
 const cc = $('Citation Check').first().json;
 const attempt = cc.attempt || 0;
+// THE CLAIM CONTRACT. On the second pass the whole revised plan is reviewed sentence by sentence, in batches, and
+// Combine Claim Review hands the result in with the verifier's answer. When the contract is on, the older line-by-line
+// review is not asked for and not read.
+const claimContract = cc.claim_contract === true;
+let claimReview = null;
+try { const c = $input.first().json.claim_review; if (c && typeof c === 'object') claimReview = c; } catch (e) {}
+const claimOpen = (check, problem, line) => ({ id: 'CL-OPEN', severity: 'BLOCKING', unresolved: true, source: 'Claim review', check, section: '', line: line || null, quote: '', occurrences: [], problem, fix: '' });
 // RUN DATE: the date this run started, read from the workflow clock. It is never hardcoded and never left to a
 // model's own sense of the current year. Every prompt that judges a date is given this line.
 const runDate = (() => {
@@ -183,6 +190,9 @@ HOW TO FIX
     cc.numbered_plan,
   ].join('\n');
 
+  // With no revision there is no second pass, and the claim review runs on the second pass. A plan that skips it has
+  // not been through the claim-to-evidence contract. That is a required check that did not run, and it holds the plan.
+  if (claimContract && !(needs_revision && units.length > 0)) findings.push(claimOpen('CLAIM REVIEW DID NOT RUN', 'No revision was requested, so the sentence-by-sentence review of the plan against its evidence did not run. No claim in this plan has been classified or linked to its support. This is not a confirmed defect and not a clean result.'));
   return {
     attempt,
     t_ms: Date.now(),
@@ -442,7 +452,7 @@ same_claim_elsewhere.filter((d) => d.certain).forEach((d, i) => findings.push({ 
 // check that did not complete: the plan is held, and the lines are listed.
 // What code decides without the model: a source-only row states nothing, and a date note is checked against the source
 // record by Citation Check. Every other listed line needs a verdict.
-const listedLines = cc.review_lines || [];
+const listedLines = claimContract ? [] : (cc.review_lines || []);
 const required = listedLines.filter((r) => r.kind !== 'source_row' && r.kind !== 'date_note');
 // THREE OUTCOMES, KEPT APART.
 // - unsupported: the reviewer said so. A confirmed defect at that line.
@@ -531,6 +541,39 @@ if (verOk && required.length) {
   plan_review.unsupported.forEach((u, i) => findings.push({ id: 'FR-' + String(i + 1).padStart(3, '0'), severity: 'BLOCKING', source: 'Final review', check: 'UNSUPPORTED CLAIM IN THE REVISED PLAN', section: '', line: u.line, quote: u.quote, occurrences: [{ line: u.line, section: '', quote: u.quote }], problem: (u.unlisted ? 'This line was not on the list code built for the final review; the reviewer reported it. ' : u.edited ? 'This line was written or changed by edit ' + u.edited + '. ' : 'This line was not edited, and no earlier finding covered it. ') + (u.problem || 'The final review found a statement of fact that the ledger does not support and the line does not label.'), fix: '' }));
   if (plan_review.unresolved.length) findings.push({ id: 'FR-OPEN', severity: 'BLOCKING', unresolved: true, source: 'Final review', check: 'FINAL REVIEW OF THE REVISED PLAN IS INCOMPLETE', section: '', line: plan_review.unresolved[0].line, quote: '', occurrences: [], problem: plan_review.unresolved.length + ' of the ' + required.length + ' lines of the revised plan that state something about sources, companies, the market, or research have no usable verdict from the final review: ' + plan_review.unresolved.slice(0, 25).map((u) => 'L' + u.line + ' (' + u.why + ')').join('; ') + (plan_review.unresolved.length > 25 ? '; and ' + (plan_review.unresolved.length - 25) + ' more' : '') + '. This is a required check that did not complete, not a defect that was found. The plan is held until those lines have been read.', fix: '' });
 }
+// ---------- THE CLAIM REVIEW ----------
+// Three lists, kept apart: confirmed defects (one finding each, at the sentence), claims that were not reviewed (one
+// incomplete check that holds the plan), and what was settled. A line code could not judge by its words is decided by
+// the claims on that line: all settled closes the question, a defect replaces it, anything open leaves it open.
+let claim_review = null;
+if (attempt && claimContract) {
+  if (!claimReview || claimReview.empty) {
+    findings.push(claimOpen('CLAIM REVIEW DID NOT RUN', 'The sentence-by-sentence review of the revised plan against its evidence returned nothing. No claim has been classified or linked to its support. Check the Build Claim Review, Review Claims, and Combine Claim Review nodes in this execution.'));
+  } else {
+    const cr = claimReview;
+    const state = {};
+    (cr.records || []).forEach((r) => { const st = state[r.line] = state[r.line] || { settled: 0, defect: 0, open: 0 }; st[r.status] = (st[r.status] || 0) + 1; });
+    const judged = [];
+    for (let k = findings.length - 1; k >= 0; k--) {
+      const f = findings[k];
+      if (!f.needs_judgment || !f.line) continue;
+      const st = state[f.line];
+      if (!st || st.open) continue;
+      judged.push({ line: f.line, check: f.check, verdict: st.defect ? 'DEFECT' : 'SETTLED', claims: st.settled + st.defect });
+      findings.splice(k, 1);
+    }
+    (cr.defects || []).forEach((d, i) => findings.push({ id: 'CL-' + String(i + 1).padStart(3, '0'), severity: 'BLOCKING', source: 'Claim review', check: d.check, section: '', line: d.line, quote: d.text, occurrences: [{ line: d.line, section: '', quote: d.text }], claim_id: d.id, problem: 'Claim ' + d.id + (d.company ? ', in the profile of ' + d.company : '') + ': ' + d.why, fix: '' }));
+    const open = cr.open || [], unclassified = cr.unclassified_lines || [], failed = (cr.failed_batches || []).filter((b) => !b.partial);
+    if (open.length || unclassified.length || failed.length) {
+      const parts = [];
+      if (open.length) parts.push(open.length + ' of the ' + cr.claims + ' claims in the revised plan have no usable verdict (' + (cr.missing || []).length + ' with no verdict at all, ' + (cr.contradictory || []).length + ' with verdicts that disagree): ' + open.slice(0, 12).map((o) => o.id + ' L' + o.line + ' (' + o.why + ')').join('; ') + (open.length > 12 ? '; and ' + (open.length - 12) + ' more, listed in the review report' : ''));
+      if (failed.length) parts.push(failed.length + ' of the ' + cr.batches + ' review requests returned nothing usable: ' + failed.map((b) => 'batch ' + b.batch + ' (' + b.claims + ' claims, ' + b.why + ')').join('; '));
+      if (unclassified.length) parts.push(unclassified.length + ' lines of the plan produced no claim and have no stated reason for it: L' + unclassified.join(', L'));
+      findings.push(claimOpen('CLAIM REVIEW IS INCOMPLETE', parts.join('. ') + '. These are required checks that did not complete. They are not confirmed defects and not a clean result.', open.length ? open[0].line : (unclassified[0] || null)));
+    }
+    claim_review = { claims: cr.claims, batches: cr.batches, settled: cr.settled, settled_by_class: cr.settled_by_class || {}, defects: cr.defects || [], open, missing: cr.missing || [], duplicates: cr.duplicates || [], contradictory: cr.contradictory || [], stray: cr.stray || [], failed_batches: cr.failed_batches || [], unclassified_lines: unclassified, coverage: cr.coverage || {}, usage: cr.usage || null, judged };
+  }
+}
 order(findings);
 if (!verOk) findings.unshift({ id: 'AUTO-VER', severity: 'BLOCKING', unresolved: true, source: 'Automated check', check: 'VERIFICATION DID NOT RUN', section: '', line: null, quote: '', occurrences: [], problem: 'The verification pass did not return a readable result, so the revision has not been checked. Check the Final QA node in this execution.', fix: 'Review the plan by hand.' });
 order(findings);
@@ -547,6 +590,9 @@ return {
   unresolved_checks,
   // The final review of the whole revised plan: how many lines it owed a verdict for, and what became of them.
   plan_review,
+  // The sentence-by-sentence review: counts, confirmed defects, claims not reviewed, and coverage. The full record of
+  // every claim, with its links and the evidence text beside it, is in the output of Combine Claim Review.
+  claim_review,
   // Findings of the first review closed on the verifier's justified answer, with no edit, and answers that closed nothing.
   closed_without_edit: verification.filter((v) => v.closed_without_edit).map((v) => ({ id: v.id, severity: v.severity, check: v.check, note: v.note })),
   unjustified_closures: verification.filter((v) => v.closure_unjustified).map((v) => ({ id: v.id, severity: v.severity, check: v.check, note: v.note })),
