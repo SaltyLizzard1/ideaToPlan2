@@ -15,15 +15,18 @@ Status as of 2026-10-04. Nothing here has been done unless it says DONE. Each it
       text, as do past executions. Rotate the secret and re-pin without it.
 - [ ] **Independent HOLD guard in the shared delivery workflow.** The gate lives only in v2 Test today. The shared
       workflow would deliver any version it is handed.
-- [ ] **Financial uncertainty policy.** Decide how unknown, material costs are handled (see the report of
-      2026-10-04). Until then, a plan with such a cost is held.
+- [ ] **Intake cost questions.** The financial policy is in v2 Test (unresolved costs, shared headroom, conditional
+      conclusion). The three founder questions that would resolve those costs are only a proposal:
+      `INTAKE-COST-QUESTIONS-PROPOSAL.md`. Website, API route, database column and `Prepare Client Data` mapping
+      are not done.
 
 ## Tests still to run
 
 - [ ] A `Mark Delivered` failure after `Record Sent` succeeds raises the "Sent but not recorded" alert and never resends.
 - [ ] A real HTTP call to the webhook (all runs so far used pinned data in the editor).
 - [ ] A run with the current-state intake answers filled in (business stage, assets in place, prior work).
-- [ ] One full generation after the 2026-10-04 commercial-claim and correction fixes.
+- [ ] One full generation after the 2026-10-04 commercial-claim and correction fixes and the 2026-10-05 financial
+      policy. None of these has run live.
 
 ## Tests complete
 

@@ -223,10 +223,8 @@ cost_review.forEach((r) => {
     if (r.material) fin_issues.push('"' + r.label + '" applies and is material, but no Budget item covers it, so it is missing from the financial model.');
     else { costNotes.push('- Not in these figures: ' + r.label + '. The cost review treats it as applying but too small to change the decision, and gives no amount. ' + r.reason); printed = true; }
   }
-  if (r.applies === 'unknown' && !r.linked.some((b) => b.legal)) {
-    if (r.material) fin_issues.push('It could not be determined whether "' + r.label + '" applies, and the cost review marks it as able to change the viability conclusion.');
-    costNotes.push('- Not established whether this cost applies: ' + r.label + '. ' + r.reason); printed = true;
-  }
+  // A cost that is not resolved (applicability or amount) is reported once, in section 4b, with its status and the
+  // headroom the forecast has for it. It is not reported here as well.
   if (r.applies === 'no' && r.note) { costNotes.push('- Not included: ' + r.label + '. ' + r.reason); printed = true; }
   if (printed) checkWording('Cost review reason for ' + r.label, r.reason, 'Assumption');
 });
@@ -268,10 +266,9 @@ uncosted.forEach((b) => {
   if (!b.unknownReason) fin_issues.push('"' + b.item + '" applies but has no amount and no explanation of why the amount is unknown. It is left out of the totals, so they understate expenses.');
   else {
     checkWording('Unknown-amount reason for ' + b.item, b.unknownReason, 'Assumption');
-    if (b.material && startOf[b.category] >= 0) fin_reviews.push('"' + b.item + '" applies, but its amount is not yet established (' + b.unknownReason + '). It is not in the totals, so projected profit is overstated by it.');
   }
 });
-const unknownNote = !unknownIn.length ? '' : 'These figures leave out ' + unknownIn.map((b) => b.item).join(', ') + ', because ' + (unknownIn.length > 1 ? 'their amounts are' : 'its amount is') + ' not yet established. Projected ' + (unknownIn.some((b) => b.kind !== 'one-time') ? 'operating profit and net cash are' : 'net cash is') + ' overstated by whatever ' + (unknownIn.length > 1 ? 'they turn' : 'it turns') + ' out to cost.';
+const unknownNote = !unknownIn.length ? '' : 'These figures leave out ' + unknownIn.map((b) => b.item).join(', ') + ', because no amount is established for ' + (unknownIn.length > 1 ? 'them' : 'it') + '. If ' + (unknownIn.length > 1 ? 'they apply' : 'it applies') + ', projected ' + (unknownIn.some((b) => b.kind !== 'one-time') ? 'operating profit and net cash are' : 'net cash is') + ' overstated by whatever ' + (unknownIn.length > 1 ? 'they turn' : 'it turns') + ' out to cost.';
 if (unknownNote) scenario_block += '\n- ' + unknownNote;
 const forecast_table = [
   '| Period | Customers / month | 3-month revenue | 3-month operating expenses | 3-month operating profit |',
@@ -334,6 +331,127 @@ const legalUnknownNote = legalUnknown.length ? ' No amount is yet established fo
 const sensitivity = !legalItems.length ? ''
   : firstSaleIdx < 0 ? 'The conditional costs (' + legalItems.map((b) => b.item).join(', ') + ') are not included. The forecast has no paid delivery in year one, so they would not arise in it.'
   : 'The conditional costs (' + legalItems.map((b) => b.item).join(', ') + ') are not included above, because it has not been established that they are required.' + (legalKnown.length ? ' If they are required, year-one net cash after one-time costs would be ' + money(legalYear) + ' lower: ' + money(sub(year.net, legalYear)) + ' instead of ' + money(year.net) + '.' : '') + legalUnknownNote;
+// 4b. Cost status and headroom.
+// Every cost in the cost review gets exactly one status, and applicability is kept apart from amount:
+//   applicable_amount_known     it applies and has an amount
+//   applicable_amount_unknown   it applies and no amount is established
+//   applicability_unknown       it is not established whether it applies
+//   not_applicable              it is confirmed not to apply
+// A missing value is never treated as zero. A founder answer is used when one exists (older submissions have none),
+// and an answer does not by itself resolve a cost: "yes" with no usable amount is still an unknown amount.
+// Registration, licensing, insurance and tax items are regulatory checks. Whether they are required is a legal
+// question, so they are listed apart and are never judged by headroom.
+const ANSWER_KEY = { ai_api: 'ai_services', professional: 'professional_advice' };
+const founderAnswers = (() => { let v = ctx.cost_answers; if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { v = null; } } return (v && typeof v === 'object') ? v : {}; })();
+const answerFor = (key) => {
+  const r = founderAnswers[ANSWER_KEY[key]];
+  if (!r || typeof r !== 'object') return null;
+  const ap = txt(r.applies).toLowerCase().replace(/[\s-]+/g, '_');
+  const applies = ap === 'yes' ? 'yes' : (ap === 'no' || ap === 'not_applicable') ? 'no' : ap === 'unknown' ? 'unknown' : '';
+  if (!applies) return null;
+  const amount = num(r.amount);
+  const currency = (txt(r.currency) || 'USD').toUpperCase();
+  const u = txt(r.unit).toLowerCase();
+  const kind = /sale|session|order|customer/.test(u) ? 'per-sale' : /month/.test(u) ? 'monthly' : /one|once/.test(u) ? 'one-time' : /use/.test(u) ? 'per-use' : '';
+  // The model is in US dollars and counts sales, not uses. An amount in another currency, or per use, is recorded and left unresolved.
+  const usable = applies === 'yes' && amount !== null && currency === 'USD' && ['per-sale', 'monthly', 'one-time'].includes(kind);
+  const why = applies !== 'yes' || usable ? '' : amount === null ? 'the founder gave no amount' : currency !== 'USD' ? 'the amount was given in ' + currency + ' and is not converted' : kind === 'per-use' ? 'the amount was given per use, and the number of uses per sale is not known' : 'the amount has no unit (per month, per sale, or one-time)';
+  return { applies, amount, currency, kind, usable, why };
+};
+const cost_status = [];
+const founderCosts = [];
+const linkedSeen = new Set();
+cost_review.forEach((r) => {
+  r.linked.forEach((b) => linkedSeen.add(b));
+  const regulatory = r.key === 'legal' || (r.linked.length > 0 && r.linked.every((b) => b.legal));
+  const ans = regulatory ? null : answerFor(r.key);
+  const live = r.linked.filter((b) => !b.legal && b.category !== 'Optional');
+  const costed = live.filter((b) => b.cost !== null), open = live.filter((b) => b.cost === null);
+  const applies = ans ? ans.applies : r.applies;
+  const founderAmount = !!(ans && ans.usable && !costed.length);
+  const amountOpen = regulatory ? (!r.linked.length || r.linked.some((b) => b.cost === null)) : (!founderAmount && (open.length > 0 || !costed.length));
+  const status = applies === 'no' ? 'not_applicable' : applies === 'unknown' ? 'applicability_unknown' : amountOpen ? 'applicable_amount_unknown' : 'applicable_amount_known';
+  if (founderAmount) founderCosts.push({ label: r.label, kind: ans.kind, amount: ans.amount });
+  if (ans && ans.applies === 'no' && costed.length) fin_reviews.push('The founder says "' + r.label + '" does not apply, but the model includes ' + costed.map((b) => b.item).join(', ') + ' for it. The figures have not been changed.');
+  cost_status.push({
+    key: r.key, label: r.label, status, regulatory, in_totals: costed.length > 0 && applies !== 'no',
+    source: ans ? 'founder answer' : 'financial step', founder_answer: ans ? { applies: ans.applies, amount: ans.amount, currency: ans.currency, unit: ans.kind, used_in_figures: false, not_used_because: ans.why } : null,
+    budget_items: r.linked.map((b) => b.item), exposure: open.map((b) => ({ item: b.item, kind: b.kind, stage: b.category, starts_in_year_one: startOf[b.category] >= 0, months: startOf[b.category] >= 0 ? (4 - startOf[b.category]) * 3 : 0 })), reason: r.reason,
+  });
+});
+uncosted.filter((b) => !linkedSeen.has(b)).forEach((b) => cost_status.push({ key: 'item', label: b.item, status: 'applicable_amount_unknown', regulatory: false, in_totals: false, source: 'financial step', founder_answer: null, budget_items: [b.item], exposure: [{ item: b.item, kind: b.kind, stage: b.category, starts_in_year_one: startOf[b.category] >= 0, months: startOf[b.category] >= 0 ? (4 - startOf[b.category]) * 3 : 0 }], reason: b.unknownReason }));
+const STATUS_WORDS = { applicable_amount_known: 'applies, amount known', applicable_amount_unknown: 'applies, amount not established', applicability_unknown: 'not established whether it applies', not_applicable: 'does not apply' };
+// Unresolved costs: not regulatory, and either the amount or the applicability is open. A cost whose amount is
+// already in the totals is not counted again.
+const unresolved = cost_status.filter((c) => !c.regulatory && (c.status === 'applicable_amount_unknown' || (c.status === 'applicability_unknown' && !c.in_totals)));
+const regulatoryOpen = cost_status.filter((c) => c.regulatory && (c.status === 'applicability_unknown' || c.status === 'applicable_amount_unknown'));
+// A cost the founder stated, that the model's totals do not contain, is taken off the outcome before headroom is measured.
+// Monthly is charged for all 12 months, per-sale for every forecast sale, one-time once.
+const founderYear = founderCosts.map((x) => ({ ...x, year: x.kind === 'monthly' ? x.amount * 12 : x.kind === 'per-sale' ? (yearSales === null ? null : x.amount * yearSales) : x.amount }));
+const founderTotal = sum(founderYear.map((x) => x.year));
+// HEADROOM. Outcome tested: year-one net cash after one-time costs, on the Base forecast path.
+//   available      = year-one net cash - founder-stated costs that are not in the totals
+//   per month      = available / 12                       (a cost paid in every month of year one)
+//   per sale       = available / forecast sales in year one
+//   one-time       = available
+// These are three ways of spending the same amount, and all unresolved costs share it. Thresholds are rounded down to
+// whole dollars. A threshold is a break-even point: it is not an estimate of the cost and not evidence of viability.
+const available = (year.net === null || founderTotal === null) ? null : year.net - Math.round(founderTotal);
+const hasRoom = available !== null && available > 0;
+const cost_headroom = !unresolved.length ? null : {
+  outcome: 'year-one net cash after one-time costs',
+  baseline_usd: year.net,
+  founder_costs_not_in_totals_usd: founderTotal === null ? null : Math.round(founderTotal),
+  available_usd: available,
+  has_room: hasRoom,
+  year_one_sales: yearSales,
+  per_month_over_12_months_usd: hasRoom ? Math.floor(available / 12) : null,
+  per_sale_usd: (hasRoom && yearSales !== null && yearSales > 0) ? Math.floor(available / yearSales) : null,
+  one_time_usd: hasRoom ? available : null,
+  base_month: { operating_profit_usd: sc.base.profit, sales: sc.base.sales, per_sale_usd: (sc.base.profit !== null && sc.base.profit > 0 && sc.base.sales) ? Math.floor(sc.base.profit / sc.base.sales) : null },
+  shared_by: unresolved.map((c) => c.label),
+  formula: 'available = year-one net cash - founder-stated costs not in the totals; per month = available / 12; per sale = available / year-one sales; one-time = available. Rounded down. One shared amount, not one per cost.',
+};
+const namesOf = (list) => list.map((c) => c.label + ' (' + STATUS_WORDS[c.status] + ')').join('; ');
+const notInYear = unresolved.filter((c) => c.exposure.length && c.exposure.every((e) => !e.starts_in_year_one));
+const costConditionLines = [];
+let cost_condition = '';
+if (unresolved.length) {
+  costConditionLines.push('- Costs that are not resolved and are not in these figures: ' + namesOf(unresolved) + '.');
+  founderYear.forEach((x) => costConditionLines.push('- Founder-stated cost not in the tables above: ' + x.label + ', ' + unitMoney(x.amount) + (x.kind === 'monthly' ? ' per month' : x.kind === 'per-sale' ? ' per sale' : ' one-time') + (x.year === null ? '' : ', ' + money(Math.round(x.year)) + ' in year one') + '.'));
+  if (available === null) {
+    fin_issues.push('Costs are unresolved (' + unresolved.map((c) => c.label).join('; ') + ') and the forecast is incomplete, so the room for them could not be calculated.');
+    costConditionLines.push('- The forecast is incomplete, so the room for these costs could not be calculated.');
+    cost_condition = 'This assessment is conditional. These costs are not resolved and are not in the figures: ' + namesOf(unresolved) + '. The forecast is incomplete, so no threshold can be given for them.';
+  } else if (!hasRoom) {
+    costConditionLines.push('- Outcome tested: year-one net cash after one-time costs' + (founderYear.length ? ', less the founder-stated costs above' : '') + ', which is ' + money(available) + '. There is no room for the unresolved costs: any amount they cost adds to that shortfall.');
+    cost_condition = 'This assessment is conditional. These costs are not resolved and are not in the figures: ' + namesOf(unresolved) + '. Year-one net cash after one-time costs is ' + money(available) + ' before them, so there is no room for them: any amount they cost adds to that shortfall.';
+  } else {
+    const perMonth = money(cost_headroom.per_month_over_12_months_usd);
+    const perSale = cost_headroom.per_sale_usd === null ? '' : money(cost_headroom.per_sale_usd);
+    costConditionLines.push('- Outcome tested: year-one net cash after one-time costs' + (founderYear.length ? ', less the founder-stated costs above' : '') + ', which is ' + money(available) + ' on this forecast.');
+    costConditionLines.push('- Break-even threshold: the unresolved costs together would bring that to $0 if they came to ' + money(available) + ' in year one. That is ' + perMonth + ' a month if paid in all 12 months (' + money(available) + ' / 12)' + (perSale ? ', or ' + perSale + ' per sale across the ' + qty(yearSales) + ' forecast sales (' + money(available) + ' / ' + qty(yearSales) + ')' : '; the forecast has no sales in year one, so a per-sale cost would not arise in it') + ', or ' + money(available) + ' once. These are three ways of spending the same amount, rounded down.');
+    if (unresolved.length > 1) costConditionLines.push('- The ' + unresolved.length + ' unresolved costs share that one amount. It is not a separate allowance for each.');
+    if (cost_headroom.base_month.per_sale_usd !== null) costConditionLines.push('- For one Base month: operating profit of ' + money(sc.base.profit) + ' / ' + qty(sc.base.sales) + ' sales = ' + money(cost_headroom.base_month.per_sale_usd) + ' per sale before that month\'s operating profit reaches $0. This is a monthly figure, not the year-one threshold.');
+    // Timing. How each unresolved Budget item would be charged on this forecast, and when the cash it would draw on exists.
+    const charged = unresolved.flatMap((c) => c.exposure).filter((e) => e.starts_in_year_one).map((e) => {
+      const from = startOf[e.stage];
+      const salesFrom = sum(qs.slice(from).map((q) => q.sales));
+      return e.item + ': ' + (e.kind === 'monthly' ? 'monthly, for the ' + qty(e.months) + ' months from ' + LABELS[from] : e.kind === 'per-sale' ? 'per sale, on the ' + qty(salesFrom) + ' sales from ' + LABELS[from] : 'once, in ' + LABELS[from]);
+    });
+    if (charged.length) costConditionLines.push('- How the unresolved Budget items would be charged on this forecast: ' + charged.join('; ') + '. A cost with no Budget item has no timing yet; the monthly figure above assumes it is paid in every month.');
+    let running = 0;
+    const cumulative = qs.map((q) => { running += q.net; return q.label + ' ' + money(running); });
+    costConditionLines.push('- Cumulative net cash by period, before the unresolved costs: ' + cumulative.join(', ') + '. A cost paid before that cash exists has to be funded from the startup budget.');
+    if (notInYear.length) costConditionLines.push('- On this forecast, ' + notInYear.map((c) => c.label).join('; ') + ' would not be charged in year one, because the stage it belongs to does not start.');
+    costConditionLines.push('- A threshold is a break-even point. It is not an estimate of what these costs are, and it is not evidence that the business works.');
+    cost_condition = 'This assessment is conditional. These costs are not resolved and are not in the figures: ' + namesOf(unresolved) + '. On this forecast, year-one net cash after one-time costs is ' + money(available) + '. It stays above $0 only if these costs together come to less than ' + money(available) + ' in year one: ' + perMonth + ' a month if paid in all 12 months' + (perSale ? ', or ' + perSale + ' per sale across the ' + qty(yearSales) + ' forecast sales' : '') + '.' + (unresolved.length > 1 ? ' They share that one amount; it is not a separate allowance for each.' : '') + ' This is a break-even threshold, not an estimate of these costs and not evidence that the business works.';
+  }
+  // One review item for the person approving the plan. The plan check decides whether the conclusion is worded conditionally.
+  if (available !== null) fin_reviews.push('Unresolved costs: ' + namesOf(unresolved) + '. They are not in the figures. The conclusion of this plan is conditional on them' + (hasRoom ? '; year-one net cash has ' + usd(available) + ' of room before it reaches $0' : '; year-one net cash is already ' + (available < 0 ? '-' : '') + usd(Math.abs(available)) + ' before them') + '. Confirm them with the founder.');
+}
+if (regulatoryOpen.length) costConditionLines.push('- Regulatory checks, not judged by the threshold above: ' + namesOf(regulatoryOpen) + '. Whether these are required is a legal question. A financial threshold cannot show that an obligation does not apply. Verify before the first paid delivery.');
+
 const optionalNote = optionalItems.length ? 'Optional items (' + optionalItems.map((b) => b.item).join(', ') + ') are not included in the forecast.' : '';
 const forecast_block = [
   forecast_table, '',
@@ -347,7 +465,8 @@ const forecast_block = [
   ...oneTimeTrace,
   ...(sensitivity ? ['- ' + sensitivity] : []),
   ...(unknownNote ? ['- ' + unknownNote] : []),
-  ...(optionalNote ? ['- ' + optionalNote] : []), '',
+  ...(optionalNote ? ['- ' + optionalNote] : []),
+  ...(costConditionLines.length ? ['', unresolved.length ? '**Costs that are not resolved, and the room the forecast has for them**' : '**Regulatory checks still to make**', ...costConditionLines] : []), '',
   'These projections are planning estimates based on the assumptions shown. They are not predictions or guarantees.',
 ].join('\n');
 
@@ -374,7 +493,8 @@ if (items.length) {
   if (legalItems.length) budgetFacts.push('- Conditional costs, to be checked before the first paid delivery and paid only if required (not in the stage totals or the forecast): ' + money(legalOnce) + ' one-time, ' + money(legalMonthly) + ' each month' + (legalPerSale ? ', ' + unitMoney(legalPerSale) + ' per sale' : '') + (legalUnknown.length ? '. No amount is yet established for ' + legalUnknown.map((b) => b.item).join(', ') : ''));
   if (ceiling !== null && first3 !== null && first3 > ceiling) fin_issues.push('Spending before validation is above the budget ceiling.');
   const allUnknown = items.filter((b) => b.cost === null && !b.legal && b.category !== 'Optional');
-  if (allUnknown.length) budgetFacts.push('- Amount not yet established. These costs apply and are in none of the totals above: ' + allUnknown.map((b) => b.item + (b.unknownReason ? ' (' + b.unknownReason + ')' : '')).join('; ') + '.' + (unknownNote ? ' ' + unknownNote : ''));
+  if (allUnknown.length) budgetFacts.push('- No amount is established for these items, and they are in none of the totals above: ' + allUnknown.map((b) => b.item + (b.unknownReason ? ' (' + b.unknownReason + ')' : '')).join('; ') + '.' + (unknownNote ? ' ' + unknownNote : ''));
+  unresolved.forEach((c) => budgetFacts.push('- Cost status: ' + c.label + ', ' + STATUS_WORDS[c.status] + '.' + (c.reason ? ' ' + c.reason : '')));
   costNotes.forEach((l) => budgetFacts.push(l));
   budget_block = [
     '| Item | When to spend | Cost | Basis |',
@@ -477,6 +597,7 @@ const financial_model = [
   budget_block || 'No budget items were set.',
   ...(items.length ? ['', 'Why each budget item is where it is:', ...items.map((b) => '- ' + b.item + ': ' + (b.reason || 'no reason given'))] : []),
   ...(loan_block ? ['', 'LOAN TABLE (inserted where you put [[LOAN_TABLE]])', loan_block] : []),
+  ...(cost_condition ? ['', 'COST CONDITION (required). The Viability Assessment must contain the paragraph below, copied exactly, and must state its conclusion as conditional on it. Do not change its figures, and do not state the conclusion without it.', cost_condition] : []),
   '',
   'COST REVIEW (internal record of which costs were considered; use it to keep recommendations consistent with the model, and never print it as a list)',
   ...(reviewLines.length ? reviewLines : ['None returned.']),
@@ -493,6 +614,11 @@ return {
   fin_reviews,
   cost_review: cost_review.map((r) => ({ area: r.area, category: r.label, applies: r.applies, material: r.material, reason: r.reason, budget_items: r.linked.map((b) => b.item), noted_in_plan: r.note })),
   unknown_costs: uncosted.concat(legalUnknown).map((b) => ({ item: b.item, stage: b.legal ? 'Conditional' : b.category, recurrence: b.kind, material: b.material, reason: b.unknownReason })),
+  cost_status,
+  cost_headroom,
+  cost_condition,
+  unresolved_costs: unresolved.map((c) => c.label),
+  regulatory_checks: regulatoryOpen.map((c) => c.label),
   reconciliation,
   t_ms: Date.now(),
   allowed_money: [...allowed],

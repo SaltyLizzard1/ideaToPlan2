@@ -252,7 +252,7 @@ test('date notes: a correct note passes without a false warning, a wrong note is
 
 // ---------------- 5. Financial uncertainty stays explicit (policy unchanged) ----------------
 
-test('financial: unknown cost applicability from execution 63220 still blocks and still holds the plan', async () => {
+test('financial: an older financial output that still carries blocking issues is still honored', async () => {
   assert.equal(FIN_63220.fin_issues.length, 2);
   const unknown = FIN_63220.cost_review.filter((c) => c.applies === 'unknown' && c.material);
   assert.deepEqual(unknown.map((c) => c.category).sort(), ['AI, model, API, research and data services used in delivery', 'Professional services', 'Registration, licensing, insurance and taxes'].sort());
