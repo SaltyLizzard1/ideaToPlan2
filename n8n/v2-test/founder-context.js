@@ -242,11 +242,13 @@ rules.push(`FORMAT
 Write every section in SECTIONS, in order, with the exact numbered headers given, as ## headings. Follow the section guidance in the GOAL BRIEF.${G ? ' Do not write a Sources section; it is added automatically as the last numbered section.' : ''} Markdown tables have at most 4 columns, with each row on its own line. Never use em dashes; use commas, periods, or hyphens.`);
 
 // PRICE. The form does not ask for a price today. When an intake answer carries one (founder_price), it is the price.
-// Two test-only inputs keep a regression comparison on fixed figures. They are read from the request only in a
-// workflow whose name contains "Test", so a live order cannot set them.
+// Fixed financial inputs for a regression comparison exist in one place only: the node "Test Financial Baseline" of
+// the v2 Test workflow, identified by its workflow ID. Nothing in a request can set them, and a workflow with any
+// other ID ignores that node even if it has one.
+const V2_TEST_WORKFLOW_ID = 'mLyKvFeYmJHuwXQ9';
 const amountOf = (v) => { const n = typeof v === 'number' ? v : parseFloat(String(v === undefined || v === null ? '' : v).replace(/[$,\s]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; };
 let testInputs = {};
-try { if (/test/i.test($workflow.name)) { const b = $('Webhook').first().json.body || {}; testInputs = { fixed_scenario_price: amountOf(b.fixedScenarioPrice), fixed_financial_assumptions: b.fixedFinancialAssumptions && typeof b.fixedFinancialAssumptions === 'object' ? b.fixedFinancialAssumptions : null }; } } catch (e) {}
+try { if ($workflow.id === V2_TEST_WORKFLOW_ID) { const b = $('Test Financial Baseline').first().json || {}; testInputs = { fixed_scenario_price: amountOf(b.fixedScenarioPrice), fixed_financial_assumptions: b.fixedFinancialAssumptions && typeof b.fixedFinancialAssumptions === 'object' ? b.fixedFinancialAssumptions : null }; } } catch (e) {}
 
 return {
   ...d,

@@ -241,27 +241,53 @@ lines.forEach((line, i) => {
     const cells = t.replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
     if (cells.length === 2 && cells[1] === '' && cells[0]) { rowEntity = entities.find((e) => spaced(cells[0]).includes(' ' + e.name_words + ' ')) || null; return; }
   }
-  // 1. The text is about one company but cites another company's page. Each citation is judged in its own scope: the
-  //    clause it sits in, then its sentence, then its numbered item. A table row is not one claim: a cell with
-  //    "1. ... 2. ..." holds separate statements. Only a short first cell that names a company and cites nothing
-  //    (a label), or the company a profile table is headed with, applies to the whole row.
-  const namedIn = (v) => { const sp = spaced(v); return entities.filter((e) => sp.includes(' ' + e.name_words + ' ')); };
-  const rowCells = isRow ? t.replace(/^\||\|$/g, '').split('|').map((c) => c.trim()) : [t];
-  const rowLabel = isRow && rowCells.length > 1 && rowCells[0].length <= 80 && !/\b[SW]\d+\b/.test(rowCells[0]) ? namedIn(rowCells[0]) : [];
-  const rowContext = rowLabel.concat(rowEntity && !rowLabel.includes(rowEntity) ? [rowEntity] : []);
-  rowCells.forEach((cell) => cell.split(/\s+(?=\d{1,2}\.\s+\S)/).forEach((item) => item.split(/(?<=[.!?])\s+/).forEach((sentence) => sentence.split(/;\s+/).forEach((clause) => {
-    const citedHere = [...new Set(clause.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);
-    if (!citedHere.length) return;
-    const scope = [clause, sentence, item].map(namedIn).find((list) => list.length) || [];
-    const about = scope.concat(rowContext.filter((e) => !scope.includes(e)));
-    if (!about.length) return;
-    citedHere.forEach((id) => {
-      const own = entityOfSource[id];
-      const tied = about.some((e) => (e.source_ids || []).includes(id) || evClaims.some((c) => (c.source_ids || []).includes(id) && spaced(c.claim).includes(' ' + e.name_words + ' ')));
-      if (tied) return;
-      if (own) add('BLOCKING', 'CITATION ATTACHED TO THE WRONG COMPANY', 'This text is about ' + about.map((e) => e.name).join(' and ') + ', but it cites ' + id + ', which is the page of ' + own.name + ' (' + srcById[id].domain + '). The ledger ties ' + about[0].name + ' to ' + (about[0].source_ids || []).join(', ') + '.', short(clause), L);
-      else if (isRow) add('BLOCKING', 'CITATION NOT TIED TO THIS COMPANY', 'This text is about ' + about.map((e) => e.name).join(' and ') + ', but it cites ' + id + ' (' + srcById[id].domain + '), and no ledger entry ties that source to this company. The ledger ties ' + about[0].name + ' to ' + (about[0].source_ids || []).join(', ') + '.', short(clause), L);
+  // 1. The text is about one company but cites another company's page. A citation belongs to the company named just
+  //    before it. "A [x], B [y]" is two bindings, so swapped sources block even though both companies and both
+  //    sources are in the sentence. Names listed together with nothing between them ("A, B and C [x][y]") share the
+  //    citations that follow the list. A citation with no company before it in its clause takes the companies named
+  //    later in that clause, and failing that the row's label or the profile table's company. A table row is not one
+  //    claim: cells, numbered items, sentences and clauses are separate.
+  const mentionsIn = (text) => {
+    const found = [];
+    entities.forEach((e) => {
+      if (!e.name_words) return;
+      const re = new RegExp('(?:^|[^a-z0-9])(' + e.name_words.split(' ').map((w) => w === 'and' ? '(?:and|&)' : w).join("(?:['’]s)?[^a-z0-9]+") + ')(?![a-z0-9])', 'gi');
+      let m;
+      while ((m = re.exec(text)) !== null) { const start = m.index + m[0].length - m[1].length; found.push({ e, start, end: start + m[1].length }); re.lastIndex = start + 1; }
     });
+    // "Move One" inside "Move One Relocations" is one mention, the longer one.
+    return found.filter((x) => !found.some((y) => y !== x && y.start <= x.start && y.end >= x.end && (y.end - y.start) > (x.end - x.start))).sort((p, q) => p.start - q.start);
+  };
+  const rowCells = isRow ? t.replace(/^\||\|$/g, '').split('|').map((c) => c.trim()) : [t];
+  const rowLabel = isRow && rowCells.length > 1 && rowCells[0].length <= 80 && !/\b[SW]\d+\b/.test(rowCells[0]) ? mentionsIn(rowCells[0]).map((x) => x.e) : [];
+  const rowContext = rowLabel.concat(rowEntity && !rowLabel.includes(rowEntity) ? [rowEntity] : []);
+  const NOT_THE_SUBJECT = /\b(?:unlike|than|versus|vs\.?|compared (?:with|to)|against)\s+(?:the\s+)?$/i;
+  rowCells.forEach((cell) => cell.split(/\s+(?=\d{1,2}\.\s+\S)/).forEach((item) => item.split(/(?<=[.!?])\s+/).forEach((sentence) => sentence.split(/;\s+|,\s+(?:while|whereas|but|although|though)\s+/).forEach((clause) => {
+    const mentions = mentionsIn(clause).filter((x) => !NOT_THE_SUBJECT.test(clause.slice(Math.max(0, x.start - 24), x.start)));
+    const runRe = /(?:\[?\b[SW]\d+\b\]?[\s,]*)+/g;
+    let run;
+    while ((run = runRe.exec(clause)) !== null) {
+      const ids = [...new Set(run[0].match(/[SW]\d+/g) || [])].filter((id) => srcById[id]);
+      if (!ids.length) continue;
+      const before = mentions.filter((x) => x.end <= run.index);
+      let about = [];
+      if (before.length) {
+        let k = before.length - 1;
+        about = [before[k].e];
+        while (k > 0 && /^[\s,]*(?:and|or|&)?[\s,]*$/i.test(clause.slice(before[k - 1].end, before[k].start))) { k--; about.push(before[k].e); }
+      } else {
+        const later = [...new Set(mentions.map((x) => x.e))];
+        about = later.length ? later : rowContext;
+      }
+      if (!about.length) continue;
+      ids.forEach((id) => {
+        const own = entityOfSource[id];
+        const tied = about.some((e) => (e.source_ids || []).includes(id) || evClaims.some((c) => (c.source_ids || []).includes(id) && spaced(c.claim).includes(' ' + e.name_words + ' ')));
+        if (tied) return;
+        if (own) add('BLOCKING', 'CITATION ATTACHED TO THE WRONG COMPANY', 'This text is about ' + about.map((e) => e.name).join(' and ') + ', but it cites ' + id + ', which is the page of ' + own.name + ' (' + srcById[id].domain + '). The ledger ties ' + about[0].name + ' to ' + (about[0].source_ids || []).join(', ') + '.', short(clause), L);
+        else if (isRow) add('BLOCKING', 'CITATION NOT TIED TO THIS COMPANY', 'This text is about ' + about.map((e) => e.name).join(' and ') + ', but it cites ' + id + ' (' + srcById[id].domain + '), and no ledger entry ties that source to this company. The ledger ties ' + about[0].name + ' to ' + (about[0].source_ids || []).join(', ') + '.', short(clause), L);
+      });
+    }
   }))));
   segmentsOf(t).forEach((seg) => {
     const cited = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);

@@ -267,7 +267,9 @@ const new_defects = claimed
   .filter((f) => { const e = unitOf(f.unit); return !(e && e.issues.some((id) => openIds.has(id))); })
   .map((f, i) => { const e = unitOf(f.unit); return { ...fromQa(f, 'Introduced by revision', 'MAJOR'), id: 'REV-' + String(i + 1).padStart(3, '0'), unit: s(f.unit).toUpperCase(), line: e ? e.line : null, problem: s(f.problem), quote: s(f.quote) }; });
 new_defects.forEach((f) => findings.push(f));
-unresolved_checks.forEach((u, i) => { const e = unitOf(u.unit); findings.push({ id: 'UNV-' + String(i + 1).padStart(3, '0'), severity: 'MAJOR', source: 'Revision check', check: 'REVISION CHECK UNRESOLVED', section: '', line: e ? e.line : null, quote: '', occurrences: [], unit: u.unit, problem: 'The check of edit ' + u.unit + ' for new defects has no usable result: ' + u.why + '.' + (u.said ? ' The verifier wrote: "' + u.said + '"' : '') + ' This is not a confirmed defect and not a clean result. A person has to read the edited passage.', fix: '' }); });
+// A required check that did not complete holds the plan. It is not a defect that was found: it is marked "unresolved"
+// so that the gate and the report keep it apart from confirmed defects and from ordinary findings with a clear result.
+unresolved_checks.forEach((u, i) => { const e = unitOf(u.unit); findings.push({ id: 'UNV-' + String(i + 1).padStart(3, '0'), severity: 'BLOCKING', unresolved: true, source: 'Revision check', check: 'REVISION CHECK DID NOT COMPLETE', section: '', line: e ? e.line : null, quote: '', occurrences: [], unit: u.unit, problem: 'The required check of edit ' + u.unit + ' for new defects did not complete: ' + u.why + '.' + (u.said ? ' The verifier wrote: "' + u.said + '"' : '') + ' This is not a confirmed defect and not a clean result, so the plan is held until a person has read the edited passage.', fix: '' }); });
 
 // THE SAME CLAIM ELSEWHERE. When an edit removed or reworded a sentence to fix a finding, a sentence that makes the
 // same statement somewhere else in the plan was not corrected by it. Each one is reported with its line.
@@ -277,6 +279,7 @@ const shares = (x, y) => { const X = contentOf(x); const Y = new Set(contentOf(y
 const computedText = new Set([fin.scenario_block, fin.forecast_block, fin.budget_block, fin.loan_block].join('\n').split('\n').map((l) => l.trim()).filter((l) => l.length > 8));
 const revisedLines = String(rev.text || '').split('\n');
 const same_claim_elsewhere = [];
+const RANK_OF = { BLOCKING: 0, MAJOR: 1, MINOR: 2 };
 log.forEach((e) => {
   const ids = (e.issues || []).filter((id) => first.some((f) => f.id === id && f.source === 'QA review' && f.severity !== 'MINOR'));
   if (!ids.length) return;
@@ -286,12 +289,21 @@ log.forEach((e) => {
     revisedLines.forEach((l, i) => {
       const n = i + 1;
       if ((e.line && n >= e.line && n < e.line + span) || !l.trim() || l.trim().startsWith('#') || computedText.has(l.trim())) return;
-      const hit = sentencesOf(l).find((x) => shares(removed, x) >= 0.7);
-      if (hit && !same_claim_elsewhere.some((x) => x.line === n && x.unit === e.unit)) same_claim_elsewhere.push({ line: n, unit: e.unit, issues: ids, removed: removed.slice(0, 240), found: hit.slice(0, 240) });
+      // A sentence that repeats most of the removed statement is the same claim. One that shares about half of it may be: that is a warning.
+      const scored = sentencesOf(l).map((x) => ({ x, share: shares(removed, x) })).sort((p, q) => q.share - p.share)[0];
+      if (!scored || scored.share < 0.5) return;
+      // One report per line: a certain match replaces an uncertain one.
+      const prior = same_claim_elsewhere.findIndex((x) => x.line === n);
+      if (prior >= 0) { if (same_claim_elsewhere[prior].certain || scored.share < 0.7) return; same_claim_elsewhere.splice(prior, 1); }
+      const worst = ids.map((id) => first.find((f) => f.id === id).severity).sort((p, q) => RANK_OF[p] - RANK_OF[q])[0];
+      same_claim_elsewhere.push({ line: n, unit: e.unit, issues: ids, certain: scored.share >= 0.7, severity: scored.share >= 0.7 ? worst : 'MAJOR', removed: removed.slice(0, 240), found: scored.x.slice(0, 240) });
     });
   });
 });
-same_claim_elsewhere.forEach((d, i) => findings.push({ id: 'DUP-' + String(i + 1).padStart(3, '0'), severity: 'MAJOR', source: 'Revision check', check: 'SAME CLAIM STILL PRESENT ELSEWHERE', section: '', line: d.line, quote: d.found, occurrences: [{ line: d.line, section: '', quote: d.found }], unit: d.unit, problem: 'Edit ' + d.unit + ' corrected ' + d.issues.join(', ') + ' by removing or rewording this statement: "' + d.removed + '". A sentence that makes the same statement is still at L' + d.line + ', which was not edited. Correcting one place does not correct the other.', fix: '' }));
+// The surviving sentence carries the severity of the finding it repeats: a claim judged blocking at one line is blocking
+// at every line. Only an uncertain match is reduced to a warning.
+same_claim_elsewhere.forEach((d, i) => findings.push({ id: 'DUP-' + String(i + 1).padStart(3, '0'), severity: d.severity, source: 'Revision check', check: d.certain ? 'SAME CLAIM STILL PRESENT ELSEWHERE' : 'POSSIBLY THE SAME CLAIM ELSEWHERE', section: '', line: d.line, quote: d.found, occurrences: [{ line: d.line, section: '', quote: d.found }], unit: d.unit, problem: 'Edit ' + d.unit + ' corrected ' + d.issues.join(', ') + ' by removing or rewording this statement: "' + d.removed + '". ' + (d.certain ? 'A sentence that makes the same statement is still at L' + d.line + ', which was not edited. Correcting one place does not correct the other, and the finding applies here with the same severity.' : 'A sentence at L' + d.line + ', which was not edited, shares part of that statement and may make the same claim. Read it.'), fix: '' }));
+order(findings);
 if (!verOk) findings.unshift({ id: 'AUTO-VER', severity: 'BLOCKING', source: 'Automated check', check: 'VERIFICATION DID NOT RUN', section: '', line: null, quote: '', occurrences: [], problem: 'The verification pass did not return a readable result, so the revision has not been checked. Check the Final QA node in this execution.', fix: 'Review the plan by hand.' });
 order(findings);
 findings.forEach((f, i) => { if (!f.id) f.id = 'AUTO-V' + String(i + 1).padStart(2, '0'); });

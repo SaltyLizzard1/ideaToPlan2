@@ -57,6 +57,31 @@ test('scope: sentences and clauses outside tables are judged separately too', as
   assert.deepEqual(only(await onLast('Traveling with Kristin [S2] and Sterling Lexicon [S12] both describe relocation services.'), /CITATION/), []);
 });
 
+test('binding: correct and swapped citations in identical layouts', async () => {
+  // Traveling with Kristin is tied to S2, Sterling Lexicon to S12.
+  const layouts = [
+    (x, y) => '| Competitors | Traveling with Kristin [' + x + '], Sterling Lexicon [' + y + '] |',
+    (x, y) => '| Competitors | Traveling with Kristin [' + x + '] and Sterling Lexicon [' + y + '] both describe relocation services. |',
+    (x, y) => 'Competing offers exist from Traveling with Kristin [' + x + '], Sterling Lexicon [' + y + '], and Total Law [S14].',
+    (x, y) => 'Traveling with Kristin plans relocations for individuals [' + x + '], while Sterling Lexicon serves businesses [' + y + '].',
+    (x, y) => '| Threats | 1. Traveling with Kristin claims 1,500 relocations [' + x + ']. 2. Sterling Lexicon is a global relocation company [' + y + ']. |',
+    (x, y) => '- Traveling with Kristin: personalized relocation consulting [' + x + ']; Sterling Lexicon: corporate relocation [' + y + '].',
+  ];
+  for (const layout of layouts) {
+    assert.deepEqual(only(await onLast(layout('S2', 'S12')), /CITATION/), [], 'correct: ' + layout('S2', 'S12'));
+    assert.deepEqual(only(await onLast(layout('S12', 'S2')), /CITATION/), [WRONG, WRONG], 'swapped: ' + layout('S12', 'S2'));
+  }
+});
+
+test('binding: names listed together share the citations that follow the list', async () => {
+  assert.deepEqual(only(await onLast('Traveling with Kristin, Sterling Lexicon and Total Law describe relocation services [S2][S12][S14].'), /CITATION/), []);
+  assert.deepEqual(only(await onLast('Traveling with Kristin and Sterling Lexicon describe relocation services [S2][S12].'), /CITATION/), []);
+  // A source that belongs to none of the listed companies still blocks.
+  assert.deepEqual(only(await onLast('Traveling with Kristin and Sterling Lexicon describe relocation services [S2][S16].'), /CITATION/), [WRONG]);
+  // A company named only for contrast does not take the citation.
+  assert.deepEqual(only(await onLast('Unlike Sterling Lexicon, Traveling with Kristin works with individuals [S2].'), /CITATION/), []);
+});
+
 test('scope: a row label and a profile table still apply to the whole row', async () => {
   assert.deepEqual(only(await onLast('| Traveling with Kristin | Personalized relocation consulting [S16] | Relevant to people planning a move |'), /CITATION/), [WRONG]);
   assert.deepEqual(only(await onLast('| Traveling with Kristin | Personalized relocation consulting [S2] | Relevant to people planning a move [S2] |'), /CITATION/), []);
@@ -71,7 +96,7 @@ const secondPass = async (qa) => {
   const rev = fx('Apply Revisions');
   const cc = await check(rev.text, { rev });
   const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': cc, 'Apply Revisions': rev, 'Build Evidence': EV }, { choices: [{ message: { content: JSON.stringify(qa) } }] });
-  return { out, cc, rev, unv: out.findings.filter((f) => f.check === 'REVISION CHECK UNRESOLVED'), revs: out.findings.filter((f) => /^REV-/.test(f.id)) };
+  return { out, cc, rev, unv: out.findings.filter((f) => f.unresolved === true), revs: out.findings.filter((f) => /^REV-/.test(f.id)) };
 };
 const shown = () => [...new Set(fx('Apply Revisions').edit_log.map((e) => e.unit))];
 const clean = (over = {}) => ({ ...REAL(), new_defects: undefined, edit_checks: shown().map((unit) => over[unit] || { unit, verdict: 'NO_NEW_DEFECT', severity: '', check: '', quote: '', problem: '', fix: '' }) });
@@ -89,13 +114,14 @@ test('verifier: that response is neither a confirmed defect nor a clean result',
   const r = await secondPass(REAL());
   assert.equal(r.out.new_defects.length, 0);
   assert.equal(r.revs.length, 0);
-  assert.ok(!r.out.findings.some((f) => f.severity === 'BLOCKING' && f.source !== 'Automated check'));
   const u3 = r.unv.find((f) => f.unit === 'U3');
-  assert.equal(u3.severity, 'MAJOR');
+  assert.equal(u3.check, 'REVISION CHECK DID NOT COMPLETE');
+  assert.equal(u3.severity, 'BLOCKING');                              // it holds the plan
+  assert.equal(u3.unresolved, true);                                  // and it is not a confirmed defect
   assert.equal(u3.line, 39);
   assert.match(u3.problem, /listed as a new defect, but its own explanation says no new defect was introduced/);
   assert.match(u3.problem, /The verifier wrote: "The Before text attributed the 83% finding/);
-  assert.match(u3.problem, /not a confirmed defect and not a clean result/);
+  assert.match(u3.problem, /not a confirmed defect and not a clean result, so the plan is held/);
   assert.ok(r.unv.some((f) => f.unit === 'U8'));
   // The response has no per-edit verdicts at all, which the contract now requires.
   assert.ok(r.unv.some((f) => /returned no per-edit verdicts/.test(f.problem)));
@@ -127,7 +153,7 @@ test('verifier: contradictory or malformed entries stay unresolved', async () =>
     const r = await secondPass(clean({ U3: entry }));
     assert.equal(r.revs.length, 0, name);
     assert.equal(r.unv.length, 1, name);
-    assert.equal(r.unv[0].severity, 'MAJOR', name);
+    assert.equal(r.unv[0].severity, 'BLOCKING', name);
     assert.match(r.unv[0].problem, why, name);
   }
   // An edit with no entry, and an edit answered twice.
@@ -208,7 +234,9 @@ test('elsewhere: the inference removed at line 511 is found again at line 40', a
   const dup = r.out.findings.filter((f) => f.check === 'SAME CLAIM STILL PRESENT ELSEWHERE');
   assert.equal(dup.length, 1);
   assert.equal(dup[0].line, 40);
-  assert.equal(dup[0].severity, 'MAJOR');
+  // QA-003 and QA-008 were blocking where they were found, so the surviving sentence is blocking too.
+  assert.deepEqual(['QA-003', 'QA-008'].map((id) => r.rev.first_findings.find((f) => f.id === id).severity), ['BLOCKING', 'BLOCKING']);
+  assert.equal(dup[0].severity, 'BLOCKING');
   assert.equal(dup[0].unit, 'U25');
   assert.match(dup[0].problem, /corrected QA-003, QA-008 by removing or rewording this statement: "Adjacent pricing data suggests that the broader category/);
   assert.match(dup[0].quote, /^it suggests that the broader category of personalized relocation consulting does carry price points well above \$500/);
@@ -326,17 +354,51 @@ test('price: the request to the model carries a founder or fixed price, and no l
   assert.match((await req({ fixed_scenario_price: 297 })).messages[1].content, /FIXED SCENARIO PRICE: 297 per sale/);
 });
 
-test('price: test-only fixed inputs are read in a test workflow and ignored in any other', async () => {
+const V2_TEST = { id: 'mLyKvFeYmJHuwXQ9', name: 'IdeaToPlan - Full Pipeline (Rebuilt) v2 Test' };
+const BASELINE = async () => runNode('test-financial-baseline.js', {});
+const context = async (workflow, { baseline, body = {}, d = {} } = {}) => {
+  const stubs = { 'Prepare Client Data': { ...FOUNDER, fixed_scenario_price: undefined, fixed_financial_assumptions: undefined, ...d }, Webhook: { body } };
+  if (baseline) stubs['Test Financial Baseline'] = baseline;
+  return runNode('founder-context.js', stubs, undefined, { workflow });
+};
+
+test('overrides: the baseline node is read only by the workflow with the v2 Test ID', async () => {
+  const baseline = await BASELINE();
+  const t = await context(V2_TEST, { baseline });
+  assert.equal(t.fixed_scenario_price, 500);
+  assert.equal(t.fixed_financial_assumptions.price.value, 500);
+  // Another workflow, even one named "Test" and even with the same node in it, ignores the node.
+  for (const wf of [{ id: 'Wn6ATzrXmDvKMwJk', name: 'IdeaToPlan - Full Pipeline (Rebuilt)' }, { id: 'xe2cj8HCw880WCnG', name: 'Some other Test workflow' }, { id: 'mLyKvFeYmJHuwXQ9x', name: V2_TEST.name }, { name: V2_TEST.name }, undefined]) {
+    const o = await context(wf, { baseline });
+    assert.equal(o.fixed_scenario_price, null, JSON.stringify(wf));
+    assert.equal(o.fixed_financial_assumptions, null, JSON.stringify(wf));
+  }
+});
+
+test('overrides: nothing in a request can set them, in any workflow', async () => {
   const body = { fixedScenarioPrice: 297, fixedFinancialAssumptions: { price: { value: 297 } } };
-  const run = (name, d = {}) => runNode('founder-context.js', { 'Prepare Client Data': { ...FOUNDER, ...d }, Webhook: { body } }, undefined, { workflow: { name } });
-  const t = await run('IdeaToPlan - Full Pipeline (Rebuilt) v2 Test');
-  assert.equal(t.fixed_scenario_price, 297);
-  assert.deepEqual(t.fixed_financial_assumptions, { price: { value: 297 } });
-  const live = await run('IdeaToPlan - Full Pipeline (Rebuilt)');
-  assert.equal(live.fixed_scenario_price, null);
-  assert.equal(live.fixed_financial_assumptions, null);
-  assert.equal((await run('IdeaToPlan - Full Pipeline (Rebuilt)', { founder_price: '$350' })).founder_price, 350);
-  assert.equal(live.founder_price, null);
+  for (const wf of [V2_TEST, { id: 'Wn6ATzrXmDvKMwJk', name: 'IdeaToPlan - Full Pipeline (Rebuilt)' }]) {
+    const o = await context(wf, { body, d: { fixedScenarioPrice: 297 } });
+    assert.equal(o.fixed_scenario_price, null);
+    assert.equal(o.fixed_financial_assumptions, null);
+  }
+  // A founder's own price is a different thing: an intake answer, honoured everywhere.
+  assert.equal((await context({ id: 'Wn6ATzrXmDvKMwJk', name: 'live' }, { d: { founder_price: '$350' } })).founder_price, 350);
+});
+
+test('baseline: the fixed inputs reproduce the 63222 figures at $500, whatever the model answers', async () => {
+  const baseline = await BASELINE();
+  const ctx = await context(V2_TEST, { baseline });
+  // The model's answer this time is the 63221 one ($297). It is ignored.
+  const out = await runNode('compute-financials.js', { 'Founder Context': ctx }, fx21('Financial Assumptions'));
+  assert.equal(out.price_record.amount, 500);
+  assert.equal(out.price_record.label, 'untested scenario assumption');
+  assert.equal(out.price_record.founder_supplied, false);
+  assert.deepEqual(out.model.year, FIN.model.year);
+  assert.equal(out.cost_headroom.available_usd, 12100);
+  assert.deepEqual(out.unresolved_costs, FIN.unresolved_costs);
+  assert.match(out.financial_model, /Held fixed for comparison with the earlier test run\. It is an untested scenario assumption and not a price the founder chose/);
+  assert.ok(!/E27|established firms/.test(JSON.stringify(baseline)));
 });
 
 test('price: the plan must carry the recorded price, and a result is not validation of it', async () => {
@@ -354,10 +416,50 @@ test('price: the plan must carry the recorded price, and a result is not validat
 
 // ---------------- The held plan, rechecked as a whole ----------------
 
-test('63222 recheck: the two original blockers are gone, and the genuine defects block', async () => {
+const gate = (findings) => runNode('delivery-gate.js', { 'Finalize Plan': { status: 'HOLD', final_findings: [] }, 'Plan Revision Request': { findings } });
+
+test('gate: a check that did not complete holds the plan, and is counted apart from confirmed defects', async () => {
+  // Only the verifier's result is unresolved here: the plan text has no confirmed defect.
+  const unv = { id: 'UNV-001', severity: 'BLOCKING', unresolved: true, check: 'REVISION CHECK DID NOT COMPLETE', line: 39, problem: 'The required check of edit U3 for new defects did not complete.' };
+  const major = { id: 'QA-900', severity: 'MAJOR', check: 'Unsupported comparative claim', line: 12, problem: 'A clear finding with a clear result.' };
+  const held = await gate([unv, major]);
+  assert.equal(held.blocked, true);
+  assert.equal(held.version_status, 'changes_requested');
+  assert.equal(held.unresolved_check_count, 1);
+  assert.equal(held.confirmed_blocker_count, 0);
+  assert.equal(held.warning_count, 1);
+  assert.match(held.reason, /^1 required check did not complete, so the result is unresolved, not a confirmed defect\.$/);
+  assert.match(held.blockers_text, /^- CHECK DID NOT COMPLETE \| UNV-001/);
+  assert.match(held.unresolved_checks_text, /UNV-001/);
+  // An ordinary MAJOR finding with a clear result does not hold the plan.
+  const review = await runNode('delivery-gate.js', { 'Finalize Plan': { status: 'REVIEW', final_findings: [] }, 'Plan Revision Request': { findings: [major] } });
+  assert.equal(review.blocked, false);
+  assert.equal(review.version_status, 'awaiting_approval');
+  assert.equal(review.unresolved_check_count, 0);
+});
+
+test('elsewhere: an uncertain match is a warning, and a certain match keeps the severity of the finding it repeats', async () => {
+  const rev = clone(fx('Apply Revisions'));
+  const e = rev.edit_log.find((x) => x.unit === 'U25');
+  e.before = e.before + ' Referral partnerships with immigration lawyers will supply most early customers for this consulting business within the first quarter.';
+  // About half of the removed statement's words, in a sentence that may or may not say the same thing.
+  rev.text = rev.text + '\n\nImmigration lawyers sometimes refer early customers to a consulting business, though rarely within a single quarter of trading.\n';
+  const cc = await check(rev.text, { rev });
+  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': cc, 'Apply Revisions': rev, 'Build Evidence': EV }, { choices: [{ message: { content: JSON.stringify(clean()) } }] });
+  const last = rev.text.replace(/\n+$/, '').split('\n').length;
+  const maybe = out.findings.find((f) => f.line === last && /SAME CLAIM/.test(f.check));
+  assert.equal(maybe.check, 'POSSIBLY THE SAME CLAIM ELSEWHERE');
+  assert.equal(maybe.severity, 'MAJOR');
+  const sure = out.findings.find((f) => f.check === 'SAME CLAIM STILL PRESENT ELSEWHERE');
+  assert.equal(sure.line, 40);
+  assert.equal(sure.severity, 'BLOCKING');
+});
+
+test('63222 recheck: confirmed defects, unresolved checks and ordinary findings are separate', async () => {
   const r = await secondPass(REAL());
-  const blocking = r.out.findings.filter((f) => f.severity === 'BLOCKING').map((f) => 'L' + f.line + ' ' + f.check);
-  assert.deepEqual(blocking, [
+  const f = r.out.findings;
+  const confirmed = f.filter((x) => x.severity === 'BLOCKING' && !x.unresolved).map((x) => 'L' + x.line + ' ' + x.check);
+  assert.deepEqual(confirmed, [
     'L125 UNCONDITIONAL PROFIT CLAIM WITH UNRESOLVED COSTS',
     'L511 UNCONDITIONAL PROFIT CLAIM WITH UNRESOLVED COSTS',
     'L40 PRICE EVIDENCE STRETCHED BEYOND ITS SOURCE',
@@ -366,7 +468,18 @@ test('63222 recheck: the two original blockers are gone, and the genuine defects
     'L127 PRICE EVIDENCE STRETCHED BEYOND ITS SOURCE',
     'L297 PRICE EVIDENCE STRETCHED BEYOND ITS SOURCE',
     'L511 PRICE EVIDENCE STRETCHED BEYOND ITS SOURCE',
+    'L40 SAME CLAIM STILL PRESENT ELSEWHERE',
   ]);
+  assert.equal(f.filter((x) => x.unresolved).length, 3);
+  // Ordinary findings with a clear result: the financial review note, and sentences that may repeat a corrected claim.
+  const major = f.filter((x) => x.severity === 'MAJOR');
+  assert.deepEqual([...new Set(major.map((x) => x.check))], ['FINANCIAL MODEL', 'POSSIBLY THE SAME CLAIM ELSEWHERE']);
+  assert.deepEqual(major.filter((x) => /POSSIBLY/.test(x.check)).map((x) => x.line), [297, 14, 39, 463, 499, 511, 469]);
   // In the run, the gate held on these two. Neither is a finding now.
-  assert.ok(!r.out.findings.some((f) => /CITATION NOT TIED|Citation on wrong claim/.test(f.check)));
+  assert.ok(!f.some((x) => /CITATION NOT TIED|Citation on wrong claim/.test(x.check)));
+  const g = await gate(f);
+  assert.equal(g.blocked, true);
+  assert.equal(g.confirmed_blocker_count, 9);
+  assert.equal(g.unresolved_check_count, 3);
+  assert.equal(g.warning_count, 8);
 });

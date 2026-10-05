@@ -12,6 +12,10 @@ if (Array.isArray(fp.final_findings)) findings = findings.concat(fp.final_findin
 const CITATION = /CITATION|EXCLUDED CLAIM|SOURCE VERIFICATION|UNVERIFIED COMPANY|FIGURE CITED TO THE WRONG SOURCE|UNSUPPORTED STATISTIC|SOURCE DATE NOTE|UNKNOWN SOURCE ID|UNVERIFIED FIGURE|CITED SOURCE MISSING|URL WRITTEN BY MODEL|citation|attribution|source quality/i;
 const status = String(fp.status || '').toUpperCase();
 const blockers = findings.filter((f) => f.severity === 'BLOCKING');
+// A required check that did not complete holds the plan like a blocker, and is counted and listed separately:
+// it is not a defect that was confirmed.
+const incomplete = blockers.filter((f) => f.unresolved === true);
+const confirmed = blockers.filter((f) => f.unresolved !== true);
 const known = ['SEND', 'REVIEW', 'HOLD'].includes(status);
 const blocked = !known || status === 'HOLD' || blockers.length > 0;
 const citationBlockers = blockers.filter((f) => CITATION.test(String(f.check || '')));
@@ -20,7 +24,7 @@ const line = (f) => '- ' + (f.id || 'no id') + ' | ' + (f.check || 'unnamed chec
 const reason = !known
   ? 'The review status could not be read (' + (fp.status === undefined ? 'missing' : String(fp.status)) + '), so the plan is held.'
   : blockers.length
-    ? blockers.length + ' blocking finding' + (blockers.length === 1 ? '' : 's') + ' remain' + (blockers.length === 1 ? 's' : '') + ', ' + citationBlockers.length + ' of them about citations or sources.'
+    ? [confirmed.length ? confirmed.length + ' confirmed blocking finding' + (confirmed.length === 1 ? '' : 's') + ' remain' + (confirmed.length === 1 ? 's' : '') + ', ' + citationBlockers.length + ' of them about citations or sources.' : '', incomplete.length ? incomplete.length + ' required check' + (incomplete.length === 1 ? '' : 's') + ' did not complete, so the result is unresolved, not a confirmed defect.' : ''].filter(Boolean).join(' ')
     : status === 'HOLD' ? 'The final review set the status to HOLD. See the review report.' : '';
 
 return {
@@ -29,9 +33,12 @@ return {
   review_status: known ? status : 'HOLD',
   reason,
   blocker_count: blockers.length,
+  confirmed_blocker_count: confirmed.length,
+  unresolved_check_count: incomplete.length,
+  unresolved_checks_text: incomplete.length ? incomplete.map(line).join('\n') : 'None.',
   citation_blocker_count: citationBlockers.length,
   warning_count: findings.filter((f) => f.severity === 'MAJOR').length,
   minor_count: findings.filter((f) => f.severity === 'MINOR').length,
-  blockers_text: blockers.length ? blockers.map(line).join('\n') : 'None listed. See the review report.',
+  blockers_text: blockers.length ? confirmed.map(line).concat(incomplete.map((f) => line(f).replace(/^- /, '- CHECK DID NOT COMPLETE | '))).join('\n') : 'None listed. See the review report.',
   warnings_text: findings.filter((f) => f.severity === 'MAJOR').map(line).join('\n') || 'None.',
 };
