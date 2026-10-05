@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './harness.mjs';
 
-const FILES = { 'Collect Evidence': 'collect-evidence.js', 'Fetch Source Pages': 'fetch-source-pages.js', 'Build Verification Request': 'build-verification-request.js', 'Build Evidence': 'build-evidence.js', 'Citation Check': 'citation-check.js', 'Delivery Gate': 'delivery-gate.js', 'Sanitize Data': 'sanitize-data.js', 'Build Growth Payload': 'build-growth-payload.js', 'Founder Context': 'founder-context.js', 'Plan Revision Request': 'plan-revision-request.js', 'Finalize Plan': 'finalize-plan.js', 'Compute Financials': 'compute-financials.js', 'Build Recheck Request': 'build-recheck-request.js' };
+const FILES = { 'Collect Evidence': 'collect-evidence.js', 'Fetch Source Pages': 'fetch-source-pages.js', 'Build Verification Request': 'build-verification-request.js', 'Build Evidence': 'build-evidence.js', 'Citation Check': 'citation-check.js', 'Delivery Gate': 'delivery-gate.js', 'Sanitize Data': 'sanitize-data.js', 'Build Growth Payload': 'build-growth-payload.js', 'Founder Context': 'founder-context.js', 'Plan Revision Request': 'plan-revision-request.js', 'Finalize Plan': 'finalize-plan.js', 'Compute Financials': 'compute-financials.js', 'Build Recheck Request': 'build-recheck-request.js', 'Apply Revisions': 'apply-revisions.js' };
 const norm = (s) => s.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\s+$/, '');
 const raw = readFileSync(process.argv[2], 'utf8');
 const parsed = JSON.parse(raw.slice(raw.indexOf('{')));

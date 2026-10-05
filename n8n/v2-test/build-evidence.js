@@ -95,12 +95,47 @@ try { recheckRequests = $('Build Recheck Request').all().map((i) => i.json).filt
 let recheckResponses = [];
 try { recheckResponses = $('Verify Corrections').all().map((i) => i.json); } catch (e) {}
 readBatch(recheckRequests, recheckResponses);
+// The company a claim opens with, as the claim writes it: the capitalised words before the first verb ("Reelo says",
+// "Move One Relocations offers"). Empty when the claim does not open with a name.
+const NAME_STOP = /^(?:says?|said|states?|stated|offers?|provides?|serves?|is|are|was|were|has|have|lists?|publishes|describes?|charges?|helps?|sells?|positions?|focuse?s|targets?|runs?|operates?|reports?|notes?|claims?|advertises?|markets?|speciali[sz]es?|delivers?|supports?|covers?|does|gives?|includes?|calls?|presents?|bills?|prices?|combines?|assists?|creates?|guides?|handles?|works?|shows?|uses?|which|that|who)$/i;
+const leadName = (text) => {
+  const tokens = String(text || '').trim().replace(/^ADJACENT\s*:\s*/i, '').replace(/^the\s+/i, '').split(/\s+/);
+  const out = [];
+  let stopped = false;
+  for (let i = 0; i < Math.min(tokens.length, 7); i++) {
+    if (NAME_STOP.test(tokens[i].replace(/[.,;:]+$/, ''))) { stopped = true; break; }
+    out.push(tokens[i]);
+    if (/[,;:]$/.test(tokens[i])) break;
+  }
+  if (!stopped || !out.length || out.length > 5) return '';
+  const name = out.join(' ').replace(/['’]s$/, '').replace(/[.,;:]+$/, '');
+  return /^[A-Z0-9]/.test(name) ? name : '';
+};
+// The company a recovered claim is about is read from the claim itself, never copied from the claim it replaces: the
+// original may have named the wrong company, which is often why it was contradicted. A company already known is
+// matched by name. A new name is accepted only when the page carries it: the site name, the page title, or the
+// publisher the verifier read on the page. The code checks below still require the page text to name it.
+const squashName = (v) => spaced(v).replace(/ /g, '');
+const entityFor = (claimText, sid) => {
+  const lead = spaced(String(claimText || '').replace(/^ADJACENT\s*:\s*/i, '').replace(/^the\s+/i, ''));
+  const known = entityList.filter((e) => e.name_words && lead.startsWith(' ' + e.name_words + ' ')).sort((a, b) => b.name_words.length - a.name_words.length)[0];
+  if (known) return { key: known.key, name: known.name, name_words: known.name_words };
+  const name = leadName(claimText);
+  const key = squashName(name);
+  if (key.length < 5) return null;
+  const nameWords = spaced(name).trim();
+  const src = byId(sid) || {};
+  const page = pageOf[sid] || {};
+  const site = squashName(src.site);
+  const carried = (site.length >= 5 && (site.startsWith(key) || key.startsWith(site))) || spaced((page.title || '') + ' ' + (src.title || '')).includes(' ' + nameWords + ' ') || spaced((pageMeta[sid] || {}).publisher).includes(' ' + nameWords + ' ');
+  return carried ? { key, name, name_words: nameWords } : null;
+};
 const firstPass = {};
 candidates.forEach((c) => { firstPass[c.claim_id] = c; });
 recheckRequests.forEach((r) => (r.corrections || []).forEach((k) => {
   const o = firstPass[k.corrects];
   if (!o || !k.claim_id || firstPass[k.claim_id]) return;
-  candidates.push({ claim_id: k.claim_id, call: o.call, question: o.question, claim: k.claim, source_type: o.source_type, reported_published: 'date not shown', url_given: '', markers: [], entity: o.entity, candidate_source_ids: [r.source_id], candidate_basis: ['the fetched page, after research claim ' + k.corrects + ' was contradicted'], corrects: k.corrects });
+  candidates.push({ claim_id: k.claim_id, call: o.call, question: o.question, claim: k.claim, source_type: o.source_type, reported_published: 'date not shown', url_given: '', markers: [], entity: entityFor(k.claim, r.source_id), candidate_source_ids: [r.source_id], candidate_basis: ['the fetched page, after research claim ' + k.corrects + ' was contradicted'], corrects: k.corrects });
 }));
 
 // ---------- 2. Deterministic checks. ----------
@@ -292,6 +327,8 @@ sources.forEach((s) => {
 claims.forEach((c) => { c.published = byId(c.source_ids[0]).published; });
 
 // ---------- 5. Entities: a company is tied to its own pages and to any page that verifiably states a claim about it. ----------
+// A company first named by a recovered claim is added, so its verified claim keeps its company downstream.
+claims.forEach((c) => { if (c.entity && !entityList.some((e) => e.name === c.entity)) { const k = candidates.find((x) => x.claim_id === c.claim_id); entityList.push({ name: k.entity.name, name_words: k.entity.name_words, key: k.entity.key, sites: [], own_source_ids: [] }); } });
 const entities = entityList.map((e) => {
   const mine = claims.filter((c) => c.entity === e.name);
   const ids = (e.own_source_ids || []).slice();

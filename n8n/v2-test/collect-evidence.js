@@ -66,6 +66,22 @@ const displayName = (text, key) => {
   for (let i = 0; i < Math.min(tokens.length, 8); i++) if (squash(tokens.slice(0, i + 1).join(' ')) === key) return tokens.slice(0, i + 1).join(' ').replace(/['’]s$/, '').replace(/[.,;:]+$/, '');
   return key;
 };
+// The company a claim opens with, as the claim writes it: the capitalised words before the first verb ("Reelo says",
+// "Move One Relocations offers"). Empty when the claim does not open with a name.
+const NAME_STOP = /^(?:says?|said|states?|stated|offers?|provides?|serves?|is|are|was|were|has|have|lists?|publishes|describes?|charges?|helps?|sells?|positions?|focuse?s|targets?|runs?|operates?|reports?|notes?|claims?|advertises?|markets?|speciali[sz]es?|delivers?|supports?|covers?|does|gives?|includes?|calls?|presents?|bills?|prices?|combines?|assists?|creates?|guides?|handles?|works?|shows?|uses?|which|that|who)$/i;
+const leadName = (text) => {
+  const tokens = String(text || '').trim().replace(/^ADJACENT\s*:\s*/i, '').replace(/^the\s+/i, '').split(/\s+/);
+  const out = [];
+  let stopped = false;
+  for (let i = 0; i < Math.min(tokens.length, 7); i++) {
+    if (NAME_STOP.test(tokens[i].replace(/[.,;:]+$/, ''))) { stopped = true; break; }
+    out.push(tokens[i]);
+    if (/[,;:]$/.test(tokens[i])) break;
+  }
+  if (!stopped || !out.length || out.length > 5) return '';
+  const name = out.join(' ').replace(/['’]s$/, '').replace(/[.,;:]+$/, '');
+  return /^[A-Z0-9]/.test(name) ? name : '';
+};
 const entities = {};
 const readCall = (nodeName) => {
   let msg = {};
@@ -108,7 +124,7 @@ const readCall = (nodeName) => {
     const hits = [];
     callIds.map(byId).forEach((s) => s.entity_keys.forEach((k) => { if (k.length >= minKey && grams.has(k)) { hits.push({ s, k }); if (k.length > best) best = k.length; } }));
     const top = hits.filter((h) => h.k.length === best);
-    const entityIds = [...new Set(top.map((h) => h.s.id))];
+    let entityIds = [...new Set(top.map((h) => h.s.id))];
     let entity = null;
     if (top.length) {
       const key = top[0].k;
@@ -116,6 +132,25 @@ const readCall = (nodeName) => {
       entity = { key, name, name_words: words(name).join(' ') };
       const e = entities[key] = entities[key] || { name, name_words: entity.name_words, key, sites: [], own_source_ids: [] };
       entityIds.forEach((id) => { const s = byId(id); if (!e.sites.includes(s.site)) e.sites.push(s.site); });
+    } else if (/company/i.test(sourceType)) {
+      // No source key spells the name in full: Reelo on reelome.com, Intermark on intermarkrelocation.com. The name the
+      // claim opens with is accepted only when a source of this call carries it: its site name starts with the name
+      // (or the name with the site name), or its page title contains the name as words. Only a site match makes the
+      // site the company's own. Build Evidence still requires the fetched page to name the company.
+      const name = leadName(claimText);
+      const key = squash(name);
+      const nameWords = words(name).join(' ');
+      if (key.length >= 5) {
+        const bySite = callIds.filter((id) => { const site = squash(byId(id).site); return site.length >= 5 && (site.startsWith(key) || key.startsWith(site)); });
+        const byTitle = callIds.filter((id) => (' ' + words(byId(id).title).join(' ') + ' ').includes(' ' + nameWords + ' '));
+        const ids = [...new Set(bySite.concat(byTitle))];
+        if (ids.length) {
+          entity = { key, name, name_words: nameWords };
+          entityIds = ids;
+          const e = entities[key] = entities[key] || { name, name_words: nameWords, key, sites: [], own_source_ids: [] };
+          bySite.forEach((id) => { const s = byId(id); if (!e.sites.includes(s.site)) e.sites.push(s.site); });
+        }
+      }
     }
     const ordered = [];
     const push = (id, basis) => { if (id && !ordered.some((x) => x.id === id)) ordered.push({ id, basis }); };

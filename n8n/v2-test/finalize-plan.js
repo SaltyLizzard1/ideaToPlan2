@@ -45,6 +45,19 @@ if (costCondition) {
       }
     });
   }
+  // Startup budget, checked on every line the model wrote. The funding the included costs need is a computed figure;
+  // whether the founder's budget covers all costs is not known while costs are unresolved, and the plan must not say it is.
+  const BUDGET_ENOUGH = /\b(?:budget|ceiling|funds?|funding|capital|savings)\b[^.;]{0,80}?\b(?:sufficient|enough|adequate|ample|covers? (?:the|all|every|everything|what|launch)|will cover|can cover|fully funds?|is (?:not a|no) constraint)\b|\b(?:sufficient|enough|adequate|ample)\b[^.;]{0,40}?\b(?:budget|funds?|funding|capital|to (?:launch|start|get started|begin|open|fund|cover))\b|\bno (?:additional|further|outside|external|extra|more) (?:funding|capital|investment|money) (?:is |will be )?(?:needed|required|necessary)\b|\b(?:fully|comfortably|easily|well) (?:funded|within (?:the |your )?budget|under (?:the |your )?(?:budget|ceiling))\b|\bcan (?:launch|start|be launched|be started) (?:within|on|under|for) (?:the |your |this )?(?:budget|ceiling)\b/i;
+  // Acceptable: the sentence limits itself to the included costs, or says that cover of all costs is not established.
+  const BUDGET_QUALIFIED = /\b(?:unresolved|included costs?|costs? (?:that are )?included|costs? in the (?:model|figures|forecast)|included in (?:the|these) (?:model|figures|forecast)|not (?:yet )?(?:established|resolved|known|confirmed)|whether|cannot (?:yet )?be|until the|not (?:sufficient|enough|adequate)|insufficient)\b/i;
+  const computedLines = new Set([finModel.scenario_block, finModel.forecast_block, finModel.budget_block, finModel.loan_block].join('\n').split('\n').map((l) => l.trim()).filter((l) => l.length > 8));
+  text.split('\n').forEach((line, i) => {
+    const t = line.trim();
+    if (!t || t.startsWith('#') || computedLines.has(t) || plainText(t) === plainText(costCondition)) return;
+    (/^\|.*\|$/.test(t) ? t.replace(/^\||\|$/g, '').split('|') : [t]).flatMap((c) => c.split(/(?<=[.!?;])\s+/)).forEach((sentence) => {
+      if (BUDGET_ENOUGH.test(sentence) && !BUDGET_QUALIFIED.test(sentence)) cost_condition_check.problems.push('L' + (i + 1) + ' says the startup budget is enough, while costs are unresolved: "' + sentence.trim().slice(0, 200) + '"');
+    });
+  });
   cost_condition_check.problems.forEach((p, n) => { const f = { id: 'FIN-' + String(n + 1).padStart(3, '0'), severity: 'BLOCKING', source: 'Final check', check: 'COST CONDITION', section: 'Viability Assessment', line: null, quote: '', problem: p, fix: '', occurrences: [] }; findings.push(f); final_findings.push(f); });
   // Unresolved costs always reach a person: with no other finding the status is REVIEW, never SEND.
   if (!cost_condition_check.problems.length && !findings.some((f) => f.severity === 'BLOCKING' || f.severity === 'MAJOR')) { const f = { id: 'FIN-REVIEW', severity: 'MAJOR', source: 'Final check', check: 'COST CONDITION', section: 'Viability Assessment', line: null, quote: '', problem: 'Costs are unresolved (' + (finModel.unresolved_costs || []).join('; ') + '). The conclusion is conditional on them. Confirm them with the founder before sending.', fix: '', occurrences: [] }; findings.push(f); final_findings.push(f); }

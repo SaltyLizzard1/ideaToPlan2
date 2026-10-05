@@ -132,6 +132,9 @@ HOW TO FIX
 - Demand: competitors existing is not evidence of buyers, sales, or willingness to pay. Reword any such statement as a hypothesis that requires validation.
 - Price: the offer's own price is a planning assumption with no source ID. Remove a source ID from any sentence that ties the price to pages that state no price, and keep those pages only on the service descriptions they support. Never write that the price is market-validated. A competitor price keeps its amount, currency, what it buys, and its length, and is never called equivalent to this offer.
 - Payment and market: do not write that providers are paid or charge unless a ledger entry states a price for them. A market existing means offers are available, not that demand is shown. One company's page supports statements about that company only.
+- Competitive gaps: a gap, an unmet need, an underserved segment, a positioning opportunity, or a statement that no competitor does something is a hypothesis unless a ledger entry states it. Label the sentence itself as a hypothesis to test, or as IdeaToPlan analysis that does not establish a gap. Do not leave a sentence that reads as a finding because a label sits elsewhere in the paragraph.
+- Price comparisons: with no verified price in the ledger, remove any comparison with what other services charge, including one that gives no number (a reference point, a general range, a benchmark, a going rate), and say that the price is an untested planning assumption.
+- Startup budget: while costs are unresolved, never write that the budget, the ceiling, or the funding is sufficient, enough, or adequate, or that it covers launch. Give the funding requirement of the included costs exactly as FINANCIAL FACTS state it, and say that whether the budget covers all costs is not established until the unresolved costs are known.
 - Cost condition: when costs are unresolved, code places a paragraph beginning "This assessment is conditional." at the start of the Viability Assessment after your edits. Do not write that paragraph and do not paraphrase it. Make the text around it agree with it: no sentence may say the business is viable, profitable, or sustainable without that condition, and no sentence may say that all costs are known or included.
 - Dates: judge every date against the RUN DATE at the top of the user message. Never add a remark that a date is anomalous, future-dated, or suspicious, and remove such a remark when a finding asks for it.
 - Never add an external fact, number, source ID, URL, or name that is not in the EVIDENCE LEDGER.
@@ -181,6 +184,9 @@ const verOk = qa && Array.isArray(qa.verifications);
 const verdict = {};
 if (verOk) qa.verifications.forEach((v) => { verdict[s(v.id)] = { status: s(v.status).toUpperCase().replace(/\s+/g, '_'), note: s(v.note) }; });
 
+const unchanged = rev.unchanged_units || [];
+const presence = {};
+if (verOk && Array.isArray(qa.unchanged)) qa.unchanged.forEach((u) => { if (u && typeof u.present === 'boolean') presence[s(u.unit).toUpperCase() + '|' + s(u.id)] = { present: u.present, note: s(u.note) }; });
 const autoNow = (cc.det_issues || []).map(fromAuto);
 // An automated finding that is still reported keeps the ID it had in the first review.
 autoNow.forEach((n) => { const o = first.find((f) => f.source === 'Automated check' && f.check === n.check && (f.problem === n.problem || (f.quote && f.quote === n.quote))); if (o) n.id = o.id; });
@@ -198,13 +204,25 @@ first.forEach((f) => {
   if (f.severity === 'MINOR') { if (!mine.length) findings.push(f); return; }
   // An original finding keeps its ID. Code decides the verdict when nothing was edited; QA decides it when something was.
   const occ = f.occurrences || [];
-  const editedOcc = occ.filter((o) => o.located && mine.some((e) => o.located >= e.start && o.located <= e.end)).length;
+  const edited = (o) => o.located && mine.some((e) => o.located >= e.start && o.located <= e.end);
+  // An occurrence the reviser left unchanged is neither fixed nor cleared by that. The verification pass read the
+  // passage and said whether the root problem is in it. Only "not present" clears it; no answer leaves it open.
+  const leftAlone = (o) => o.located ? unchanged.find((u) => (u.issues || []).includes(f.id) && o.located >= u.start && o.located <= u.end) : null;
+  const judged = (o) => { const u = leftAlone(o); return u ? presence[u.unit + '|' + f.id] : null; };
+  const editedOcc = occ.filter(edited).length;
+  const clearedOcc = occ.filter((o) => !edited(o) && judged(o) && judged(o).present === false).length;
+  const stillThere = occ.filter((o) => !edited(o) && judged(o) && judged(o).present === true);
   const v = verdict[f.id];
   let status, note;
-  if (!mine.length) { status = 'NOT_FIXED'; note = 'No edit was applied for this finding.'; }
+  if (!mine.length) {
+    // Nothing was edited. A blocking finding is never closed on the verifier's word alone; a person has to look.
+    if (occ.length && clearedOcc === occ.length && f.severity !== 'BLOCKING') { status = 'FIXED'; note = 'No edit was needed: verification found that the passage' + (occ.length === 1 ? ' does' : 's do') + ' not contain the problem.'; }
+    else { status = 'NOT_FIXED'; note = 'No edit was applied for this finding.' + (clearedOcc ? ' Verification found the problem absent from ' + clearedOcc + ' of ' + occ.length + ' passages.' : ''); }
+  }
   else if (v && ['FIXED', 'PARTLY_FIXED', 'NOT_FIXED'].includes(v.status)) { status = v.status; note = v.note; }
   else { status = 'NOT_VERIFIED'; note = 'An edit was applied but QA gave no verdict on it.'; }
-  if (status === 'FIXED' && editedOcc < occ.length) { status = 'PARTLY_FIXED'; note = editedOcc + ' of ' + occ.length + ' occurrences were edited. ' + note; }
+  if (mine.length && status === 'FIXED' && editedOcc + clearedOcc < occ.length) { status = 'PARTLY_FIXED'; note = editedOcc + ' of ' + occ.length + ' occurrences were edited' + (clearedOcc ? ' and ' + clearedOcc + ' left unchanged did not contain the problem' : '') + '. ' + (stillThere.length ? 'The problem is still at L' + stillThere.map((o) => o.located).join(', L') + '. ' : 'The rest were not verified. ') + note; }
+  else if (mine.length && status === 'FIXED' && clearedOcc) note = note + ' ' + clearedOcc + ' passage' + (clearedOcc === 1 ? '' : 's') + ' left unchanged did not contain the problem.';
   verification.push({ id: f.id, severity: f.severity, source: f.source, check: f.check, occurrences: occ.length, status, note });
   if (status !== 'FIXED') findings.push({ ...f, status, problem: f.problem + ' (After revision: ' + status.replace('_', ' ').toLowerCase() + '. ' + note + ')' });
 });
