@@ -129,6 +129,7 @@ HOW TO FIX
 - Unsupported or overstated statement: either weaken it to exactly what the available evidence supports, or recast it as an IdeaToPlan recommendation with its reason ("IdeaToPlan recommends X because Y") or as a hypothesis to test, or delete it. Never write a new factual claim, statistic, trend, prediction, or "research suggests" statement to replace the one that was flagged. If in doubt, delete.
 - Mismatched citation: use the source ID the EVIDENCE LEDGER gives for that exact claim, or remove the claim.
 - A verified source is not a verified claim. Keep a source ID only on what one ledger entry states. Put a conclusion in IdeaToPlan's own voice with no source ID.
+- Prevalence: a few pages that describe their own offers are examples. Remove "widely available", "common", "numerous", and the like unless a ledger entry says so; name the examples with their source IDs and say that how widely they are used is not established.
 - Samples: a survey's number of respondents is the size of its sample. Remove any statement that a community, a population, or a market is large, active, or growing, or that demand exists, when it rests on a sample size. Keep only what the ledger entry states.
 - Demand: competitors existing is not evidence of buyers, sales, or willingness to pay. Reword any such statement as a hypothesis that requires validation.
 - Price: the offer's own price is a planning assumption with no source ID. Remove a source ID from any sentence that ties the price to pages that state no price, and keep those pages only on the service descriptions they support. Never write that the price is market-validated. A competitor price keeps its amount, currency, what it buys, and its length, and is never called equivalent to this offer.
@@ -299,9 +300,13 @@ log.forEach((e) => {
       // removed statement that are not in the corrected text. A sentence elsewhere repeats the defect only when it
       // still carries those words, in a passage that also shares the statement as a whole. A sentence that shares
       // only the part that was kept is not a repeat at all.
-      const gone = contentOf(removed).filter((w) => !correctedWords.has(w));
+      // Examples in brackets ("(blogs, communities, self-serve tools)") are not the claim. When the statement stands
+      // without them, it is compared without them, so dropping the examples does not hide a repeat.
+      const bare = removed.replace(/\([^)]*\)/g, ' ');
+      const core = contentOf(bare).length >= 6 ? bare : removed;
+      const gone = contentOf(core).filter((w) => !correctedWords.has(w));
       if (gone.length < 3) return;
-      const lineShare = shares(removed, l);
+      const lineShare = shares(core, l);
       if (lineShare < 0.6) return;
       const scored = sentencesOf(l).filter((x) => !DISCLAIMS.test(x)).map((x) => { const there = new Set(contentOf(x)); return { x, carries: gone.filter((w) => there.has(w)).length / gone.length }; }).sort((p, q) => q.carries - p.carries)[0];
       if (!scored || scored.carries < 0.5) return;

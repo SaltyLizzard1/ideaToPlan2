@@ -104,10 +104,24 @@ test('price: a third party\'s price on a company\'s own site is not that company
   assert.ok((await onLast('Expat Financial Solutions lists a tax review at $900 [S5]; this is that company\'s own price for its own service.', { ev: partner })).includes(STRETCH));
 });
 
-test('price: a company\'s price reported on someone else\'s page is not established as its own', async () => {
-  // The same claim, verified on a page that is not the company's own site.
+test('price: a verified third-party page can establish a named company\'s price for a specific offer', async () => {
+  // The same claim about Expat Financial Solutions' $2,500 plan, verified on a page that is not the company's own site.
+  const elsewhere = evidence({ ledger: (l) => l.map((c) => c.claim_id === 'E9' ? { ...c, source_ids: ['S29'], source_type: 'directory listing' } : c) });
+  assert.notEqual(JSON.parse(EV.sources).find((x) => x.id === 'S29').domain, 'expatfinancial.solutions');
+  assert.deepEqual(only(await onLast('A directory page states that Expat Financial Solutions charges $2,500 for a one-time personalized financial plan [S29]; this is that company\'s own price for its own service, as reported by that page.', { ev: elsewhere }), /PRICE/), []);
+});
+
+test('price: unsupported attribution still blocks, wherever the page is', async () => {
+  // The verified price belongs to Expat Financial Solutions. Calling it another company's own price is not supported.
+  assert.ok((await onLast('Terra Relocations lists a plan at $2,500 [S5]; this is that company\'s own price for its own service.')).some((x) => /^BLOCKING/.test(x)));
   const elsewhere = evidence({ ledger: (l) => l.map((c) => c.claim_id === 'E9' ? { ...c, source_ids: ['S29'] } : c) });
-  assert.ok((await onLast('Expat Financial Solutions charges $2,500 for a one-time plan [S29]; this is that company\'s own price for its own service.', { ev: elsewhere })).includes(STRETCH));
+  assert.ok((await onLast('A directory page gives $2,500 for a plan [S29]; this is Kismet Travels & Tours\' own pricing.', { ev: elsewhere })).includes(STRETCH));
+  // An entry about no company states nobody's own price.
+  const anonymous = evidence({ ledger: (l) => l.map((c) => { if (c.claim_id !== 'E9') return c; const { entity, ...rest } = c; return { ...rest, claim: 'A financial planning page states that a one-time personalized financial plan is priced at $2,500.' }; }) });
+  assert.ok((await onLast('A planning page prices a one-time plan at $2,500 [S5]; this is that provider\'s own pricing.', { ev: anonymous })).includes(STRETCH));
+  // A claim that names the company but does not say what it charges.
+  const vague = evidence({ ledger: (l) => l.map((c) => c.claim_id === 'E9' ? { ...c, claim: 'Expat Financial Solutions mentions $2,500 on its financial planning page.' } : c) });
+  assert.ok((await onLast('Expat Financial Solutions mentions $2,500 [S5]; this is that company\'s own price for its own service.', { ev: vague })).includes(STRETCH));
 });
 
 test('price: "their own services on their own pages" is not a statement about a price', async () => {
@@ -173,18 +187,58 @@ test('noise: of the sixteen overlap warnings in the run, one was a real repeat a
   const out = await secondPass();
   // Line 43 still carries the inference that QA-006 removed elsewhere: "It indicates that a sizeable, active population ...".
   const repeats = out.findings.filter((f) => /SAME CLAIM/.test(f.check));
-  assert.deepEqual(repeats.map((f) => f.line), [43]);
-  assert.equal(repeats[0].check, 'SAME CLAIM STILL PRESENT ELSEWHERE');
-  assert.equal(repeats[0].severity, fx('Apply Revisions').first_findings.find((f) => f.id === 'QA-006').severity);
-  assert.match(repeats[0].quote, /^It indicates that a sizeable, active population is engaging with relocation decisions/);
+  assert.deepEqual(repeats.map((f) => f.line).sort((a, b) => a - b), [43, 553]);
+  const r43 = repeats.find((f) => f.line === 43);
+  assert.equal(r43.severity, fx('Apply Revisions').first_findings.find((f) => f.id === 'QA-006').severity);
+  assert.match(r43.quote, /^It indicates that a sizeable, active population is engaging with relocation decisions/);
   // The rest were correct disclaimers, or sentences that kept the survey fact after the inference was cut from it.
   const listed = repeats.map((f) => f.line).concat(out.possible_repeats.map((d) => d.line));
   for (const n of [138, 529, 551, 14, 67, 115, 308, 31, 374, 256, 465, 145, 122, 59]) assert.ok(!listed.includes(n), 'L' + n);
   assert.match(lineOf(308), /It does not validate \$500 for this offer\./);
   assert.match(lineOf(551), /InterNations' 2026 Expat Insider survey asked close to 7,800 expats about their reasons for moving abroad \[S29\]\. This is an anecdotal source; it shows that a survey of expats was conducted and does not establish the size of the addressable market/);
-  // One uncertain match is listed apart, and is not a finding: the same sentence with its two source IDs dropped.
-  assert.deepEqual(out.possible_repeats.map((d) => d.line), [553]);
-  assert.ok(!out.findings.some((f) => f.line === 553));
+  // Line 553 is the same sentence with its examples and source IDs dropped: a confirmed repeat (see the prevalence tests).
+  assert.deepEqual(out.possible_repeats, []);
+});
+
+// ---------------- Line 553: a few examples are not "widely available" ----------------
+
+const PREVALENCE = 'BLOCKING PREVALENCE STATED WITHOUT EVIDENCE';
+
+test('prevalence: the two sources behind line 553 are one site describing its own tools and one blog anecdote', () => {
+  const led = JSON.parse(EV.research_ledger);
+  assert.match(led.find((c) => c.claim_id === 'E18').claim, /Discover Wanderlust tools for digital nomads/);
+  assert.match(led.find((c) => c.claim_id === 'E19').claim, /Lonely Planet Guides – This is a recent discovery of mine/);
+  // The reviewer said so in the run, as a blocking finding, about the cited version of the sentence.
+  const qa5 = fx('Plan Revision Request')[0].findings.find((f) => f.id === 'QA-005');
+  assert.equal(qa5.severity, 'BLOCKING');
+  assert.match(qa5.problem, /Neither entry establishes that free substitutes are 'widely available'/);
+  assert.deepEqual(qa5.occurrences.map((o) => o.located), [139, 139, 551]);     // line 553 was not listed
+});
+
+test('prevalence: line 553 repeats the corrected sentence without its source IDs, and now blocks twice over', async () => {
+  assert.match(lineOf(553), /Free substitutes are widely available and may be sufficient for customers who are comfortable researching independently\./);
+  const cc = await check();
+  assert.deepEqual(at(cc, 553), [PREVALENCE]);
+  const out = await secondPass();
+  const repeat = out.findings.find((f) => f.check === 'SAME CLAIM STILL PRESENT ELSEWHERE' && f.line === 553);
+  assert.equal(repeat.severity, 'BLOCKING');
+  assert.match(repeat.problem, /corrected QA-005/);
+  assert.deepEqual(out.possible_repeats, []);
+});
+
+test('prevalence: unsupported generalisations block, and named examples pass', async () => {
+  for (const s of [
+    'Free substitutes are widely available [W2] [W3].',
+    'Many free alternatives exist for this customer.',
+    'Self-serve tools are readily available and commonly used.',
+    'This is a crowded market with numerous providers.',
+  ]) assert.ok((await onLast(s)).includes(PREVALENCE), s);
+  for (const s of [
+    'Free tools and content exist in this space, for example Wanderlust [W2] and BecomeNomad [W3]; how widely they are used is not established.',
+    'Whether free substitutes are widely available to this customer is not established.',
+    'It is a hypothesis that many free alternatives are sufficient for this customer.',
+    'The model assumes video conferencing tools are available at $15 per month.',
+  ]) assert.deepEqual(only(await onLast(s), /PREVALENCE/), [], s);
 });
 
 // ---------------- 5. A sample is not a population ----------------
@@ -246,9 +300,10 @@ test('63223 recheck: confirmed defects, no unresolved check, and the three run b
   assert.ok(confirmed.includes('L43 POPULATION OR DEMAND STATED WITHOUT EVIDENCE'));
   assert.ok(confirmed.includes('L47 POPULATION OR DEMAND STATED WITHOUT EVIDENCE'));
   assert.ok(f.some((x) => x.line === 43 && x.check === 'SAME CLAIM STILL PRESENT ELSEWHERE'));
-  assert.ok(f.filter((x) => x.severity === 'BLOCKING').every((x) => [43, 47].includes(x.line)), 'every blocker is at line 43 or 47');
+  assert.ok(confirmed.includes('L553 PREVALENCE STATED WITHOUT EVIDENCE'));
+  assert.ok(f.filter((x) => x.severity === 'BLOCKING').every((x) => [43, 47, 553].includes(x.line)), 'every blocker is at line 43, 47 or 553');
   assert.equal(f.filter((x) => x.unresolved).length, 0);
-  assert.ok(f.filter((x) => x.severity === 'MAJOR').every((x) => x.check === 'FINANCIAL MODEL' || x.line === 43));
+  assert.ok(f.filter((x) => x.severity === 'MAJOR').every((x) => x.check === 'FINANCIAL MODEL' || [43, 553].includes(x.line)));
   assert.equal(f.filter((x) => x.severity === 'MINOR').length, 2);
   // What the run's gate held on.
   const ran = fx('Delivery Gate').blockers_text;
