@@ -134,6 +134,9 @@ HOW TO FIX
 - Payment and market: do not write that providers are paid or charge unless a ledger entry states a price for them. A market existing means offers are available, not that demand is shown. One company's page supports statements about that company only.
 - Competitive gaps: a gap, an unmet need, an underserved segment, a positioning opportunity, or a statement that no competitor does something is a hypothesis unless a ledger entry states it. Word the sentence that makes the claim as a hypothesis to test, in that sentence. A label in another sentence does not cover it, and writing "IdeaToPlan analysis" is not enough: it names the author and does not make the claim conditional.
 - Price comparisons: with no verified price in the ledger, remove any comparison with what other services charge, including one that gives no number (a reference point, a general range, a benchmark, a going rate), and say that the price is an untested planning assumption.
+- Price evidence: a ledger price is one page's own words. Keep it as that: what the page states, with its source ID. Never write that it shows what a market, a category, established firms, or customers pay, that it leaves room for this offer, or that the page charges it itself unless the ledger entry says so. Fix every sentence in the passage that does this, not only the one quoted.
+- The offer's price is the one in FINANCIAL FACTS and no other. Never write that a scenario, a forecast, or a result validates, confirms, or supports it.
+- Profit: while costs are unresolved, a sentence that says the business reaches profit or breaks even must say, in that sentence, that the figure covers the costs included in the model and that actual profitability depends on the unresolved costs.
 - Startup budget: while costs are unresolved, never write that the budget, the ceiling, or the funding is sufficient, enough, or adequate, or that it covers launch. Give the funding requirement of the included costs exactly as FINANCIAL FACTS state it, and say that whether the budget covers all costs is not established until the unresolved costs are known.
 - Cost condition: when costs are unresolved, code places a paragraph beginning "This assessment is conditional." at the start of the Viability Assessment after your edits. Do not write that paragraph and do not paraphrase it. Make the text around it agree with it: no sentence may say the business is viable, profitable, or sustainable without that condition, and no sentence may say that all costs are known or included.
 - Dates: judge every date against the RUN DATE at the top of the user message. Never add a remark that a date is anomalous, future-dated, or suspicious, and remove such a remark when a finding asks for it.
@@ -229,10 +232,66 @@ first.forEach((f) => {
 // A new defect is only something the revision added. If a finding on the same edit unit is still open, the problem belongs to that finding.
 const openIds = new Set(verification.filter((x) => x.status !== 'FIXED').map((x) => x.id));
 const unitOf = (id) => log.find((e) => e.unit === s(id).toUpperCase());
-const new_defects = (verOk && Array.isArray(qa.new_defects) ? qa.new_defects : [])
+// NEW DEFECTS: THE VERIFIER'S CONTRACT. The verifier gives one entry per edit unit it was shown, with an explicit
+// verdict: NEW_DEFECT or NO_NEW_DEFECT. Only a NEW_DEFECT whose explanation describes a defect is counted. An entry
+// that is missing, malformed, or contradicts itself (a NEW_DEFECT that explains there is no defect, or the reverse)
+// is neither a confirmed defect nor a clean result: the edit stays unresolved and a person has to look at it.
+const NO_DEFECT_TEXT = /\bno new (?:defect|problem|issue|error)s?\b|\bno (?:defect|problem|issue|error)s? (?:is|are|was|were|has been|have been) introduced\b|\bnot a new (?:defect|problem|issue)\b|\b(?:does|do|did) not introduce (?:a |any )?(?:new )?(?:defect|problem|issue|error)s?\b/i;
+const shownUnits = [...new Set(log.filter((e) => (e.issues || []).some((id) => first.some((f) => f.id === id && f.source === 'QA review' && f.severity !== 'MINOR'))).map((e) => e.unit))];
+const claimed = [];
+const unresolved_checks = [];
+const leaveOpen = (unit, why, said) => unresolved_checks.push({ unit, why, said: s(said).slice(0, 400) });
+if (verOk) {
+  const checks = Array.isArray(qa.edit_checks) ? qa.edit_checks : null;
+  if (checks) shownUnits.forEach((uid) => {
+    const mine = checks.filter((c) => c && s(c.unit).toUpperCase() === uid);
+    if (mine.length !== 1) return leaveOpen(uid, mine.length ? 'the verifier gave more than one verdict for this edit' : 'the verifier gave no verdict for this edit', '');
+    const c = mine[0];
+    const v = s(c.verdict).toUpperCase().replace(/[\s-]+/g, '_');
+    const describes = s(c.problem) && !NO_DEFECT_TEXT.test(s(c.problem));
+    if (v === 'NO_NEW_DEFECT') { if (describes && SEV.includes(s(c.severity).toUpperCase())) leaveOpen(uid, 'the verdict is NO_NEW_DEFECT, but the entry describes a ' + s(c.severity).toUpperCase() + ' defect', c.problem); return; }
+    if (v !== 'NEW_DEFECT') return leaveOpen(uid, 'the verdict is not NEW_DEFECT or NO_NEW_DEFECT', c.verdict);
+    if (!s(c.problem)) return leaveOpen(uid, 'the verdict is NEW_DEFECT, but no problem is described', '');
+    if (!describes) return leaveOpen(uid, 'the verdict is NEW_DEFECT, but its own explanation says no new defect was introduced', c.problem);
+    claimed.push(c);
+  });
+  else if (shownUnits.length) leaveOpen(shownUnits.join(', '), 'the verifier returned no per-edit verdicts ("edit_checks"), so no edit has an explicit result', '');
+  // The earlier output shape, a bare list of new defects, carries no explicit verdict. Its entries are read the same way.
+  (Array.isArray(qa.new_defects) ? qa.new_defects : []).forEach((c) => {
+    if (!c || !s(c.problem)) return leaveOpen(s(c && c.unit).toUpperCase(), 'a new defect was listed with no problem described', '');
+    if (NO_DEFECT_TEXT.test(s(c.problem))) return leaveOpen(s(c.unit).toUpperCase(), 'the entry is listed as a new defect, but its own explanation says no new defect was introduced', c.problem);
+    claimed.push(c);
+  });
+}
+const new_defects = claimed
   .filter((f) => { const e = unitOf(f.unit); return !(e && e.issues.some((id) => openIds.has(id))); })
   .map((f, i) => { const e = unitOf(f.unit); return { ...fromQa(f, 'Introduced by revision', 'MAJOR'), id: 'REV-' + String(i + 1).padStart(3, '0'), unit: s(f.unit).toUpperCase(), line: e ? e.line : null, problem: s(f.problem), quote: s(f.quote) }; });
 new_defects.forEach((f) => findings.push(f));
+unresolved_checks.forEach((u, i) => { const e = unitOf(u.unit); findings.push({ id: 'UNV-' + String(i + 1).padStart(3, '0'), severity: 'MAJOR', source: 'Revision check', check: 'REVISION CHECK UNRESOLVED', section: '', line: e ? e.line : null, quote: '', occurrences: [], unit: u.unit, problem: 'The check of edit ' + u.unit + ' for new defects has no usable result: ' + u.why + '.' + (u.said ? ' The verifier wrote: "' + u.said + '"' : '') + ' This is not a confirmed defect and not a clean result. A person has to read the edited passage.', fix: '' }); });
+
+// THE SAME CLAIM ELSEWHERE. When an edit removed or reworded a sentence to fix a finding, a sentence that makes the
+// same statement somewhere else in the plan was not corrected by it. Each one is reported with its line.
+const contentOf = (v) => [...new Set(String(v || '').toLowerCase().replace(/\[[sw]\d+\]/g, ' ').replace(/[^a-z0-9$%]+/g, ' ').split(' ').filter((w) => w.length >= 4))];
+const sentencesOf = (v) => String(v || '').split('\n').flatMap((l) => (/^\s*\|.*\|\s*$/.test(l) ? l.trim().replace(/^\||\|$/g, '').split('|') : [l]).flatMap((c) => c.split(/(?<=[.!?;])\s+|,\s+but\s+/))).map((x) => x.trim()).filter(Boolean);
+const shares = (x, y) => { const X = contentOf(x); const Y = new Set(contentOf(y)); return X.length ? X.filter((w) => Y.has(w)).length / X.length : 0; };
+const computedText = new Set([fin.scenario_block, fin.forecast_block, fin.budget_block, fin.loan_block].join('\n').split('\n').map((l) => l.trim()).filter((l) => l.length > 8));
+const revisedLines = String(rev.text || '').split('\n');
+const same_claim_elsewhere = [];
+log.forEach((e) => {
+  const ids = (e.issues || []).filter((id) => first.some((f) => f.id === id && f.source === 'QA review' && f.severity !== 'MINOR'));
+  if (!ids.length) return;
+  const kept = sentencesOf(e.after);
+  const span = String(e.after || '').split('\n').length;
+  sentencesOf(e.before).filter((b) => contentOf(b).length >= 8 && !kept.some((k) => shares(b, k) >= 0.7)).forEach((removed) => {
+    revisedLines.forEach((l, i) => {
+      const n = i + 1;
+      if ((e.line && n >= e.line && n < e.line + span) || !l.trim() || l.trim().startsWith('#') || computedText.has(l.trim())) return;
+      const hit = sentencesOf(l).find((x) => shares(removed, x) >= 0.7);
+      if (hit && !same_claim_elsewhere.some((x) => x.line === n && x.unit === e.unit)) same_claim_elsewhere.push({ line: n, unit: e.unit, issues: ids, removed: removed.slice(0, 240), found: hit.slice(0, 240) });
+    });
+  });
+});
+same_claim_elsewhere.forEach((d, i) => findings.push({ id: 'DUP-' + String(i + 1).padStart(3, '0'), severity: 'MAJOR', source: 'Revision check', check: 'SAME CLAIM STILL PRESENT ELSEWHERE', section: '', line: d.line, quote: d.found, occurrences: [{ line: d.line, section: '', quote: d.found }], unit: d.unit, problem: 'Edit ' + d.unit + ' corrected ' + d.issues.join(', ') + ' by removing or rewording this statement: "' + d.removed + '". A sentence that makes the same statement is still at L' + d.line + ', which was not edited. Correcting one place does not correct the other.', fix: '' }));
 if (!verOk) findings.unshift({ id: 'AUTO-VER', severity: 'BLOCKING', source: 'Automated check', check: 'VERIFICATION DID NOT RUN', section: '', line: null, quote: '', occurrences: [], problem: 'The verification pass did not return a readable result, so the revision has not been checked. Check the Final QA node in this execution.', fix: 'Review the plan by hand.' });
 order(findings);
 findings.forEach((f, i) => { if (!f.id) f.id = 'AUTO-V' + String(i + 1).padStart(2, '0'); });
@@ -245,6 +304,8 @@ return {
   findings,
   verification,
   new_defects,
+  unresolved_checks,
+  same_claim_elsewhere,
   qa_summary: qa ? s(qa.summary) : '',
   revise_payload: '',
 };

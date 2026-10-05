@@ -241,8 +241,18 @@ The Market Opportunity & Fit section covers the customer, the problem, the Rule 
 rules.push(`FORMAT
 Write every section in SECTIONS, in order, with the exact numbered headers given, as ## headings. Follow the section guidance in the GOAL BRIEF.${G ? ' Do not write a Sources section; it is added automatically as the last numbered section.' : ''} Markdown tables have at most 4 columns, with each row on its own line. Never use em dashes; use commas, periods, or hyphens.`);
 
+// PRICE. The form does not ask for a price today. When an intake answer carries one (founder_price), it is the price.
+// Two test-only inputs keep a regression comparison on fixed figures. They are read from the request only in a
+// workflow whose name contains "Test", so a live order cannot set them.
+const amountOf = (v) => { const n = typeof v === 'number' ? v : parseFloat(String(v === undefined || v === null ? '' : v).replace(/[$,\s]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; };
+let testInputs = {};
+try { if (/test/i.test($workflow.name)) { const b = $('Webhook').first().json.body || {}; testInputs = { fixed_scenario_price: amountOf(b.fixedScenarioPrice), fixed_financial_assumptions: b.fixedFinancialAssumptions && typeof b.fixedFinancialAssumptions === 'object' ? b.fixedFinancialAssumptions : null }; } } catch (e) {}
+
 return {
   ...d,
+  founder_price: amountOf(d.founder_price),
+  fixed_scenario_price: testInputs.fixed_scenario_price || null,
+  fixed_financial_assumptions: testInputs.fixed_financial_assumptions || null,
   run_started_ms: Date.now(),
   tier: G ? 'Growth' : 'Starter',
   goal,

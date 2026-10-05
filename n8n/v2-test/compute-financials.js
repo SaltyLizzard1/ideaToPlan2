@@ -19,6 +19,9 @@ const fin_reviews = [];
 const usd = (n) => '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 let a = null;
 try { a = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch (e) {}
+// Fixed inputs for a regression comparison (test workflows only, set in Founder Context). They replace the model's answer whole.
+const inputsFixed = !!(ctx.fixed_financial_assumptions && typeof ctx.fixed_financial_assumptions === 'object');
+if (inputsFixed) a = JSON.parse(JSON.stringify(ctx.fixed_financial_assumptions));
 if (!a || typeof a !== 'object') { a = {}; fin_issues.push('The financial assumptions could not be read, so the financial tables are incomplete.'); }
 
 // A value is a number or it is null. Unknown never becomes zero.
@@ -66,8 +69,18 @@ const checkWording = (where, text, basis) => {
 // 1. Inputs
 const offer = txt(a.offer) || 'Not set';
 const unit = txt(a.unit_label) || 'purchase';
-const price = num(a.price);
-const priceBasis = txt(a.price && a.price.basis) || 'Assumption';
+// PRICE. One value for the whole submission, decided here and nowhere else. A price the founder supplied is used as
+// it is. Otherwise the price is a scenario assumption: a value chosen so the scenarios can be calculated. It has not
+// been tested, and no figure computed from it is evidence that the price is right.
+const founderPrice = Number(ctx.founder_price) > 0 ? Number(ctx.founder_price) : null;
+const fixedPrice = Number(ctx.fixed_scenario_price) > 0 ? Number(ctx.fixed_scenario_price) : null;
+const modelPrice = num(a.price);
+const modelSaysFounder = /^founder$/i.test(txt(a.price && a.price.basis));
+const price = founderPrice !== null ? founderPrice : fixedPrice !== null ? fixedPrice : modelPrice;
+const priceSource = founderPrice !== null ? 'founder' : fixedPrice !== null ? 'scenario assumption, fixed for this submission' : inputsFixed ? 'scenario assumption, fixed inputs' : modelSaysFounder ? 'founder' : 'scenario assumption';
+const priceIsFounder = priceSource === 'founder';
+const priceBasis = priceIsFounder ? 'Founder' : 'Assumption';
+const priceReason = (founderPrice !== null || fixedPrice !== null) && modelPrice !== price ? '' : txt(a.price && a.price.reason);
 const notes = [];
 let ppm = num(a.purchases_per_customer_per_month);
 if (ppm === null) { ppm = 1; notes.push('- Purchase frequency was not set, so one ' + unit + ' per customer per month was used.'); }
@@ -175,11 +188,13 @@ const arithmetic = KEYS.filter((k) => sc[k].revenue !== null).map((k) => {
 });
 const scenarioExpenseLines = KEYS.filter((k) => sc[k].expenses !== null).map((k) => '- ' + cap(k) + ' operating expenses, ' + money(sc[k].expenses) + ' a month (' + sc[k].stages.join(', ') + ' stages): ' + expenseLine(sc[k]) + '.');
 const assumptions = [];
-assumptions.push('- Price (' + kindOf(priceBasis) + '): ' + money(price) + ' per ' + unit + '. ' + reasonOf(a.price));
+assumptions.push(priceIsFounder
+  ? '- Price (founder-provided): ' + money(price) + ' per ' + unit + '.' + (priceReason ? ' ' + priceReason : '')
+  : '- Price (untested scenario assumption): ' + money(price) + ' per ' + unit + '. It was not supplied by the founder. It is one value chosen so that the scenarios can be calculated, and it is used unchanged everywhere in this plan. No result computed from it shows that customers will pay it.' + (priceReason ? ' ' + priceReason : ''));
 if (reasonOf(a.purchases_per_customer_per_month)) assumptions.push('- Purchase frequency (planning assumption, untested): ' + qty(ppm) + ' per customer per month. ' + reasonOf(a.purchases_per_customer_per_month));
 KEYS.forEach((k) => { if (sc[k].reason) assumptions.push('- ' + cap(k) + ' scenario (' + kindOf(sc[k].basis) + '): ' + sc[k].reason); });
 if (hpp !== null) assumptions.push('- Founder time (planning assumption, untested): ' + qty(hpp) + ' hours per ' + unit + '. ' + reasonOf(a.hours_per_purchase));
-checkWording('Price reason', reasonOf(a.price), priceBasis);
+checkWording('Price reason', priceReason, priceBasis);
 checkWording('Purchase frequency reason', reasonOf(a.purchases_per_customer_per_month), 'Assumption');
 checkWording('Founder time reason', reasonOf(a.hours_per_purchase), 'Assumption');
 KEYS.forEach((k) => {
@@ -489,7 +504,6 @@ const forecast_block = [
   cash_table, '',
   ...oneTimeTrace,
   ...(sensitivity ? ['- ' + sensitivity] : []),
-  ...(unknownNote ? ['- ' + unknownNote] : []),
   ...(optionalNote ? ['- ' + optionalNote] : []),
   ...(costConditionLines.length ? ['', unresolved.length ? '**Costs that are not resolved, and the room the forecast has for them**' : '**Regulatory checks still to make**', ...costConditionLines] : []), '',
   'These projections are planning estimates based on the assumptions shown. They are not predictions or guarantees.',
@@ -518,7 +532,7 @@ if (items.length) {
   if (legalItems.length) budgetFacts.push('- Conditional costs, to be checked before the first paid delivery and paid only if required (not in the stage totals or the forecast): ' + money(legalOnce) + ' one-time, ' + money(legalMonthly) + ' each month' + (legalPerSale ? ', ' + unitMoney(legalPerSale) + ' per sale' : '') + (legalUnknown.length ? '. No amount is yet established for ' + legalUnknown.map((b) => b.item).join(', ') : ''));
   if (ceiling !== null && first3 !== null && first3 > ceiling) fin_issues.push('Spending before validation is above the budget ceiling.');
   const allUnknown = items.filter((b) => b.cost === null && !b.legal && b.category !== 'Optional');
-  if (allUnknown.length) budgetFacts.push('- No amount is established for these items, and they are in none of the totals above: ' + allUnknown.map((b) => b.item + (b.unknownReason ? ' (' + b.unknownReason + ')' : '')).join('; ') + '.' + (unknownNote ? ' ' + unknownNote : ''));
+  if (allUnknown.length) budgetFacts.push('- No amount is established for these items, and they are in none of the totals above: ' + allUnknown.map((b) => b.item + (b.unknownReason ? ' (' + b.unknownReason + ')' : '')).join('; ') + '.');
   unresolved.forEach((c) => budgetFacts.push('- Cost status: ' + c.label + ', ' + STATUS_WORDS[c.status] + '.' + (c.reason ? ' ' + c.reason : '')));
   costNotes.forEach((l) => budgetFacts.push(l));
   budget_block = [
@@ -588,7 +602,7 @@ const mc = num(a.first_revenue_milestone_customers);
 const wk = (n) => String(Math.round(n * 12 / 52 * 10) / 10);
 const facts = [
   '- Primary offer: ' + offer,
-  '- Price: ' + money(price) + ' per ' + unit + ' (basis: ' + priceBasis + ')',
+  '- Price: ' + money(price) + ' per ' + unit + (priceIsFounder ? ' (founder-provided)' : ' (untested scenario assumption, not supplied by the founder). Use this one value everywhere. A positive scenario or forecast result is arithmetic on this assumption: never write that it validates, confirms or supports the price'),
   ...KEYS.map((k) => '- ' + cap(k) + ' scenario, per month: ' + qty(sc[k].customers) + ' customers, ' + qty(sc[k].leads) + ' leads required, ' + money(sc[k].revenue) + ' revenue, ' + money(sc[k].expenses) + ' operating expenses, ' + money(sc[k].profit) + ' operating profit, ' + qty(sc[k].hours) + ' founder hours'),
   ...KEYS.filter((k) => sc[k].customers !== null).map((k) => '- ' + cap(k) + ' scenario, per week (the monthly figure x 12 / 52): about ' + wk(sc[k].customers) + ' customers' + (sc[k].leads !== null ? ', about ' + wk(sc[k].leads) + ' leads' : '') + (sc[k].hours !== null ? ', about ' + wk(sc[k].hours) + ' founder hours' : '')),
   ...qs.map((q) => '- Forecast ' + q.label + ': ' + qty(q.cpm) + ' customers per month, ' + money(q.revenue) + ' revenue, ' + money(q.expenses) + ' operating expenses, ' + money(q.profit) + ' operating profit, ' + money(q.one_time) + ' one-time costs, ' + money(q.net) + ' net cash after one-time costs'),
@@ -632,7 +646,11 @@ const financial_model = [
   ...(fin_reviews.length ? ['', 'NEEDS REVIEW BEFORE SENDING', ...fin_reviews.map((i) => '- ' + i)] : []),
 ].join('\n');
 
+// The price as decided for this submission. Downstream nodes read it from here and never choose one.
+const price_record = { amount: price, unit, source: priceSource, founder_supplied: priceIsFounder, label: priceIsFounder ? 'founder-provided' : 'untested scenario assumption', decided_by: 'Compute Financials', run_date: runDate.iso };
+
 return {
+  price_record,
   scenario_block, forecast_block, budget_block, loan_block,
   financial_model,
   fin_issues,

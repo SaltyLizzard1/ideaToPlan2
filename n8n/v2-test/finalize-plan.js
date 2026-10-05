@@ -50,12 +50,17 @@ if (costCondition) {
   const BUDGET_ENOUGH = /\b(?:budget|ceiling|funds?|funding|capital|savings)\b[^.;]{0,80}?\b(?:sufficient|enough|adequate|ample|covers? (?:the|all|every|everything|what|launch)|will cover|can cover|fully funds?|is (?:not a|no) constraint)\b|\b(?:sufficient|enough|adequate|ample)\b[^.;]{0,40}?\b(?:budget|funds?|funding|capital|to (?:launch|start|get started|begin|open|fund|cover))\b|\bno (?:additional|further|outside|external|extra|more) (?:funding|capital|investment|money) (?:is |will be )?(?:needed|required|necessary)\b|\b(?:fully|comfortably|easily|well) (?:funded|within (?:the |your )?budget|under (?:the |your )?(?:budget|ceiling))\b|\bcan (?:launch|start|be launched|be started) (?:within|on|under|for) (?:the |your |this )?(?:budget|ceiling)\b/i;
   // Acceptable: the sentence limits itself to the included costs, or says that cover of all costs is not established.
   const BUDGET_QUALIFIED = /\b(?:unresolved|included costs?|costs? (?:that are )?included|costs? in the (?:model|figures|forecast)|included in (?:the|these) (?:model|figures|forecast)|not (?:yet )?(?:established|resolved|known|confirmed)|whether|cannot (?:yet )?be|until the|not (?:sufficient|enough|adequate)|insufficient)\b/i;
+// Profit wording, checked on every line the model wrote.
+  const PROFIT_CLAIM = /\breach(?:es|ed|ing)? (?:operating )?(?:profit|profitability|break-?even)\b|\b(?:is|becomes?|turns?) (?:operating[- ])?profitable\b|\bturns? (?:a |an )?(?:operating )?profit\b|\bprofitable (?:quickly|immediately|early|from)\b|\b(?:generates?|produces?|makes?|earns?) (?:a |an )?(?:operating )?profit (?:quickly|immediately|from the first)\b/i;
+  // Acceptable: the sentence says the figure is for the included costs, or that the result depends on the unresolved costs.
+  const PROFIT_QUALIFIED = /\b(?:unresolved|included costs?|costs? (?:that are )?included|costs? in the (?:model|figures|forecast)|included in (?:the|these) (?:model|figures|forecast))\b/i;
   const computedLines = new Set([finModel.scenario_block, finModel.forecast_block, finModel.budget_block, finModel.loan_block].join('\n').split('\n').map((l) => l.trim()).filter((l) => l.length > 8));
   text.split('\n').forEach((line, i) => {
     const t = line.trim();
     if (!t || t.startsWith('#') || computedLines.has(t) || plainText(t) === plainText(costCondition)) return;
     (/^\|.*\|$/.test(t) ? t.replace(/^\||\|$/g, '').split('|') : [t]).flatMap((c) => c.split(/(?<=[.!?;])\s+/)).forEach((sentence) => {
       if (BUDGET_ENOUGH.test(sentence) && !BUDGET_QUALIFIED.test(sentence)) cost_condition_check.problems.push('L' + (i + 1) + ' says the startup budget is enough, while costs are unresolved: "' + sentence.trim().slice(0, 200) + '"');
+      if (PROFIT_CLAIM.test(sentence) && !PROFIT_QUALIFIED.test(sentence)) cost_condition_check.problems.push('L' + (i + 1) + ' says the business reaches profit, without saying that this covers the included costs only and depends on the unresolved costs: "' + sentence.trim().slice(0, 200) + '"');
     });
   });
   cost_condition_check.problems.forEach((p, n) => { const f = { id: 'FIN-' + String(n + 1).padStart(3, '0'), severity: 'BLOCKING', source: 'Final check', check: 'COST CONDITION', section: 'Viability Assessment', line: null, quote: '', problem: p, fix: '', occurrences: [] }; findings.push(f); final_findings.push(f); });
@@ -139,6 +144,7 @@ lines.push('', 'UNRESOLVED ISSUES ORIGINATING IN COMPUTED FINANCIAL CONTENT (' +
 if (!fromComputed.length) lines.push('None.');
 fromComputed.forEach((f) => lines.push('- ' + f.severity + ' | ' + f.problem));
 if (cost_condition_check.required) { lines.push('', 'COST CONDITION: ' + (cost_condition_check.present ? (cost_condition_check.inserted ? 'inserted by code' : 'already present') + ' at the start of the Viability Assessment.' : 'NOT placed.') + ' Surrounding text: ' + (cost_condition_check.problems.length ? cost_condition_check.problems.length + ' problem(s).' : 'no contradicting statement found.')); cost_condition_check.problems.forEach((p) => lines.push('- ' + p)); }
+{ const pr = finModel.price_record; if (pr && pr.amount !== null && pr.amount !== undefined) lines.push('', 'PRICE RECORD: $' + pr.amount + ' per ' + pr.unit + ', ' + pr.label + ' (source: ' + pr.source + '). Decided once for this submission by ' + pr.decided_by + ' on ' + pr.run_date + '; every figure in the plan uses it.'); }
 lines.push('', 'SOURCES: ' + citedIds.length + ' cited in the plan, ' + sources_cited.length + ' listed in the Sources section.');
 lines.push('', 'Limit: ledger entries were verified against the fetched source pages. Plan sentences were checked against the ledger, not against the pages. Pages that need a browser to render, and PDFs, could not be read.');
 

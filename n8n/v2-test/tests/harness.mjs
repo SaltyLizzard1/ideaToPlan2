@@ -25,7 +25,8 @@ export async function runNode(file, stubs, input, ctx) {
   };
   const $input = { first: () => ({ json: input || {} }), all: () => [{ json: input || {} }] };
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-  return await new AsyncFunction('$', '$input', code).call(ctx || {}, $, $input);
+  // ctx.workflow stands in for n8n's $workflow. Without it $workflow is undefined, as in a node that does not use it.
+  return await new AsyncFunction('$', '$input', '$workflow', code).call(ctx || {}, $, $input, ctx && ctx.workflow);
 }
 
 // Replays captured HTTP responses, keyed by the exact address requested. Each redirect hop was captured separately.
