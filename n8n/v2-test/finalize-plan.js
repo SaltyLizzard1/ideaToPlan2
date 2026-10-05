@@ -3,9 +3,53 @@
 const res = $('Plan Revision Request').first().json;
 let rev = null;
 try { rev = $('Apply Revisions').first().json; } catch (e) {}
-const text = (rev && typeof rev.text === 'string' && rev.text) ? rev.text : ($('Assemble Plan').first().json.text || '');
+let text = (rev && typeof rev.text === 'string' && rev.text) ? rev.text : ($('Assemble Plan').first().json.text || '');
 
-const findings = res.findings || [];
+const findings = (res.findings || []).slice();
+// Findings raised here, after revision. The Delivery Gate reads them as well as the reviewer's findings.
+const final_findings = [];
+
+// COST CONDITION. When costs are unresolved, Compute Financials writes the condition the conclusion depends on. It is
+// placed at the start of the Viability Assessment here, by code, after the model's revision, so its wording and
+// figures cannot drift. The surrounding text is then checked: placing the paragraph does not make a plan acceptable
+// if the plan still says the business works unconditionally, or that every cost is known.
+let finModel = {};
+try { finModel = $('Compute Financials').first().json || {}; } catch (e) {}
+const costCondition = String(finModel.cost_condition || '');
+const cost_condition_check = { required: !!costCondition, inserted: false, present: false, problems: [] };
+if (costCondition) {
+  const plainText = (v) => String(v).replace(/[*_`]/g, '').replace(/\s+/g, ' ').trim();
+  const isHeader = (l) => /^##\s/.test(l.trim());
+  const bounds = (list, re) => { const a = list.findIndex((l) => isHeader(l) && re.test(l)); if (a < 0) return null; const b = list.findIndex((l, i) => i > a && isHeader(l)); return { start: a, end: b < 0 ? list.length : b }; };
+  let L = text.split('\n');
+  let v = bounds(L, /Viability/i);
+  if (!v) cost_condition_check.problems.push('The plan has no Viability Assessment section, so the cost condition could not be placed.');
+  else {
+    if (!plainText(L.slice(v.start + 1, v.end).join(' ')).includes(plainText(costCondition))) { L.splice(v.start + 1, 0, '', costCondition); cost_condition_check.inserted = true; text = L.join('\n'); }
+    L = text.split('\n');
+    v = bounds(L, /Viability/i);
+    cost_condition_check.present = plainText(L.slice(v.start + 1, v.end).join(' ')).includes(plainText(costCondition));
+    if (!cost_condition_check.present) cost_condition_check.problems.push('The cost condition is not in the Viability Assessment after insertion.');
+    const VIABLE = /\b(?:is|are|looks?|appears?|remains?|proves?) (?:financially |commercially |clearly |already )?(?:viable|profitable|sustainable|self-sustaining|worth pursuing|financially sound)\b|\bwill (?:be profitable|break even|cover its costs|turn a profit|make a profit)\b|\b(?:profitable|cash[- ]positive) (?:from|in|by) (?:month|year|the first)\b|\bthe (?:business|model|numbers?) works?\b/i;
+  const CONDITIONAL = /\b(?:if|provided|as long as|unless|only|conditional|depends?|subject to|assum\w*|would|could|may|might|not|whether|until)\b/i;
+  // Statements that deny the condition: that every cost is known or included, or that the threshold is a budget or an estimate.
+  const DENIES = /\ball (?:the )?(?:costs|expenses) (?:are|have been) (?:included|accounted for|known|covered|captured)\b|\bno (?:other|further|additional|hidden|unknown|unresolved) costs\b|\b(?:costs|expenses) are fully (?:known|covered|accounted for)\b|\b(?:every|each) cost (?:is|has been) (?:included|accounted for|known)\b|\b(?:budget|allowance) (?:of|for) (?:each|every) (?:of these )?costs?\b|\bthreshold (?:is|as) (?:an? )?(?:estimate|budget|forecast) of\b/i;
+    [v, bounds(L, /Executive Summary/i)].filter(Boolean).forEach((sec) => {
+      for (let i = sec.start + 1; i < sec.end; i++) {
+        const t = L[i].trim();
+        if (!t || t.startsWith('#') || plainText(t) === plainText(costCondition)) continue;
+        (/^\|.*\|$/.test(t) ? t.replace(/^\||\|$/g, '').split('|') : [t]).flatMap((c) => c.split(/(?<=[.!?;])\s+/)).forEach((sentence) => {
+          if (VIABLE.test(sentence) && !CONDITIONAL.test(sentence)) cost_condition_check.problems.push('L' + (i + 1) + ' states that the business works with no condition, while costs are unresolved: "' + sentence.trim().slice(0, 200) + '"');
+          else if (DENIES.test(sentence) && !/\bnot\b/i.test(sentence)) cost_condition_check.problems.push('L' + (i + 1) + ' contradicts the cost condition: "' + sentence.trim().slice(0, 200) + '"');
+        });
+      }
+    });
+  }
+  cost_condition_check.problems.forEach((p, n) => { const f = { id: 'FIN-' + String(n + 1).padStart(3, '0'), severity: 'BLOCKING', source: 'Final check', check: 'COST CONDITION', section: 'Viability Assessment', line: null, quote: '', problem: p, fix: '', occurrences: [] }; findings.push(f); final_findings.push(f); });
+  // Unresolved costs always reach a person: with no other finding the status is REVIEW, never SEND.
+  if (!cost_condition_check.problems.length && !findings.some((f) => f.severity === 'BLOCKING' || f.severity === 'MAJOR')) { const f = { id: 'FIN-REVIEW', severity: 'MAJOR', source: 'Final check', check: 'COST CONDITION', section: 'Viability Assessment', line: null, quote: '', problem: 'Costs are unresolved (' + (finModel.unresolved_costs || []).join('; ') + '). The conclusion is conditional on them. Confirm them with the founder before sending.', fix: '', occurrences: [] }; findings.push(f); final_findings.push(f); }
+}
+
 // Source-list integrity. Every source ID cited in the final plan must have an entry to print in the Sources section.
 // The Sources section is built from sources_cited, so what is checked here is exactly what is printed.
 let allSources = [];
@@ -81,6 +125,7 @@ const fromComputed = findings.filter((f) => f.check === 'COMPUTED CONTENT WORDIN
 lines.push('', 'UNRESOLVED ISSUES ORIGINATING IN COMPUTED FINANCIAL CONTENT (' + fromComputed.length + ')');
 if (!fromComputed.length) lines.push('None.');
 fromComputed.forEach((f) => lines.push('- ' + f.severity + ' | ' + f.problem));
+if (cost_condition_check.required) { lines.push('', 'COST CONDITION: ' + (cost_condition_check.present ? (cost_condition_check.inserted ? 'inserted by code' : 'already present') + ' at the start of the Viability Assessment.' : 'NOT placed.') + ' Surrounding text: ' + (cost_condition_check.problems.length ? cost_condition_check.problems.length + ' problem(s).' : 'no contradicting statement found.')); cost_condition_check.problems.forEach((p) => lines.push('- ' + p)); }
 lines.push('', 'SOURCES: ' + citedIds.length + ' cited in the plan, ' + sources_cited.length + ' listed in the Sources section.');
 lines.push('', 'Limit: ledger entries were verified against the fetched source pages. Plan sentences were checked against the ledger, not against the pages. Pages that need a browser to render, and PDFs, could not be read.');
 
@@ -132,4 +177,4 @@ unmetered.forEach((u) => lines.push('Not metered: ' + u));
 if (verifyStats) lines.push('Source verification: ' + verifyStats.verified + ' claims verified, ' + verifyStats.excluded + ' excluded; ' + verifyStats.pages_read + ' of ' + verifyStats.pages_requested + ' pages read; fetch ' + (Math.round((verifyStats.fetch_ms || 0) / 100) / 10) + 's, verify ' + (Math.round((verifyStats.verify_ms || 0) / 100) / 10) + 's (inside the Research stage time).');
 if (stage_seconds.length) lines.push('Time by stage: ' + stage_seconds.map((x) => x.stage + ' ' + x.seconds + 's').join(', ') + '. Total to this point: ' + telemetry.total_seconds_to_finalize + 's (PDF and email come after).');
 
-return { text, status, report: lines.join('\n'), revised: !!rev, sources_cited, telemetry };
+return { text, status, report: lines.join('\n'), revised: !!rev, sources_cited, telemetry, cost_condition_check, final_findings };

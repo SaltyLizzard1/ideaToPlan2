@@ -6,6 +6,8 @@
 const fp = $('Finalize Plan').first().json;
 let findings = [];
 try { findings = $('Plan Revision Request').first().json.findings || []; } catch (e) {}
+// Checks made after revision, for example on the computed cost condition, are raised by Finalize Plan.
+if (Array.isArray(fp.final_findings)) findings = findings.concat(fp.final_findings);
 
 const CITATION = /CITATION|EXCLUDED CLAIM|SOURCE VERIFICATION|UNVERIFIED COMPANY|FIGURE CITED TO THE WRONG SOURCE|UNSUPPORTED STATISTIC|SOURCE DATE NOTE|UNKNOWN SOURCE ID|UNVERIFIED FIGURE|CITED SOURCE MISSING|URL WRITTEN BY MODEL|citation|attribution|source quality/i;
 const status = String(fp.status || '').toUpperCase();

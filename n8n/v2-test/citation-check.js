@@ -282,8 +282,9 @@ lines.forEach((line, i) => {
 });
 // ---------- UNRESOLVED COSTS AND THE CONDITIONAL CONCLUSION ----------
 // When costs are unresolved, Compute Financials writes the condition the conclusion depends on: the costs, the outcome
-// tested, the break-even threshold and its assumptions. The plan may go to review only if its Viability Assessment
-// carries that paragraph unchanged. Without it, or with viability stated unconditionally, the plan is held.
+// tested, the break-even threshold and its assumptions. Finalize Plan places that paragraph in the Viability Assessment
+// after revision. Here the text around it is checked: a plan that states viability unconditionally, or says every cost
+// is known, is blocked, and the reviser is asked to correct it.
 const costCondition = String(fin.cost_condition || '');
 if (costCondition) {
   const plainText = (v) => String(v).replace(/[*_`]/g, '').replace(/\s+/g, ' ').trim();
@@ -291,18 +292,19 @@ if (costCondition) {
   const sectionOf = (re) => { const a = lines.findIndex((l) => isHeader(l) && re.test(l)); if (a < 0) return null; const b = lines.findIndex((l, i) => i > a && isHeader(l)); return { start: a, end: b < 0 ? lines.length : b }; };
   const viability = sectionOf(/Viability/i);
   const summary = sectionOf(/Executive Summary/i);
-  const firstProse = viability ? lines.findIndex((l, i) => i > viability.start && i < viability.end && l.trim() && !l.trim().startsWith('#')) : -1;
-  const carried = !!viability && plainText(lines.slice(viability.start + 1, viability.end).join(' ')).includes(plainText(costCondition));
-  if (!carried) add('BLOCKING', 'VIABILITY STATED WITHOUT THE COST CONDITION', 'Costs are unresolved (' + (fin.unresolved_costs || []).join('; ') + ') and the Viability Assessment does not contain the required condition, or its wording or figures were changed. Put this paragraph at the start of the Viability Assessment, exactly as written, and word the conclusion as conditional on it: ' + costCondition, firstProse >= 0 ? short(lines[firstProse]) : '', firstProse >= 0 ? firstProse + 1 : null);
-  // A statement that the business works, with no condition attached, cannot stand while costs are unresolved.
+  // The paragraph itself is placed by Finalize Plan after revision, so its absence here is not a finding. What the
+  // writer and the reviser control is the text around it, which is checked now so that it can be corrected.
   const VIABLE = /\b(?:is|are|looks?|appears?|remains?|proves?) (?:financially |commercially |clearly |already )?(?:viable|profitable|sustainable|self-sustaining|worth pursuing|financially sound)\b|\bwill (?:be profitable|break even|cover its costs|turn a profit|make a profit)\b|\b(?:profitable|cash[- ]positive) (?:from|in|by) (?:month|year|the first)\b|\bthe (?:business|model|numbers?) works?\b/i;
   const CONDITIONAL = /\b(?:if|provided|as long as|unless|only|conditional|depends?|subject to|assum\w*|would|could|may|might|not|whether|until)\b/i;
+  // Statements that deny the condition: that every cost is known or included, or that the threshold is a budget or an estimate.
+  const DENIES = /\ball (?:the )?(?:costs|expenses) (?:are|have been) (?:included|accounted for|known|covered|captured)\b|\bno (?:other|further|additional|hidden|unknown|unresolved) costs\b|\b(?:costs|expenses) are fully (?:known|covered|accounted for)\b|\b(?:every|each) cost (?:is|has been) (?:included|accounted for|known)\b|\b(?:budget|allowance) (?:of|for) (?:each|every) (?:of these )?costs?\b|\bthreshold (?:is|as) (?:an? )?(?:estimate|budget|forecast) of\b/i;
   [viability, summary].filter(Boolean).forEach((sec) => {
     for (let i = sec.start + 1; i < sec.end; i++) {
       const t = lines[i].trim();
       if (!t || t.startsWith('#')) continue;
       (/^\|.*\|$/.test(t) ? t.replace(/^\||\|$/g, '').split('|') : [t]).flatMap((c) => c.split(/(?<=[.!?;])\s+/)).forEach((sentence) => {
         if (VIABLE.test(sentence) && !CONDITIONAL.test(sentence)) add('BLOCKING', 'UNCONDITIONAL VIABILITY CLAIM WITH UNRESOLVED COSTS', 'This sentence states that the business works, with no condition, while these costs are unresolved: ' + (fin.unresolved_costs || []).join('; ') + '. Word it as conditional on those costs, using the threshold in the cost condition paragraph.', short(sentence), i + 1);
+        else if (DENIES.test(sentence) && !/\bnot\b/i.test(sentence)) add('BLOCKING', 'COST CONDITION CONTRADICTED', 'This sentence says that costs are fully known or included, or treats the break-even threshold as a budget or an estimate, while these costs are unresolved: ' + (fin.unresolved_costs || []).join('; ') + '. Remove it or reword it so that it agrees with the cost condition.', short(sentence), i + 1);
       });
     }
   });
@@ -575,7 +577,7 @@ CHECKS
 24. Prices and payment. The offer's own price is a planning assumption unless the founder reports sales at it; it must be labeled as an assumption and carry no source ID. A page that states no price cannot support, inform, or benchmark a price, and a sentence that ties the price to such pages is BLOCKING. A competitor price in the ledger is the price of that competitor's own offer: the sentence must keep its amount, currency, what it buys, its length, and any qualifier exactly as the ledger entry and its page_excerpt state them, must keep separate offers separate, and must not call it equivalent to this offer or say it validates this offer's price. Saying that providers are paid, charge, or sell needs a ledger entry that states a price or a charge for those providers; a service description alone does not show it. Any statement that this offer's price is validated by the market is BLOCKING.
 25. Who a source speaks for. One company's page supports statements about that company only. A statement about competitors, providers, or the market in general that cites one company's page, or adds detail the page does not state (for example audiences, track records, or reputation), is BLOCKING.
 26. Meaning, not keywords. The user message lists LINES THAT MAKE COMMERCIAL CLAIMS. Read each one for what it asserts. Decide whether it claims demand, buyers, sales, payment, a market, or a validated price, in any wording, and whether a ledger entry cited on that line states it. Report every line that asserts more than its evidence, under the check it breaks. A line that only says offers exist, or that labels demand or price as an assumption or hypothesis, is acceptable.
-27. Cost condition. When FINANCIAL FACTS contain a COST CONDITION, some costs are unresolved and the conclusion depends on them. The Viability Assessment must carry that paragraph unchanged, and no sentence in the Executive Summary or the Viability Assessment may say the business is viable, profitable, or sustainable without that condition. A break-even threshold must not be described as an estimate of the costs, as a budget for them, or as evidence that the business works, and it must not be given to each cost separately when several share it. A regulatory check (registration, licensing, insurance, taxes) must not be dismissed on financial grounds. Each of these is BLOCKING.
+27. Cost condition. When FINANCIAL FACTS contain a COST CONDITION, some costs are unresolved and the conclusion depends on them. Code places that paragraph at the start of the Viability Assessment after revision, so do not report it as missing. No sentence in the Executive Summary or the Viability Assessment may say the business is viable, profitable, or sustainable without that condition, or say that all costs are known or included. A break-even threshold must not be described as an estimate of the costs, as a budget for them, or as evidence that the business works, and it must not be given to each cost separately when several share it. A regulatory check (registration, licensing, insurance, taxes) must not be dismissed on financial grounds. Each of these is BLOCKING.
 The user message lists LINES FLAGGED BY CODE FOR WORDING, with the matched words in brackets. Judge every one of those lines under checks 1, 4, 16 and 17. Report the ones that are unsupported; ignore the ones that are already framed as an assumption, a hypothesis, a test, or a recommendation, or that sit inside a quoted founder answer.
 
 You can check citations only against the EVIDENCE LEDGER. You cannot see the source pages; each ledger entry's page_excerpt is the passage of its page that code confirmed.
