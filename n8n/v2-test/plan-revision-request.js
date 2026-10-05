@@ -24,7 +24,10 @@ const SEV = ['BLOCKING', 'MAJOR', 'MINOR'];
 const s = (v) => (v === undefined || v === null) ? '' : String(v).trim();
 const sev = (v, fallback) => SEV.includes(s(v).toUpperCase()) ? s(v).toUpperCase() : fallback;
 const lineNo = (v) => { const n = parseInt(String(v).replace(/[^0-9]/g, ''), 10); return Number.isFinite(n) && n > 0 ? n : null; };
-const fromAuto = (i) => ({ severity: i.severity, source: 'Automated check', check: i.type, problem: i.detail, fix: '', occurrences: i.line ? [{ line: i.line, section: '', quote: i.quote || '' }] : [], line: i.line || null, quote: i.quote || '', section: '' });
+// A check that did not complete (the source verifier or the reviewer returned nothing usable) holds the plan, and is
+// marked unresolved: it is not a defect that was found.
+const INCOMPLETE_CHECK = /^(?:SOURCE VERIFICATION INCOMPLETE|SOURCE VERIFICATION DID NOT RUN|QA DID NOT RUN|VERIFICATION DID NOT RUN)$/;
+const fromAuto = (i) => ({ severity: i.severity, ...(INCOMPLETE_CHECK.test(i.type) ? { unresolved: true } : {}), source: 'Automated check', check: i.type, problem: i.detail, fix: '', occurrences: i.line ? [{ line: i.line, section: '', quote: i.quote || '' }] : [], line: i.line || null, quote: i.quote || '', section: '' });
 // A QA finding is one root problem with one or more occurrences.
 const fromQa = (f, source, fallback) => {
   const occ = (Array.isArray(f.occurrences) ? f.occurrences : []).map((o) => ({ line: lineNo(o && o.line), section: s(o && o.section), quote: s(o && o.quote) })).filter((o) => o.line);
@@ -39,7 +42,7 @@ if (!attempt) {
   const qaOk = qa && Array.isArray(qa.findings);
   if (qaOk) qa.findings.forEach((f) => findings.push(fromQa(f, 'QA review', 'MAJOR')));
   const fixable = findings.filter((f) => f.severity !== 'MINOR').length;
-  if (!qaOk) findings.unshift({ severity: 'BLOCKING', source: 'Automated check', check: 'QA DID NOT RUN', section: '', line: null, quote: '', occurrences: [], problem: 'The QA review did not return a readable result, so this plan has not been reviewed. Check the Final QA node in this execution.', fix: 'Review the plan by hand.' });
+  if (!qaOk) findings.unshift({ severity: 'BLOCKING', unresolved: true, source: 'Automated check', check: 'QA DID NOT RUN', section: '', line: null, quote: '', occurrences: [], problem: 'The QA review did not return a readable result, so this plan has not been reviewed. Check the Final QA node in this execution.', fix: 'Review the plan by hand.' });
   // Stable IDs. A finding keeps its ID through revision and verification.
   order(findings);
   let qn = 0, an = 0;
@@ -130,6 +133,7 @@ HOW TO FIX
 - Mismatched citation: use the source ID the EVIDENCE LEDGER gives for that exact claim, or remove the claim.
 - A verified source is not a verified claim. Keep a source ID only on what one ledger entry states. Put a conclusion in IdeaToPlan's own voice with no source ID.
 - Prevalence: a few pages that describe their own offers are examples. Remove "widely available", "common", "numerous", and the like unless a ledger entry says so; name the examples with their source IDs and say that how widely they are used is not established.
+- Supply is not demand: providers describing services, and resources being available, show what is offered. Remove any statement that this suggests, indicates, confirms, or is consistent with people seeking, wanting, or paying for such help. A hedge does not make it supported. Say which offers exist and word customer behaviour as a hypothesis to test.
 - Samples: a survey's number of respondents is the size of its sample. Remove any statement that a community, a population, or a market is large, active, or growing, or that demand exists, when it rests on a sample size. Keep only what the ledger entry states.
 - Demand: competitors existing is not evidence of buyers, sales, or willingness to pay. Reword any such statement as a hypothesis that requires validation.
 - Price: the offer's own price is a planning assumption with no source ID. Remove a source ID from any sentence that ties the price to pages that state no price, and keep those pages only on the service descriptions they support. Never write that the price is market-validated. A competitor price keeps its amount, currency, what it buys, and its length, and is never called equivalent to this offer.
@@ -282,6 +286,8 @@ const computedText = new Set([fin.scenario_block, fin.forecast_block, fin.budget
 const revisedLines = String(rev.text || '').split('\n');
 const same_claim_elsewhere = [];
 const RANK_OF = { BLOCKING: 0, MAJOR: 1, MINOR: 2 };
+const quotedIn = (v) => [...String(v || '').matchAll(/(?:^|[\s(])['‘“"]([^'’”"]{3,90})['’”"](?=[\s,.;:)]|$)/g)].map((m) => m[1].trim());
+const removalsIn = (v) => [...String(v || '').matchAll(/\bremove (?:the (?:word|words|phrase|claim) )?['‘“"]([^'’”"]{2,90}?)[,.]?['’”"]/gi)].map((m) => m[1].trim());
 log.forEach((e) => {
   const ids = (e.issues || []).filter((id) => first.some((f) => f.id === id && f.source === 'QA review' && f.severity !== 'MINOR'));
   if (!ids.length) return;
@@ -292,6 +298,11 @@ log.forEach((e) => {
   // elsewhere that denies or qualifies is not a repeat of one. Only an assertion can be repeated as a defect.
   const DISCLAIMS = /\b(?:not|no|never|cannot|without|unvalidated|untested|unverified|unknown|hypothes[ie]s)\b/i;
   sentencesOf(e.before).filter((b) => contentOf(b).length >= 8 && !DISCLAIMS.test(b) && !kept.some((k) => shares(b, k) >= 0.7)).forEach((removed) => {
+    // The words the reviewer quoted as the problem, kept only when they are in this statement. For each, the words
+    // that the corrected text no longer has are the ones that carried the defect; all of them must be asserted.
+    const terms = ids.flatMap((id) => { const f = first.find((q) => q.id === id); return quotedIn(f.problem).concat(removalsIn(f.fix)); })
+      .map((t) => contentOf(t)).filter((w) => w.length > 0 && w.every((x) => new Set(contentOf(removed)).has(x)))
+      .map((w) => { const distinct = w.filter((x) => !correctedWords.has(x)); return distinct.length ? distinct : w; });
     revisedLines.forEach((l, i) => {
       const n = i + 1;
       if ((e.line && n >= e.line && n < e.line + span) || !l.trim() || l.trim().startsWith('#') || computedText.has(l.trim())) return;
@@ -304,13 +315,36 @@ log.forEach((e) => {
       // without them, it is compared without them, so dropping the examples does not hide a repeat.
       const bare = removed.replace(/\([^)]*\)/g, ' ');
       const core = contentOf(bare).length >= 6 ? bare : removed;
-      const gone = contentOf(core).filter((w) => !correctedWords.has(w));
-      if (gone.length < 3) return;
-      const lineShare = shares(core, l);
-      if (lineShare < 0.6) return;
-      const scored = sentencesOf(l).filter((x) => !DISCLAIMS.test(x)).map((x) => { const there = new Set(contentOf(x)); return { x, carries: gone.filter((w) => there.has(w)).length / gone.length }; }).sort((p, q) => q.carries - p.carries)[0];
-      if (!scored || scored.carries < 0.5) return;
-      const confirmed = lineShare >= 0.7 && scored.carries >= 0.6;
+      if (shares(core, l) < 0.6) return;
+      // Word overlap only locates a candidate passage. Whether it repeats the defect is decided on the proposition:
+      // 1. What made the claim defective is what the reviewer named: the words it quoted from this statement
+      //    ("paid", "widely available"). A sentence that does not assert them is not a repeat, however similar.
+      // 2. A sentence that denies or qualifies the point ("whether those services are charged for is not
+      //    established") states the corrected proposition, not the defective one.
+      // 3. With no quoted words to go on, the defect is taken to be what the edit removed, and the same two tests apply.
+      const wholeSentences = (/^\s*\|.*\|\s*$/.test(l) ? l.trim().replace(/^\||\|$/g, '').split('|') : [l]).flatMap((c) => c.split(/(?<=[.!?])\s+/)).map((x) => x.trim()).filter(Boolean);
+      const clausesOf = (x) => x.split(/;\s+|,\s+(?:but|though|although|however|yet|while)\s+/);
+      const asserts = (clause, words) => { const there = new Set(contentOf(clause)); return words.length > 0 && words.every((w) => there.has(w)) && !DISCLAIMS.test(clause); };
+      let confirmed = false, found = '';
+      if (terms.length) {
+        // The reviewer named the defect. A sentence of this passage repeats it only if one of its clauses asserts
+        // those words without denying or qualifying them. Otherwise the passage is not a repeat and is not listed.
+        wholeSentences.forEach((x) => { if (!confirmed && clausesOf(x).some((c) => terms.some((t) => asserts(c, t)))) { confirmed = true; found = x; } });
+        if (!confirmed) return;
+      } else {
+        // No quoted words: the defect is taken to be what the edit removed. A clause that carries most of those words
+        // and does not deny or qualify them repeats it. A sentence that only resembles the statement is listed apart.
+        const gone = contentOf(core).filter((w) => !correctedWords.has(w));
+        if (gone.length < 3) return;
+        const carried = (c) => { const there = new Set(contentOf(c)); return gone.filter((w) => there.has(w)).length / gone.length; };
+        wholeSentences.forEach((x) => {
+          if (confirmed) return;
+          if (shares(core, l) >= 0.7 && clausesOf(x).some((c) => carried(c) >= 0.6 && !DISCLAIMS.test(c))) { confirmed = true; found = x; return; }
+          if (!found && shares(core, x) >= 0.6 && carried(x) >= 0.5 && !clausesOf(x).some((c) => DISCLAIMS.test(c))) found = x;
+        });
+        if (!confirmed && !found) return;
+      }
+      const scored = { x: found };
       const prior = same_claim_elsewhere.findIndex((x) => x.line === n);
       if (prior >= 0) { if (same_claim_elsewhere[prior].certain || !confirmed) return; same_claim_elsewhere.splice(prior, 1); }
       const worst = ids.map((id) => first.find((f) => f.id === id).severity).sort((p, q) => RANK_OF[p] - RANK_OF[q])[0];
@@ -323,7 +357,7 @@ log.forEach((e) => {
 const possible_repeats = same_claim_elsewhere.filter((d) => !d.certain).map((d) => ({ line: d.line, unit: d.unit, issues: d.issues, removed: d.removed, found: d.found }));
 same_claim_elsewhere.filter((d) => d.certain).forEach((d, i) => findings.push({ id: 'DUP-' + String(i + 1).padStart(3, '0'), severity: d.severity, source: 'Revision check', check: 'SAME CLAIM STILL PRESENT ELSEWHERE', section: '', line: d.line, quote: d.found, occurrences: [{ line: d.line, section: '', quote: d.found }], unit: d.unit, problem: 'Edit ' + d.unit + ' corrected ' + d.issues.join(', ') + ' by removing or rewording this statement: "' + d.removed + '". A sentence that makes the same statement, including the part that was removed, is still at L' + d.line + ', which was not edited. Correcting one place does not correct the other, and the finding applies here with the same severity.', fix: '' }));
 order(findings);
-if (!verOk) findings.unshift({ id: 'AUTO-VER', severity: 'BLOCKING', source: 'Automated check', check: 'VERIFICATION DID NOT RUN', section: '', line: null, quote: '', occurrences: [], problem: 'The verification pass did not return a readable result, so the revision has not been checked. Check the Final QA node in this execution.', fix: 'Review the plan by hand.' });
+if (!verOk) findings.unshift({ id: 'AUTO-VER', severity: 'BLOCKING', unresolved: true, source: 'Automated check', check: 'VERIFICATION DID NOT RUN', section: '', line: null, quote: '', occurrences: [], problem: 'The verification pass did not return a readable result, so the revision has not been checked. Check the Final QA node in this execution.', fix: 'Review the plan by hand.' });
 order(findings);
 findings.forEach((f, i) => { if (!f.id) f.id = 'AUTO-V' + String(i + 1).padStart(2, '0'); });
 

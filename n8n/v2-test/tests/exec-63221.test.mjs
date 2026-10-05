@@ -259,12 +259,14 @@ test('gap: each sentence is judged alone, and authorship is not a label', async 
   ]) assert.deepEqual((await onLast(ev, s)).filter((x) => /GAP/.test(x)), [GAP], s);
 });
 
-test('gap: the held plan words its gap as a hypothesis on every line, so none blocks', async () => {
+test('gap: the held plan labels its hypothesis lines, and its contrast at line 154 blocks', async () => {
   const { ev } = await evidence();
   const out = await check(ev);
   assert.match(lineOf(154), /IdeaToPlan analysis: among the pages reviewed/);
   assert.match(lineOf(156), /This is a hypothesis, not an established gap/);
-  assert.deepEqual(out.det_issues.filter((i) => /COMPETITIVE GAP/.test(i.type)).map((i) => i.line), []);
+  // Line 154 says the competitors are oriented toward executing a move rather than deciding on one. That is the gap
+  // claim as a contrast, with authorship in front of it and its caveat in the next sentence.
+  assert.deepEqual(out.det_issues.filter((i) => /COMPETITIVE GAP/.test(i.type)).map((i) => i.line), [154]);
 });
 
 test('gap: the sentence the reviewer found in 63221, before revision, is caught when it stands alone', async () => {
@@ -469,5 +471,6 @@ test('63221 recheck: the held plan is still blocked, now for its genuine defects
     'L597 UNCONDITIONAL BUDGET CLAIM WITH UNRESOLVED COSTS',
     'L605 UNCONDITIONAL PROFIT CLAIM WITH UNRESOLVED COSTS',
     'L175 PRICE COMPARISON WITHOUT A VERIFIED PRICE',
+    'L154 COMPETITIVE GAP STATED AS A FINDING',
   ]);
 });

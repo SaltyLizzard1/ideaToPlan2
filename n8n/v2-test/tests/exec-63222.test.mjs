@@ -242,7 +242,7 @@ test('elsewhere: the inference removed at line 511 is found again at line 40', a
   assert.equal(dup[0].severity, 'BLOCKING');
   assert.equal(dup[0].unit, 'U25');
   assert.match(dup[0].problem, /corrected QA-003, QA-008 by removing or rewording this statement: "Adjacent pricing data suggests that the broader category/);
-  assert.match(dup[0].quote, /^it suggests that the broader category of personalized relocation consulting does carry price points well above \$500/);
+  assert.match(dup[0].quote, /it suggests that the broader category of personalized relocation consulting does carry price points well above \$500/);
   // The code check blocks the same line independently, after revision.
   assert.ok(at(r.cc, 40).includes(STRETCH));
 });
