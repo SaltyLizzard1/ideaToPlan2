@@ -33,6 +33,8 @@ const cellsOf = (row) => row.trim().replace(/^\||\|$/g, '').split(/(?<!\\)\|/).l
 const DATE_NOTE = /\bundated\b|\bno (?:publication )?dates?\b|\bdates? (?:is |are |was |were )?not shown\b|\bwithout a (?:publication )?date\b/i;
 const idsIn = (v) => [...new Set(String(v || '').match(/\b[SW]\d+\b/g) || [])];
 const tableStart = (lineNo) => { let i = lineNo - 1; while (i > 0 && isRow(original[i - 1])) i--; return i; };
+// The sources a section cites, in the plan as it was before the edits. A date note is about the section.
+const sectionIds = (lineNo) => { let a = lineNo - 1; while (a > 0 && !/^## /.test(original[a] || '')) a--; let b = lineNo; while (b < original.length && !/^## /.test(original[b] || '')) b++; return idsIn(original.slice(a, b).join(' ')); };
 const notesAbove = {};
 
 edits.forEach((e) => {
@@ -62,10 +64,10 @@ edits.forEach((e) => {
     if (/^#{1,6}\s/m.test(newText) || /^#{1,6}\s/.test(note)) { refuse(u, 'rejected', 'the replacement would have added a section header.'); return; }
     if (note && !row) { newText = note + (u.start === u.end ? ' ' : '\n\n') + newText; note = ''; }
     if (note) {
-      const strange = idsIn(note).filter((id) => !idsIn(current).includes(id) && !idsIn(newText).includes(id));
+      const strange = idsIn(note).filter((id) => !sectionIds(u.start).includes(id) && !idsIn(newText).includes(id));
       if (/\|/.test(note) || note.length > 500) { refuse(u, 'rejected', 'the text given beside the table row is not one short note, so nothing was changed.'); return; }
       if (!DATE_NOTE.test(note)) { refuse(u, 'rejected', 'the replacement put text other than a source-date note beside a table row. Only the row itself and a note about undated sources are accepted there.'); return; }
-      if (strange.length) { refuse(u, 'rejected', 'the source-date note names a source the row does not cite (' + strange.join(', ') + ').'); return; }
+      if (strange.length) { refuse(u, 'rejected', 'the source-date note names a source its section does not cite (' + strange.join(', ') + ').'); return; }
     }
     if (newText === current && !note) { done.add(uid); refuse(u, 'unchanged', 'the reviser returned the passage unchanged.'); return; }
   }

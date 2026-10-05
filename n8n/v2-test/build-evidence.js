@@ -149,7 +149,7 @@ candidates.forEach((c) => { firstPass[c.claim_id] = c; });
 recheckRequests.forEach((r) => (r.corrections || []).forEach((k) => {
   const o = firstPass[k.corrects];
   if (!o || !k.claim_id || firstPass[k.claim_id]) return;
-  candidates.push({ claim_id: k.claim_id, call: o.call, question: o.question, claim: k.claim, source_type: o.source_type, reported_published: 'date not shown', url_given: '', markers: [], entity: null, candidate_source_ids: [r.source_id], candidate_basis: ['the fetched page, after research claim ' + k.corrects + ' was contradicted'], corrects: k.corrects });
+  candidates.push({ claim_id: k.claim_id, call: o.call, question: o.question, claim: k.claim, source_type: o.source_type, reported_published: 'date not shown', url_given: '', markers: [], entity: null, candidate_source_ids: [r.source_id], candidate_basis: [k.kind === 'payment_wording_removed' ? 'research claim ' + k.corrects + ' without "paid"' : 'the fetched page, after research claim ' + k.corrects + ' was contradicted'], corrects: k.corrects, ...(k.kind ? { correction_kind: k.kind } : {}) });
 }));
 // Every company claim that has no company yet, first-pass or recovered, gets the one it names.
 const identityResolved = [];
@@ -240,16 +240,13 @@ const deterministic = (claim, entity, excerpt, page) => {
 // PAYMENT. Calling a service "paid", or saying a company charges or sells, asserts that money changes hands. The
 // passage quoted from the page has to show that: a price, a fee, a charge, an invoice, or a purchase step. A numeric
 // price is not required. "Clear pricing" and a description of the service do not show it. When the passage does not
-// show it, the claim is not thrown away with its other facts: the word "paid" is removed and the entry says so. A
-// claim whose whole point is the charge ("X charges clients for ...") cannot be kept that way and is excluded.
+// show it, the claim is excluded. Its other facts are not lost and are not assumed either: Build Recheck Request
+// proposes the claim without "paid" as a new claim, and that claim is accepted only if the separate check supports
+// it and it passes the same code checks as every other claim. Removing a word is never what puts a claim in the ledger.
 const PAYMENT_ASSERTED = /\bpaid(?:-for)?\b|\bcharg(?:es|ed|ing)\b|\bcharge (?:for|clients|customers|a fee|fees)\b|\bfor a fee\b|\b(?:customers|clients|people|buyers|users|members) (?:pay|are paying|have paid)\b|\bsells?\b/i;
 const chargeShown = (excerpt) => {
   const v = String(excerpt || '').replace(/\b(?:clear|transparent|simple|fair|honest|upfront|competitive|flexible|affordable|straightforward) pricing\b/gi, ' ').replace(/\b(?:no|without|zero|free of) (?:fees?|charges?|costs?)\b/gi, ' ');
   return /(?:US\$|\$|€|£)\s?\d|\b\d[\d,.]*\s?(?:USD|EUR|GBP|dollars|euros|pounds)\b|\bfees?\b|\bcharg(?:e|es|ed|ing)\b|\bpriced? (?:at|from)\b|\bprices? (?:start|from|range)\b|\bstart(?:s|ing)? (?:at|from) \S*\d|\bbuy now\b|\badd to cart\b|\bcheckout\b|\border now\b|\bsubscriptions?\b|\binvoic\w+\b|\bbilled\b|\bpaid (?:plan|tier|membership|consultation|session)s?\b/i.test(v);
-};
-const withoutPaid = (claim) => {
-  const out = String(claim).replace(/\b(an?) paid(?:-for)? ([a-z])/gi, (m, art, ch) => (/[aeiou]/i.test(ch) ? (art[0] === 'A' ? 'An' : 'an') : (art[0] === 'A' ? 'A' : 'a')) + ' ' + ch).replace(/\bpaid(?:-for)? /gi, '');
-  return PAYMENT_ASSERTED.test(out) ? '' : out;
 };
 
 // A claim is a statistic when it states a count, a share or a market value about a population or market, as
@@ -277,12 +274,8 @@ const evaluate = (c, sid) => {
   if (off.length) return { ...rec, status: 'unverifiable', kind: 'model_checks', reasons: ['the verifier marked it supported but reported ' + off.map((k) => k + ' ' + x.checks[k].replace('_', ' ')).join(', ')] };
   if (x.credibility.rating === 'low') return { ...rec, status: 'not_credible', kind: 'credibility', reasons: ['the page states it, but the source is not credible evidence for it: ' + rec.credibility.basis] };
   if (isStatistic(c) && !x.credibility.first_party && !x.credibility.origin_stated) return { ...rec, status: 'not_credible', kind: 'credibility', reasons: ['the page states it, but gives no traceable origin for the figure: ' + rec.credibility.basis] };
-  let claim_kept = '';
-  if (PAYMENT_ASSERTED.test(c.claim) && !chargeShown(x.excerpt)) {
-    claim_kept = withoutPaid(c.claim);
-    if (!claim_kept) return { ...rec, status: 'unverifiable', kind: 'payment', reasons: ['the claim says the service is charged for or sold, and the passage quoted from the page shows no price, fee, charge, or purchase step. A description of a service, or wording such as "Clear pricing", does not show that it is paid for'] };
-  }
-  return { ...rec, status: 'supported', kind: 'verified', reasons: [], claim_kept };
+  if (PAYMENT_ASSERTED.test(c.claim) && !chargeShown(x.excerpt)) return { ...rec, status: 'unverifiable', kind: 'payment', reasons: ['the claim says the service is paid, charged for, or sold, and the passage quoted from the page shows no price, fee, charge, or purchase step. A description of a service, or wording such as "Clear pricing", does not show that it is paid for'] };
+  return { ...rec, status: 'supported', kind: 'verified', reasons: [] };
 };
 
 // ---------- 3. Decide each claim. ----------
@@ -317,13 +310,13 @@ candidates.forEach((c) => {
       retrieved_at: page.retrieved_at,
     };
     if (c.entity) entry.entity = c.entity.name;
-    if (win.claim_kept) {
-      entry.claim = win.claim_kept;
-      entry.claim_as_researched = c.claim;
-      entry.payment_not_established = true;
-      entry.limits = 'The research tool called this service paid. The passage verified on the page shows no price, fee, or charge, so that word was removed. This entry does not support saying the service is paid, charged for, or sold.';
-    }
     if (c.corrects) { entry.derived_from = c.corrects; entry.attribution = 'extracted from the fetched page after research claim ' + c.corrects + ' was contradicted, then verified by a separate check'; }
+    if (c.corrects && c.correction_kind === 'payment_wording_removed') {
+      entry.attribution = 'research claim ' + c.corrects + ' called this service paid, which the page passage did not show. This is that claim without "paid", verified by a separate check';
+      entry.claim_as_researched = (firstPass[c.corrects] || {}).claim || '';
+      entry.payment_not_established = true;
+      entry.limits = 'This entry does not support saying the service is paid, charged for, or sold: no price, fee, or charge was shown for it.';
+    }
     claims.push(entry);
     return;
   }
@@ -331,7 +324,7 @@ candidates.forEach((c) => {
   excluded.push({ claim_id: c.claim_id, question: c.question, claim: c.claim, entity: c.entity ? c.entity.name : '', entity_words: c.entity ? c.entity.name_words : '', status: worst.status, kind: worst.kind, reason: worst.reasons.join('; '), candidate_source_ids: c.candidate_source_ids, figures: [...new Set(figures(c.claim).map((f) => f.key))], corrects: c.corrects || '' });
 });
 // Correction history: each rejected original keeps the list of claims extracted in its place and what became of them.
-const correctionHistory = candidates.filter((c) => c.corrects).map((c) => ({ original: c.corrects, claim_id: c.claim_id, claim: c.claim, outcome: claims.some((k) => k.claim_id === c.claim_id) ? 'verified' : 'excluded', reason: (excluded.find((x) => x.claim_id === c.claim_id) || {}).reason || '' }));
+const correctionHistory = candidates.filter((c) => c.corrects).map((c) => ({ original: c.corrects, claim_id: c.claim_id, claim: c.claim, ...(c.correction_kind ? { kind: c.correction_kind } : {}), outcome: claims.some((k) => k.claim_id === c.claim_id) ? 'verified' : 'excluded', reason: (excluded.find((x) => x.claim_id === c.claim_id) || {}).reason || '' }));
 excluded.forEach((x) => { const mine = correctionHistory.filter((h) => h.original === x.claim_id); if (mine.length) x.corrections = mine.map((h) => ({ claim_id: h.claim_id, outcome: h.outcome })); });
 
 // The latest calendar date written in a string, as a UTC timestamp, or null when none can be read.

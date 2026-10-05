@@ -342,11 +342,20 @@ test('QA-023: an attempted revision alone does not close the finding', async () 
 
 test('QA-023: it closes when verification finds the unchanged passage does not contain the problem', async () => {
   const qa = verdicts();
-  qa.unchanged = [{ unit: 'U10', id: 'QA-023', present: false, note: 'Already worded as a hypothesis, not an established gap.' }];
+  qa.unchanged = [{ unit: 'U10', id: 'QA-023', present: false, reason: 'The competitive interpretation in this passage is already worded as a positioning hypothesis, not as a finding.', basis: 'passage', quote: 'Positioning Hypothesis' }];
   const r = await secondPass(qa);
   assert.equal(r.qa023.status, 'FIXED');
   assert.match(r.qa023.note, /left unchanged did not contain the problem/);
   assert.equal(r.open, undefined);
+});
+
+test('QA-023: "not present" with no reason and no quoted words closes nothing', async () => {
+  const qa = verdicts();
+  qa.unchanged = [{ unit: 'U10', id: 'QA-023', present: false, note: 'Fine.' }];
+  const r = await secondPass(qa);
+  assert.equal(r.qa023.status, 'PARTLY_FIXED');
+  assert.match(r.qa023.note, /that answer closes nothing: it gives no reason; it quotes nothing from the passage, its section, or the ledger/);
+  assert.ok(r.open);
 });
 
 test('QA-023: it stays open, with the line, when verification finds the problem still there', async () => {

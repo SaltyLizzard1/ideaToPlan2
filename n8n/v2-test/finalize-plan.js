@@ -113,6 +113,10 @@ if (rev) {
   nd.forEach((f) => lines.push(f.id + ' | ' + f.severity + ' | ' + f.check + (f.unit ? ' | introduced by edit ' + f.unit : '') + ' | ' + f.problem));
   const maybe = res.possible_repeats || [];
   if (maybe.length) { lines.push('', 'SENTENCES THAT MAY REPEAT A CORRECTED CLAIM (' + maybe.length + '). These are not findings. Read each one.'); maybe.forEach((d) => lines.push('- L' + d.line + ' | edit ' + d.unit + ' corrected ' + d.issues.join(', ') + ' | ' + d.found)); }
+  const closedNoEdit = res.closed_without_edit || [];
+  if (closedNoEdit.length) { lines.push('', 'MAJOR FINDINGS CLOSED WITHOUT AN EDIT (' + closedNoEdit.length + '). The verifier read the unchanged passage and justified each one. Read the justification.'); closedNoEdit.forEach((v) => lines.push('- ' + v.id + ' | ' + v.check + ' | ' + v.note)); }
+  const noClose = res.unjustified_closures || [];
+  if (noClose.length) { lines.push('', 'CLOSURES NOT ACCEPTED (' + noClose.length + '). The verifier said the problem was absent and did not justify it. The finding stays open.'); noClose.forEach((v) => lines.push('- ' + v.id + ' | ' + v.severity + ' | ' + v.check)); }
   const open = findings.filter((f) => f.correction_not_applied === true);
   if ((rev.rejected_units || []).length || open.length) {
     lines.push('', 'REQUIRED CORRECTIONS NOT APPLIED (' + open.length + ' finding' + (open.length === 1 ? '' : 's') + ' on ' + (rev.rejected_units || []).length + ' passage' + ((rev.rejected_units || []).length === 1 ? '' : 's') + '). Each finding is open with its original severity.');

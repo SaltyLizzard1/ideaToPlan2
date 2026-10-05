@@ -274,7 +274,7 @@ test('line 157: the comparison and the ranking are not supported, and are now re
   assert.match(lineOf(157), /all five direct competitors focus primarily on the execution of a move - logistics, visas, housing, compliance - rather than on the earlier decision-making stage/);
   assert.match(lineOf(157), /Intermark Relocation is the most comprehensive provider reviewed/);
   const out = await check();
-  assert.deepEqual(at(out, 157), [GAP, 'MAJOR COMPETITOR RANKED WITHOUT EVIDENCE']);
+  assert.deepEqual(at(out, 157), [GAP, 'BLOCKING COMPETITOR RANKED WITHOUT EVIDENCE']);
   assert.match(out.det_issues.find((i) => i.line === 157 && /RANKED/.test(i.type)).detail, /it does not say what is being compared; it cites no verified claim for Mosline Travel Consultancy Firm, Start Abroad, Traveling with Kristin, LA Relocation Group, International Relocation Partner, Intermark Relocation/);
 });
 
@@ -287,7 +287,7 @@ test('line 157: what the reviewed evidence supports, with its scope, passes', as
   assert.ok((await onLast('The providers reviewed are built for people who have already decided, not on helping them decide.')).includes(GAP));
 });
 
-const RANKED = 'MAJOR COMPETITOR RANKED WITHOUT EVIDENCE';
+const RANKED = 'BLOCKING COMPETITOR RANKED WITHOUT EVIDENCE';
 
 test('ranking: six companies were reviewed in this run, five direct and one indirect', () => {
   const reviewed = JSON.parse(EV.entities).filter((e) => LEDGER.some((c) => c.entity === e.name && /^C\d/.test(c.question)));
@@ -308,7 +308,7 @@ test('ranking: evidence for two companies does not support "most" among all thos
   const two = 'By the number of services each page lists, Intermark Relocation is the most comprehensive provider reviewed: its page lists webinars, company registration, digital nomad visas and moving services [S13], against visas, housing and banking for Start Abroad [S2].';
   const text = HELD_PLAN.replace(/\n+$/, '') + '\n\n' + two + '\n';
   const issue = (await check(text)).det_issues.find((i) => i.line === text.replace(/\n+$/, '').split('\n').length && /RANKED/.test(i.type));
-  assert.equal(issue.severity, 'MAJOR');
+  assert.equal(issue.severity, 'BLOCKING');
   assert.match(issue.detail, /it cites no verified claim for Mosline Travel Consultancy Firm, Traveling with Kristin, LA Relocation Group, International Relocation Partner, and a ranking of the 6 companies reviewed needs evidence for every one of them/);
   assert.match(issue.detail, /Evidence for two companies supports a comparison between those two only/);
   // Five of six is still not all.
@@ -405,7 +405,7 @@ test('undated sources: the run\'s nine "present" answers were given without that
   // With "not present" for the nine rows, which is what the note supports, the finding closes on the verifier's word.
   const qa = clone(fx('Final QA')[1]);
   const o = JSON.parse(qa.choices[0].message.content.replace(/^[^{]*/, '').replace(/[^}]*$/, ''));
-  o.unchanged.forEach((u) => { u.present = false; u.note = 'Covered by the note at L80 in the same section.'; });
+  o.unchanged.forEach((u) => { u.present = false; u.reason = 'The note at L80 in the same section says the sources are undated, which covers the undated sources this row cites.'; u.basis = 'section_note'; u.quote = 'All sources reviewed for this plan are undated'; });
   o.verifications.find((v) => String(v.id) === 'QA-015').status = 'FIXED';
   qa.choices[0].message.content = JSON.stringify(o);
   const closed = await secondPass(fx('Apply Revisions'), qa);
@@ -428,10 +428,11 @@ test('63225 recheck: seven confirmed defects, no unresolved required check, and 
     'L55 SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE',
     'L152 SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE',
     'L153 SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE',
+    // An unsupported ranking of companies is a statement of fact, and blocks like any other since commit after 10c023c.
+    'L157 COMPETITOR RANKED WITHOUT EVIDENCE',
   ]);
   assert.deepEqual(f.filter((x) => x.unresolved), []);
   assert.deepEqual(f.filter((x) => x.severity === 'MAJOR').map((x) => x.check + (x.line ? ' L' + x.line : '')).sort(), [
-    'COMPETITOR RANKED WITHOUT EVIDENCE L157',
     'FINANCIAL MODEL',
     'SOURCE VERIFICATION INCOMPLETE FOR UNUSED CLAIMS',
     'Stale or undated evidence used without qualification L80',
@@ -443,9 +444,9 @@ test('63225 recheck: seven confirmed defects, no unresolved required check, and 
   assert.ok(!f.some((x) => x.line === 616), 'corrected line 616 passes');
   const g = await gate(f);
   assert.equal(g.blocked, true);
-  assert.equal(g.confirmed_blocker_count, 7);
+  assert.equal(g.confirmed_blocker_count, 8);
   assert.equal(g.unresolved_check_count, 0);
-  assert.equal(g.warning_count, 6);
+  assert.equal(g.warning_count, 5);
 });
 
 test('63225 recheck: the $500 baseline is unchanged', async () => {

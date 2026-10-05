@@ -18,21 +18,64 @@ candidates.forEach((c) => { byId[c.claim_id] = c; });
 // New claim IDs continue after the last ID Collect Evidence issued, so no existing ID is reused or renumbered.
 let next = candidates.reduce((m, c) => Math.max(m, parseInt(String(c.claim_id).slice(1), 10) || 0), 0);
 
-const items = [];
-requests.forEach((req, i) => {
-  if (!req || req.none || !req.source_id) return;
+// PAYMENT. A claim that calls a service paid, on a passage that shows no price, fee, or charge, is not accepted. The
+// same claim without "paid" is a different claim. Removing a word does not show that what is left is supported, so the
+// shortened claim is a proposal like any other: it gets its own ID and goes through the separate check below. The
+// second verifier is not told it is checking a correction. Nothing enters the ledger on the strength of the edit.
+const PAYMENT_ASSERTED = /\bpaid(?:-for)?\b|\bcharg(?:es|ed|ing)\b|\bcharge (?:for|clients|customers|a fee|fees)\b|\bfor a fee\b|\b(?:customers|clients|people|buyers|users|members) (?:pay|are paying|have paid)\b|\bsells?\b/i;
+const chargeShown = (excerpt) => {
+  const v = String(excerpt || '').replace(/\b(?:clear|transparent|simple|fair|honest|upfront|competitive|flexible|affordable|straightforward) pricing\b/gi, ' ').replace(/\b(?:no|without|zero|free of) (?:fees?|charges?|costs?)\b/gi, ' ');
+  return /(?:US\$|\$|€|£)\s?\d|\b\d[\d,.]*\s?(?:USD|EUR|GBP|dollars|euros|pounds)\b|\bfees?\b|\bcharg(?:e|es|ed|ing)\b|\bpriced? (?:at|from)\b|\bprices? (?:start|from|range)\b|\bstart(?:s|ing)? (?:at|from) \S*\d|\bbuy now\b|\badd to cart\b|\bcheckout\b|\border now\b|\bsubscriptions?\b|\binvoic\w+\b|\bbilled\b|\bpaid (?:plan|tier|membership|consultation|session)s?\b/i.test(v);
+};
+const withoutPaid = (claim) => {
+  const out = String(claim).replace(/\b(an?) paid(?:-for)? ([a-z])/gi, (m, art, ch) => (/[aeiou]/i.test(ch) ? (art[0] === 'A' ? 'An' : 'an') : (art[0] === 'A' ? 'A' : 'a')) + ' ' + ch).replace(/\bpaid(?:-for)? /gi, '');
+  return PAYMENT_ASSERTED.test(out) ? '' : out;
+};
+
+const parsed = requests.map((req, i) => {
+  if (!req || req.none || !req.source_id) return null;
   let obj = null;
   try { const content = responses[i].choices[0].message.content; obj = JSON.parse(content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1)); } catch (e) {}
-  if (!obj || !Array.isArray(obj.claims) || obj.source_id !== req.source_id) return;
-  const found = [];
+  return obj && Array.isArray(obj.claims) && obj.source_id === req.source_id ? obj : null;
+});
+// Proposals from contradicted claims are numbered first, in request order, as they always were. Proposals that come
+// from removing "paid" are numbered after them, so an ID issued by an earlier version of this node never changes.
+const foundFor = requests.map(() => []);
+requests.forEach((req, i) => {
+  const obj = parsed[i];
+  if (!obj) return;
   (req.claim_ids || []).forEach((cid) => {
     const mine = obj.claims.filter((k) => k && k.claim_id === cid);
     if (mine.length !== 1 || mine[0].verdict !== 'contradicted' || !Array.isArray(mine[0].corrections)) return;
     mine[0].corrections
       .filter((k) => k && typeof k.claim === 'string' && k.claim.trim().length >= 20 && typeof k.excerpt === 'string')
       .slice(0, MAX_PER_CLAIM)
-      .forEach((k) => { next++; found.push({ claim_id: 'E' + next, corrects: cid, claim: k.claim.trim().replace(/\s+/g, ' '), proposed_excerpt: k.excerpt }); });
+      .forEach((k) => { next++; foundFor[i].push({ claim_id: 'E' + next, corrects: cid, claim: k.claim.trim().replace(/\s+/g, ' '), proposed_excerpt: k.excerpt }); });
   });
+});
+const proposedPayment = new Set();
+requests.forEach((req, i) => {
+  const obj = parsed[i];
+  if (!obj) return;
+  (req.claim_ids || []).forEach((cid) => {
+    const mine = obj.claims.filter((k) => k && k.claim_id === cid);
+    const c = byId[cid];
+    if (mine.length !== 1 || mine[0].verdict !== 'supported' || !c || proposedPayment.has(cid)) return;
+    if (!PAYMENT_ASSERTED.test(c.claim) || chargeShown(mine[0].excerpt)) return;
+    const shorter = withoutPaid(c.claim);
+    if (!shorter || shorter.trim().length < 20) return;
+    proposedPayment.add(cid);
+    next++;
+    foundFor[i].push({ claim_id: 'E' + next, corrects: cid, claim: shorter.trim().replace(/\s+/g, ' '), proposed_excerpt: typeof mine[0].excerpt === 'string' ? mine[0].excerpt : '', kind: 'payment_wording_removed' });
+  });
+});
+
+const items = [];
+// Pages with a proposal from a contradiction come first, in request order, then pages whose only proposals remove "paid".
+const order = requests.map((_, i) => i).filter((i) => foundFor[i].some((f) => !f.kind)).concat(requests.map((_, i) => i).filter((i) => foundFor[i].length && !foundFor[i].some((f) => !f.kind)));
+order.forEach((i) => {
+  const req = requests[i];
+  const found = foundFor[i];
   if (!found.length) return;
   let first = null;
   try { first = JSON.parse(req.payload); } catch (e) {}

@@ -1,0 +1,34 @@
+[
+ {
+  "find": "// ---------- PROVIDER FOCUS AND STAGE ----------",
+  "replace": "// A ranking or a superlative passes unsupported only when the sentence itself says it is not established. A stray\n// \"no\" or \"not\" elsewhere in the sentence (\"... and no other comes close\") is not a label.\nconst RANK_LABEL = /\\b(?:hypothes[ie]s|hypothesi[sz]ed?|untested|unvalidated|unverified|unknown|whether|not (?:yet )?(?:been )?(?:established|verified|confirmed|known|shown)|assum(?:e|es|ed|ption|ptions))\\b/i;\n// ---------- PROVIDER FOCUS AND STAGE ----------"
+ },
+ {
+  "find": "    if (!SUPERLATIVE.test(clause) || RANKED.test(clause) || OWN_FIGURES.test(clause) || OWN_DATA.test(clause) || DENIES_OR_LABELS.test(clause)) return false;",
+  "replace": "    if (!SUPERLATIVE.test(clause) || RANKED.test(clause) || OWN_FIGURES.test(clause) || OWN_DATA.test(clause) || RANK_LABEL.test(clause)) return false;"
+ },
+ {
+  "find": "    if ((!superlative && !COMPARED.test(seg)) || DENIES_OR_LABELS.test(seg)) return false;",
+  "replace": "    if ((!superlative && !COMPARED.test(seg)) || RANK_LABEL.test(seg)) return false;"
+ },
+ {
+  "find": "  if (hit) add('MAJOR', 'COMPETITOR RANKED WITHOUT EVIDENCE', 'This text ranks or compares companies, and ' + detail + '. A ranking needs a stated criterion (for example the number of services each page lists) and a source ID with a verified claim for every company it covers. Evidence for two companies supports a comparison between those two only. Give the criterion and the evidence for all of them, narrow the statement to the companies the evidence covers, word it as a hypothesis, or remove it.', short(hit), i + 1);\n});\n",
+  "replace": "  if (hit) add('BLOCKING', 'COMPETITOR RANKED WITHOUT EVIDENCE', 'This text ranks or compares companies, and ' + detail + '. A ranking needs a stated criterion (for example the number of services each page lists) and a source ID with a verified claim for every company it covers. Evidence for two companies supports a comparison between those two only. Give the criterion and the evidence for all of them, narrow the statement to the companies the evidence covers, word it as a hypothesis, or remove it.', short(hit), i + 1);\n});\n\n// A RANKING OFFERED AS A HYPOTHESIS STAYS ONE. \"It is a hypothesis that A is the most comprehensive provider\" may\n// stand. Another sentence that then treats A's lead as a fact (\"A's breadth advantage\", \"A leads on scope\") presents\n// the hypothesis as established, and is unsupported for the same reason the ranking would be.\nconst ADVANTAGE = /\\b(?:advantages?|leads?|leader|leading|ahead of|outperforms?|superior|strongest|broadest|widest|dominant|dominates|edge over|sets the (?:standard|benchmark)|the benchmark)\\b/i;\nconst namesCompany = (e, seg) => spaced(seg).includes(' ' + e.name_words + ' ') || aliasesOf(e).some((s) => seg.includes(s));\nconst hypotheticalRank = [];\nlines.forEach((line, i) => {\n  const t = line.trim();\n  if (!t || t.startsWith('#') || /^\\|?\\s*:?-{2,}/.test(t)) return;\n  sentencesOfLine(t).forEach((seg) => { if ((RANKED.test(seg) || COMPARED.test(seg)) && RANK_LABEL.test(seg)) entities.filter((e) => e.name_words && namesCompany(e, seg)).forEach((e) => hypotheticalRank.push({ e, line: i + 1 })); });\n});\nif (hypotheticalRank.length) lines.forEach((line, i) => {\n  const t = line.trim();\n  if (!t || t.startsWith('#') || /^\\|?\\s*:?-{2,}/.test(t) || demandComputed.has(t)) return;\n  let about = null;\n  const hit = sentencesOfLine(t).find((seg) => {\n    if (RANK_LABEL.test(seg) || RANKED.test(seg) || COMPARED.test(seg) || !ADVANTAGE.test(seg)) return false;\n    about = hypotheticalRank.find((h) => namesCompany(h.e, seg)) || null;\n    return !!about;\n  });\n  if (hit) add('BLOCKING', 'HYPOTHETICAL RANKING PRESENTED AS ESTABLISHED', 'L' + about.line + ' ranks ' + about.e.name + ' as a hypothesis. This text treats that standing as a fact. A hypothesis is not evidence, here or anywhere else in the plan. Say what the page of ' + about.e.name + ' lists, or repeat that the comparison is a hypothesis.', short(hit), i + 1);\n});\n"
+ },
+ {
+  "find": "Without the criterion and the full evidence, ask for the statement to be narrowed to what the evidence covers, or removed.",
+  "replace": "Without the criterion and the full evidence, ask for the statement to be narrowed to what the evidence covers, or removed. An unsupported ranking of companies is BLOCKING, like any other unsupported superlative. A ranking that the sentence itself calls a hypothesis may stand, and then no other sentence may rely on it as a fact (\"because A is the most comprehensive provider\", \"A's breadth advantage\"): report each such sentence as BLOCKING."
+ },
+ {
+  "find": "Give one answer for every unit and finding id listed.",
+  "replace": "Give one answer for every unit and finding id listed. An answer of \"present\": false closes a finding that nobody edited, so it has to be justified: \"reason\" says, in one or two sentences about this finding, why the root problem is not in the passage; \"basis\" names what you rely on, \"passage\", \"section_note\", or \"ledger\"; and \"quote\" copies, exactly, the words you rely on from the passage, from a line of the same section, or from the evidence ledger entry. A false answer with no reason, with a reason that describes the problem as being there, or with a quote that is not in the passage, its section, or the ledger is discarded and the finding stays open. When you are not sure, answer true. For \"present\": true, give the reason and leave \"quote\" empty."
+ },
+ {
+  "find": "\"unchanged\":[{\"unit\":\"the unit ID\",\"id\":the finding id,\"present\":true or false,\"note\":\"one sentence\"}]",
+  "replace": "\"unchanged\":[{\"unit\":\"the unit ID\",\"id\":the finding id,\"present\":true or false,\"reason\":\"one or two sentences about this finding\",\"basis\":\"passage or section_note or ledger\",\"quote\":\"exact words relied on, or empty\"}]"
+ },
+ {
+  "find": "const UNDATED_SAID = /\\bundated\\b|\\bno publication date\\b|",
+  "replace": "const UNDATED_SAID = /\\bundated\\b|\\bno publication date\\b|\\bshows? no (?:publication )?dates?\\b|\\bno dates? (?:is |are )?shown\\b|"
+ }
+]

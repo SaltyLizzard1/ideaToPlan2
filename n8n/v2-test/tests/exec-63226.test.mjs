@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { runNode, fixture, clone, ROOT } from './harness.mjs';
+import { reply, answer } from './pipeline.mjs';
 
 const DIR = path.join(ROOT, 'fixtures', 'exec-63226');
 const fx = (name) => JSON.parse(readFileSync(path.join(DIR, name + '.json'), 'utf8'));
@@ -101,6 +102,19 @@ test('table rows: a note given in "section_note" is placed the same way', async 
   assert.ok(tablesIntact(rev.text));
 });
 
+test('table rows: a section note may name every source of its section, not only the sources of the row', async () => {
+  // Found in the model-assisted replay: the reviser's note for Section 4 named all nine sources of the section and was
+  // refused because the row at L71 cites only S1.
+  const note = 'Note: the sources cited in this section (S1, S3, S6, S7, S4, S10, S15, S13, W5) show no date, so their descriptions may have changed.';
+  const rev = await apply({ U5: (e) => ({ new_text: rowOnly(e), section_note: note }) });
+  assert.deepEqual(rev.rejected_units, []);
+  const e = rev.edit_log.find((x) => x.unit === 'U5');
+  assert.equal(rev.text.split('\n')[e.section_note_line - 1], note);
+  // "Show no date" is read as a date note by the section check.
+  const out = await check(rev.text, { rev });
+  assert.ok(!out.det_issues.some((i) => /UNDATED SOURCES WITHOUT/.test(i.type) && /Section 4/.test(i.detail)));
+});
+
 test('table rows: a valid replacement of the row alone is applied', async () => {
   const fixed = '| Customer | Expat US says it supports global companies and their employees relocating to the United States, and individuals and families relocating to the US [S1] |';
   const rev = await apply({ U5: () => ({ new_text: fixed }) });
@@ -117,7 +131,7 @@ test('table rows: malformed replacements are refused, the row is left as it was,
     [(e) => ({ new_text: rowOnly(e).replace(/\|\s*$/, '| a third cell |') }), /it has 3 cells and the row has 2/],
     [() => ({ new_text: 'Expat US supports global companies and individuals [S1].' }), /it holds no row where the table has one/],
     [(e) => ({ new_text: 'Expat US is the market leader in this space.\n\n' + rowOnly(e) }), /text other than a source-date note beside a table row/],
-    [(e) => ({ new_text: rowOnly(e), section_note: 'Note: S1 and S28 are undated.' }), /names a source the row does not cite \(S28\)/],
+    [(e) => ({ new_text: rowOnly(e), section_note: 'Note: S1 and S28 are undated.' }), /names a source its section does not cite \(S28\)/],
     [(e) => ({ new_text: rowOnly(e), section_note: '## 4. Competitive Landscape' }), /would have added a section header/],
     [() => ({ new_text: '' }), /no replacement text was given/],
   ];
@@ -205,17 +219,96 @@ test('refused edits: without a refusal the gate and the report say nothing about
   assert.ok(!/refused by code/.test(g.reason));
 });
 
-test('refused edits: a major finding on a passage the reviser itself left unchanged can still be closed by the verifier', async () => {
-  // This is the one path by which a finding of the first review can leave the report without an edit. It needs the
-  // reviser to return the passage as it was and the verifier to read the passage and say the problem is not in it.
-  // It never applies to a blocking finding, and never to a refused replacement.
-  const rev = await apply({ U8: (e) => ({ new_text: ASSEMBLED[138] }) });
-  assert.equal(rev.unchanged_units.find((u) => u.unit === 'U8').kind, 'unchanged');
-  const { out } = await secondPass(rev, verifierAnswer(ABSENT));
-  assert.equal(out.verification.find((x) => x.id === 'QA-009').status, 'FIXED');
-  assert.notEqual(out.verification.find((x) => x.id === 'QA-003').status, 'FIXED', 'a blocking finding is never closed on the verifier\'s word');
-  assert.ok(out.findings.some((f) => f.id === 'QA-003' && f.severity === 'BLOCKING'));
-  assert.deepEqual(out.unapplied_corrections, []);
+// ---------------- 1b. Closing a major finding on a passage nobody edited ----------------
+
+// The reviser adds a date note to Section 4 through the paragraph above the table (U4) and returns the row at L71 (U5)
+// and the row at L139 (U8) as they were. The reviewer's finding QA-008 on U5, "no note in Section 4", is then false:
+// the note is there. Its finding QA-009 on U8, "no note in Section 5", is still true: Section 5 has no note.
+const NOTE_S4 = 'Note: all sources cited in this section are undated. The descriptions reflect what was found at the time of research and may have changed.';
+const withNoteInSection4 = () => apply({ U4: (e) => ({ new_text: NOTE_S4 + ' ' + e.new_text }), U5: () => ({ new_text: ASSEMBLED[70] }), U8: () => ({ new_text: ASSEMBLED[138] }) });
+const JUSTIFIED = { unit: 'U5', id: 'QA-008', present: false, reason: 'Section 4 now carries a note saying that all sources cited in the section are undated, which covers S1 in this row.', basis: 'section_note', quote: 'all sources cited in this section are undated' };
+const answers = (list) => verifierAnswer((run) => run.filter((u) => !list.some((x) => x.unit === u.unit && x.id === u.id)).concat(list));
+
+test('closure: a false reviewer finding closes on an explicit, reasoned verdict that quotes the section', async () => {
+  const rev = await withNoteInSection4();
+  assert.equal(rev.unchanged_units.find((u) => u.unit === 'U5').kind, 'unchanged');
+  const { cc, out } = await secondPass(rev, answers([JUSTIFIED]));
+  // Code agrees: the automated check no longer reports Section 4.
+  assert.ok(!cc.det_issues.some((i) => /UNDATED SOURCES WITHOUT/.test(i.type) && /Section 4/.test(i.detail)));
+  const v = out.verification.find((x) => x.id === 'QA-008');
+  assert.equal(v.status, 'FIXED');
+  assert.equal(v.closed_without_edit, true);
+  assert.match(v.note, /^CLOSED WITHOUT AN EDIT: .*Section 4 now carries a note.*Quoted: "all sources cited in this section are undated"/);
+  assert.ok(!out.findings.some((f) => f.id === 'QA-008'));
+  assert.deepEqual(out.closed_without_edit.map((x) => x.id), ['QA-008']);
+  const report = await reportOf(rev, cc, out);
+  assert.match(report, /MAJOR FINDINGS CLOSED WITHOUT AN EDIT \(1\)\. The verifier read the unchanged passage and justified each one\. Read the justification\.\n- QA-008 \|/);
+});
+
+test('closure: a genuine finding stays open when "not present" is not justified', async () => {
+  const rev = await withNoteInSection4();
+  const base = { unit: 'U8', id: 'QA-009', present: false };
+  const cases = [
+    [{ ...base }, /it gives no reason; it quotes nothing/],
+    [{ ...base, note: 'Not present.' }, /it gives no reason/],
+    [{ ...base, reason: 'Section 5 uses undated sources and the note about them is still missing from the section.', basis: 'passage', quote: 'Among the competitors reviewed' }, /its reason says the problem is in the passage, which contradicts its verdict/],
+    [{ ...base, reason: 'The weather in Chiang Mai is pleasant at this time of year and the row reads well.', basis: 'passage', quote: 'Among the competitors reviewed' }, /its reason does not address this finding/],
+    // A note in another section does not count: the words quoted are in Section 4, not in Section 5.
+    [{ ...base, reason: 'A note says that all sources cited in the section are undated, which covers these sources.', basis: 'section_note', quote: 'all sources cited in this section are undated' }, /the words it quotes are not in the passage, its section, or the ledger/],
+    [{ ...base, reason: 'A note in this section says the sources are undated, which covers these sources.', basis: 'section_note', quote: 'Note: S1, S4, S10 and S15 are undated.' }, /the words it quotes are not in the passage, its section, or the ledger/],
+  ];
+  for (const [ans, why] of cases) {
+    const { out } = await secondPass(rev, answers([JUSTIFIED, ans]));
+    const v = out.verification.find((x) => x.id === 'QA-009');
+    assert.equal(v.status, 'NOT_FIXED', String(why));
+    assert.equal(v.closure_unjustified, true);
+    assert.match(v.note, why);
+    const f = out.findings.find((x) => x.id === 'QA-009');
+    assert.equal(f.severity, 'MAJOR');
+    assert.equal(f.closure_unjustified, true);
+    assert.deepEqual(out.unjustified_closures.map((x) => x.id), ['QA-009']);
+    // The false finding in the same run still closes.
+    assert.equal(out.verification.find((x) => x.id === 'QA-008').status, 'FIXED');
+  }
+  // "Present", and no answer at all, leave it open as before.
+  for (const list of [[JUSTIFIED, { ...base, present: true, reason: 'Section 5 has no note about its undated sources.' }], [JUSTIFIED]]) {
+    const { out } = await secondPass(rev, verifierAnswer((run) => (list.length === 1 ? run.filter((u) => u.unit !== 'U8' && u.unit !== 'U5') : run.filter((u) => !list.some((x) => x.unit === u.unit && x.id === u.id))).concat(list)));
+    assert.equal(out.verification.find((x) => x.id === 'QA-009').status, 'NOT_FIXED');
+    assert.ok(out.findings.some((x) => x.id === 'QA-009' && x.severity === 'MAJOR'));
+  }
+});
+
+test('closure: a blocking finding is never closed without an edit, however well the verdict is justified', async () => {
+  const rev = await withNoteInSection4();
+  const well = (id) => ({ unit: 'U8', id, present: false, reason: 'The competitive gap and its citation are worded conditionally on customer interviews in this passage, so no finding is asserted.', basis: 'passage', quote: 'if customer interviews confirm this is a real need' });
+  const { out } = await secondPass(rev, answers([JUSTIFIED, well('QA-002'), well('QA-003')]));
+  for (const id of ['QA-002', 'QA-003']) {
+    assert.notEqual(out.verification.find((x) => x.id === id).status, 'FIXED', id);
+    assert.ok(out.findings.some((f) => f.id === id && f.severity === 'BLOCKING'), id);
+  }
+  assert.deepEqual(out.closed_without_edit.map((x) => x.id), ['QA-008']);
+});
+
+test('closure: a refused replacement is not closed by a justified verdict either', async () => {
+  const rev = await apply({ U4: (e) => ({ new_text: NOTE_S4 + ' ' + e.new_text }), U5: (e) => ({ new_text: rowOnly(e).replace(/\|\s*$/, '| a third cell |') }) });
+  assert.equal(rev.unchanged_units.find((u) => u.unit === 'U5').kind, 'rejected');
+  const { out } = await secondPass(rev, answers([JUSTIFIED]));
+  const f = out.findings.find((x) => x.id === 'QA-008');
+  assert.equal(f.severity, 'MAJOR');
+  assert.equal(f.correction_not_applied, true);
+  assert.deepEqual(out.closed_without_edit, []);
+});
+
+test('closure: the verifier is told what a "not present" answer must contain', async () => {
+  const rev = await withNoteInSection4();
+  const p = JSON.parse((await check(rev.text, { rev })).qa_payload);
+  assert.match(p.messages[0].content, /An answer of "present": false closes a finding that nobody edited, so it has to be justified/);
+  assert.match(p.messages[0].content, /"unchanged":\[\{"unit":"the unit ID","id":the finding id,"present":true or false,"reason":"one or two sentences about this finding","basis":"passage or section_note or ledger","quote":"exact words relied on, or empty"\}\]/);
+  assert.match(p.messages[0].content, /When you are not sure, answer true\./);
+  const user = p.messages[1].content;
+  const part = user.slice(user.indexOf('PASSAGES LEFT UNCHANGED'));
+  assert.match(part, /unit U5 \| id QA-008 \| MAJOR .*\n   Root problem: Section 4 .*\n   Section: 4\. Competitive Landscape\n   Notes about source dates in that section: \[L64\] Note: all sources cited in this section are undated/);
+  assert.match(part, /unit U8 \| id QA-009 \| MAJOR .*\n   Root problem: Section 5 .*\n   Section: 5\. SWOT \/ Strategic Position\n   Notes about source dates in that section: none\n   Passage, unchanged: \| Opportunities \|/);
 });
 
 // ---------------- 2. Payment ----------------
@@ -240,31 +333,104 @@ test('payment: in the run, E24 called Expat US a "paid substitute" on a passage 
   assert.match(S7_PAGE, /- Concierge support\n- Clear pricing and caring consultants/);
 });
 
-test('payment: the same verifier answer now keeps the supported facts of E24 and drops "paid"', async () => {
-  const ev = await runNode('build-evidence.js', evStubs());
+const SHORTER = 'Expat US’s relocation support is a substitute for individuals and families relocating to the US who need guidance on visas, schools, housing, and concierge support.';
+const recheckItems = async (over = {}) => (await runNode('build-recheck-request.js', { 'Collect Evidence': fx('Collect Evidence'), 'Build Verification Request': fx('Build Verification Request'), 'Verify Claims': fx('Verify Claims'), ...over })).map((i) => i.json);
+const E24_EXCERPT = LEDGER.find((c) => c.claim_id === 'E24').page_excerpt;
+// What the separate check answered for the shortened claim. The two saved answers of the run come first, unchanged.
+const withRecheck = async (claims) => { const items = await recheckItems(); return evStubs({ 'Build Recheck Request': items, 'Verify Corrections': fx('Verify Corrections').concat(claims ? [reply('S7', claims)] : []) }); };
+
+test('payment: removing "paid" is a proposal, with its own ID, sent to the separate check', async () => {
+  const items = await recheckItems();
+  const saved = fx('Build Recheck Request');
+  // The two proposals of the run keep their IDs, their order and their text.
+  assert.equal(items.length, 3);
+  items.slice(0, 2).forEach((it, i) => { assert.equal(it.source_id, saved[i].source_id); assert.deepEqual(it.corrections, saved[i].corrections); assert.equal(it.payload, saved[i].payload); });
+  assert.deepEqual(items.slice(0, 2).flatMap((it) => it.claim_ids), ['E42', 'E43']);
+  const s7 = items[2];
+  assert.equal(s7.source_id, 'S7');
+  assert.deepEqual(s7.corrections, [{ claim_id: 'E44', corrects: 'E24', claim: SHORTER, proposed_excerpt: E24_EXCERPT, kind: 'payment_wording_removed' }]);
+  // The second verifier sees the page and the shortened claim. It is not shown the earlier excerpt or told what was removed.
+  const p = JSON.parse(s7.payload);
+  const sent = p.messages[1].content.slice(p.messages[1].content.indexOf('CLAIMS TO CHECK AGAINST THIS PAGE'));
+  assert.deepEqual(JSON.parse(sent.slice(sent.indexOf('['))), [{ claim_id: 'E44', claim: SHORTER, source_type_reported_by_research_tool: 'company own website' }]);
+  assert.ok(!/\bpaid\b/.test(sent));
+  assert.ok(p.messages[1].content.includes(S7_PAGE.slice(0, 200)));
+});
+
+test('payment: with no answer from the separate check, neither E24 nor the shortened claim is in the ledger', async () => {
+  // This is the state of a replay that makes no verifier call: the edit alone establishes nothing.
+  const ev = await runNode('build-evidence.js', await withRecheck(null));
   const ledger = ledgerOf(ev);
-  const e24 = ledger.find((c) => c.claim_id === 'E24');
-  assert.equal(e24.claim, 'Expat US’s relocation support is a substitute for individuals and families relocating to the US who need guidance on visas, schools, housing, and concierge support.');
-  assert.equal(e24.claim_as_researched, LEDGER.find((c) => c.claim_id === 'E24').claim);
-  assert.equal(e24.payment_not_established, true);
-  assert.match(e24.limits, /does not support saying the service is paid, charged for, or sold/);
-  assert.deepEqual(e24.source_ids, ['S7']);
-  // Nothing else changes: the same 14 entries, the same 29 exclusions, and every other entry is identical.
-  assert.equal(ledger.length, 14);
-  ledger.filter((c) => c.claim_id !== 'E24').forEach((c) => assert.deepEqual(c, LEDGER.find((o) => o.claim_id === c.claim_id)));
-  assert.equal(JSON.parse(ev.excluded_claims).length, JSON.parse(EV.excluded_claims).length);
-  const v = JSON.parse(ev.source_integrity).verification;
-  assert.deepEqual(v.payment_wording_removed, ['E24']);
-  assert.equal(v.excluded_for_payment_not_shown, 0);
+  assert.equal(ledger.length, 13);
+  assert.ok(!ledger.some((c) => c.claim_id === 'E24' || c.claim_id === 'E44'));
+  ledger.forEach((c) => assert.deepEqual(c, LEDGER.find((o) => o.claim_id === c.claim_id)));
+  const ex = JSON.parse(ev.excluded_claims);
+  const e24 = ex.find((x) => x.claim_id === 'E24');
+  assert.equal(e24.kind, 'payment');
+  assert.match(e24.reason, /shows no price, fee, charge, or purchase step/);
+  assert.deepEqual(e24.corrections, [{ claim_id: 'E44', outcome: 'excluded' }]);
+  assert.match(ex.find((x) => x.claim_id === 'E44').kind, /^verifier_(?:missing|malformed)$/);
+  // No verified claim is left on S7, so S7 can no longer be cited.
+  assert.ok(!ledger.some((c) => c.source_ids.includes('S7')));
   // The saved record of the run is untouched.
   assert.match(JSON.parse(fx('Build Evidence').research_ledger).find((c) => c.claim_id === 'E24').claim, /paid substitute/);
 });
 
+test('payment: the shortened claim enters the ledger only when the separate check supports it on the page', async () => {
+  const ev = await runNode('build-evidence.js', await withRecheck([answer('E44', { excerpt: E24_EXCERPT })]));
+  const ledger = ledgerOf(ev);
+  assert.equal(ledger.length, 14);
+  const e44 = ledger.find((c) => c.claim_id === 'E44');
+  assert.equal(e44.claim, SHORTER);
+  assert.equal(e44.derived_from, 'E24');
+  assert.equal(e44.claim_as_researched, LEDGER.find((c) => c.claim_id === 'E24').claim);
+  assert.equal(e44.payment_not_established, true);
+  assert.match(e44.attribution, /research claim E24 called this service paid, which the page passage did not show\. This is that claim without "paid", verified by a separate check/);
+  assert.match(e44.limits, /does not support saying the service is paid, charged for, or sold/);
+  assert.deepEqual(e44.source_ids, ['S7']);
+  assert.equal(e44.entity, 'Expat US');
+  assert.ok(!ledger.some((c) => c.claim_id === 'E24'));
+  const hist = JSON.parse(ev.source_integrity).corrections.find((h) => h.claim_id === 'E44');
+  assert.deepEqual([hist.original, hist.kind, hist.outcome], ['E24', 'payment_wording_removed', 'verified']);
+  assert.deepEqual(JSON.parse(ev.source_integrity).verification.payment_wording_removed, ['E44']);
+  // "Paid" cited to that entry still blocks.
+  assert.ok((await onLast('Expat US offers paid relocation support [S7].', { ev })).includes('BLOCKING PAYMENT STATED WITHOUT EVIDENCE'));
+  assert.deepEqual(only(await onLast('Expat US describes relocation support for individuals and families [S7].', { ev }), /PAYMENT|WITHOUT A VERIFIED CLAIM/), []);
+});
+
+test('payment: the shortened claim is refused when the separate check does not support it, or quotes text that is not on the page', async () => {
+  for (const [claims, kind] of [
+    [[answer('E44', { verdict: 'unverifiable', excerpt: '', reasoning: 'The page does not call the service a substitute.' })], 'model'],
+    [[answer('E44', { excerpt: 'Expat US is a substitute for individuals and families who need concierge support.' })], 'deterministic'],
+    [[answer('E44', { excerpt: E24_EXCERPT, checks: { entity: 'match', amount: 'not_applicable', currency: 'not_applicable', scope: 'not_stated', qualifier: 'not_applicable', period: 'not_applicable', population: 'not_applicable', geography: 'not_applicable', date: 'not_applicable' } })], 'model_checks'],
+  ]) {
+    const ev = await runNode('build-evidence.js', await withRecheck(claims));
+    assert.equal(ledgerOf(ev).length, 13, kind);
+    assert.equal(JSON.parse(ev.excluded_claims).find((x) => x.claim_id === 'E44').kind, kind);
+    assert.equal(JSON.parse(ev.excluded_claims).find((x) => x.claim_id === 'E24').kind, 'payment');
+  }
+});
+
+test('payment: what the captured excerpt of E24 does and does not state', () => {
+  // Stated in the excerpt: the place, guidance on visas, schools and housing, and concierge support.
+  for (const re of [/Moving to the US/, /Guidance on visas, schools, and housing/, /Concierge support/]) assert.match(E24_EXCERPT, re);
+  // Not stated in the excerpt: that the service is a substitute for anything, and who it is for.
+  assert.ok(!/substitute/i.test(E24_EXCERPT));
+  assert.ok(!/famil|individual/i.test(E24_EXCERPT));
+  // "Substitute" is not on the page at all: it is the research tool's own category (question C2).
+  assert.ok(!/substitute/i.test(S7_PAGE));
+  assert.match(LEDGER.find((c) => c.claim_id === 'E24').question, /^C2 Indirect competitors and substitutes/);
+  // The fee is on the page and was not quoted by the verifier, so it is not verified evidence.
+  assert.match(S7_PAGE, /start at \$1,150/);
+  assert.ok(!/1,150/.test(E24_EXCERPT));
+});
+
 test('payment: "Clear pricing" quoted from the page is not evidence of a charge', async () => {
-  const ev = await runNode('build-evidence.js', evStubs({ 'Verify Claims': verifyWith({ excerpt: 'We offer: - Guidance on visas, schools, and housing - Concierge support - Clear pricing and caring consultants' }) }));
-  const e24 = ledgerOf(ev).find((c) => c.claim_id === 'E24');
-  assert.equal(e24.payment_not_established, true);
-  assert.ok(!/\bpaid\b/.test(e24.claim));
+  const vc = verifyWith({ excerpt: 'We offer: - Guidance on visas, schools, and housing - Concierge support - Clear pricing and caring consultants' });
+  const items = await recheckItems({ 'Verify Claims': vc });
+  assert.deepEqual(items[2].corrections.map((k) => k.claim_id + ' ' + k.kind), ['E44 payment_wording_removed']);
+  const ev = await runNode('build-evidence.js', evStubs({ 'Verify Claims': vc }));
+  assert.equal(JSON.parse(ev.excluded_claims).find((x) => x.claim_id === 'E24').kind, 'payment');
 });
 
 test('payment: a quoted fee is evidence of a charge, with or without the amount being in the claim', async () => {
@@ -276,6 +442,8 @@ test('payment: a quoted fee is evidence of a charge, with or without the amount 
   assert.equal(e24.payment_not_established, undefined);
   assert.equal(e24.page_excerpt, excerpt);
   assert.deepEqual(JSON.parse(ev.source_integrity).verification.payment_wording_removed, []);
+  // The quoted passage is on the page, and no shortened claim is proposed.
+  assert.equal((await recheckItems({ 'Verify Claims': verifyWith({ excerpt, payment_shown: true }) })).length, 2);
 });
 
 test('payment: a claim whose whole point is the charge is excluded when no charge is shown, and other claims stay', async () => {
@@ -341,7 +509,7 @@ test('payment: this offer\'s own paid session, and a statement with a verified c
   // With the fee passage verified on S7, "paid" may be said of Expat US and cited to S7.
   const ev = await runNode('build-evidence.js', evStubs({ 'Verify Claims': verifyWith({ excerpt: 'We offer: - Guidance on visas, schools, and housing - Concierge support ... What are Expat US relocation service fees?', payment_shown: true }) }));
   assert.deepEqual(only(await onLast('Expat US offers paid relocation support [S7].', { ev }), /PAYMENT STATED/), []);
-  // With "paid" removed from E24, the same sentence blocks.
+  // With E24 excluded, the same sentence blocks.
   const stripped = await runNode('build-evidence.js', evStubs());
   assert.ok((await onLast('Expat US offers paid relocation support [S7].', { ev: stripped })).includes(PAID));
 });
@@ -489,7 +657,7 @@ test('superlative: a plain statement, a denial, the model\'s own figures and the
   // A company ranking is still reported by its own check, once.
   const ranked = await onLast('Expat US is the most popular provider reviewed [S1].');
   assert.deepEqual(only(ranked, /SUPERLATIVE/), []);
-  assert.ok(ranked.includes('MAJOR COMPETITOR RANKED WITHOUT EVIDENCE'));
+  assert.ok(ranked.includes('BLOCKING COMPETITOR RANKED WITHOUT EVIDENCE'));
 });
 
 test('instructions: the writer, the reviewer and the reviser are each told the four rules', () => {
@@ -565,4 +733,49 @@ test('63226 replay: with the corrected Apply Revisions, the L139 gap claim and b
   assert.ok(!out.det_issues.some((i) => /COMPETITIVE GAP|UNDATED SOURCES WITHOUT|ONE SOURCE CITED|SOURCE DATE NOTE/.test(i.type)));
   // What the reviser was never asked to fix in the run is still there, and is now reported.
   assert.deepEqual([...new Set(out.det_issues.filter((i) => i.severity === 'BLOCKING').map((i) => i.type))].sort(), ['PAYMENT STATED WITHOUT EVIDENCE', 'PROVIDER FOCUS STATED WITHOUT EVIDENCE', 'SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE', 'SURVEY FINDING GENERALISED']);
+});
+
+// ---------------- 6. Rankings of companies ----------------
+
+const RANK = 'BLOCKING COMPETITOR RANKED WITHOUT EVIDENCE';
+const HYPO = 'BLOCKING HYPOTHETICAL RANKING PRESENTED AS ESTABLISHED';
+
+test('ranking: an unsupported ranking of companies blocks, like an unsupported superlative', async () => {
+  for (const s of [
+    'Expat US is the most comprehensive provider reviewed [S1].',
+    'Expat US is the most established competitor, and no other comes close.',
+    'Fragomen is the leading provider in this space [S15].',
+    'Expat US is more comprehensive than RELONXT [S1] [S4].',
+  ]) assert.ok((await onLast(s)).includes(RANK), s);
+});
+
+test('ranking: a supported comparison and a clearly labelled hypothesis pass', async () => {
+  for (const s of [
+    'By the number of services each page lists, Expat US is more comprehensive than RELONXT [S1] [S4].',
+    'Expat US\'s page lists more services than RELONXT\'s [S1] [S4].',
+    'It is a hypothesis that Expat US is the most comprehensive provider among those reviewed.',
+    'Whether Expat US is the most established competitor is not established by these pages.',
+  ]) assert.deepEqual(only(await onLast(s), /RANKED|HYPOTHETICAL/), [], s);
+});
+
+test('ranking: a ranking offered as a hypothesis may not be relied on as a fact elsewhere', async () => {
+  const twoLines = async (a, b) => { const text = HELD_PLAN.replace(/\n+$/, '') + '\n\n' + a + '\n\n' + b + '\n'; const n = text.replace(/\n+$/, '').split('\n').length; const out = await check(text); return { first: at(out, n - 2), second: at(out, n), issue: out.det_issues.find((i) => i.line === n && /HYPOTHETICAL/.test(i.type)) }; };
+  const hyp = 'It is a hypothesis that Expat US is the most comprehensive provider among those reviewed.';
+  for (const s of [
+    'Expat US\'s breadth advantage means a new entrant cannot compete on scope.',
+    'Because Expat US leads on scope, QYLAT should position on planning.',
+    'Expat US sets the standard for relocation support.',
+  ]) {
+    const r = await twoLines(hyp, s);
+    assert.deepEqual(only(r.first, /RANKED|HYPOTHETICAL/), [], 'the hypothesis itself passes');
+    assert.ok(r.second.includes(HYPO), s);
+    assert.match(r.issue.detail, /ranks Expat US as a hypothesis\. This text treats that standing as a fact/);
+  }
+  // The same sentences with no hypothesis anywhere are not reported by this check, and a sentence that repeats the label passes.
+  assert.deepEqual(only(await onLast('Expat US sets the standard for relocation support.'), /HYPOTHETICAL/), []);
+  assert.deepEqual(only((await twoLines(hyp, 'If the hypothesis holds, Expat US\'s breadth advantage would matter; it is untested.')).second, /HYPOTHETICAL/), []);
+  // A plain description of that company elsewhere is not a ranking.
+  assert.deepEqual(only((await twoLines(hyp, 'Expat US lists home search, school search and visa guidance [S1].')).second, /HYPOTHETICAL|RANKED/), []);
+  // Stating the ranking again without the label is the unsupported ranking itself.
+  assert.ok((await twoLines(hyp, 'Expat US is the most comprehensive provider reviewed.')).second.includes(RANK));
 });

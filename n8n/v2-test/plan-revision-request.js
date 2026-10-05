@@ -202,7 +202,37 @@ if (verOk) qa.verifications.forEach((v) => { verdict[s(v.id)] = { status: s(v.st
 
 const unchanged = rev.unchanged_units || [];
 const presence = {};
-if (verOk && Array.isArray(qa.unchanged)) qa.unchanged.forEach((u) => { if (u && typeof u.present === 'boolean') presence[s(u.unit).toUpperCase() + '|' + s(u.id)] = { present: u.present, note: s(u.note) }; });
+if (verOk && Array.isArray(qa.unchanged)) qa.unchanged.forEach((u) => { if (u && typeof u.present === 'boolean') presence[s(u.unit).toUpperCase() + '|' + s(u.id)] = { present: u.present, note: s(u.note), reason: s(u.reason) || s(u.note), quote: s(u.quote), basis: s(u.basis).toLowerCase() }; });
+// CLOSING A FINDING ON A PASSAGE NOBODY EDITED. A major finding can be wrong: the reviewer may have missed a note in
+// the same section, or misread the passage. The verification pass may then close it without an edit, and only when
+// its answer can be checked:
+// 1. an explicit verdict that the problem is not present;
+// 2. a reason, in its own words, that is about this finding and does not itself say the problem is there;
+// 3. the words it relies on, quoted exactly from the passage, from the passage's section, or from the evidence ledger.
+// An answer that lacks any of these closes nothing. The finding stays open and the report says why.
+const PRESENT_TEXT = /\bstill (?:asserts?|states?|says|contains?|presents?|cites?|uses|reads|there|present|unsupported)\b|\bremains? (?:in|present|unsupported|uncorrected|unflagged)\b|\bis (?:still )?present\b|\bproblem persists\b|\bdoes (?:assert|contain|state)\b|\bnot (?:been )?(?:fixed|corrected|resolved|addressed)\b|\bno (?:such )?note\b|\b(?:still|is|are) missing\b|\bstill lacks?\b/i;
+const flat = (v) => String(v || '').replace(/\s+/g, ' ').trim().toLowerCase();
+const wordsOf = (v) => [...new Set(String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').split(' ').filter((w) => w.length >= 5))];
+const revisedForClosure = String(rev.text || '').split('\n');
+const sectionTextAt = (lineNo) => { let a = lineNo - 1; while (a > 0 && !/^## /.test(revisedForClosure[a] || '')) a--; let b = lineNo; while (b < revisedForClosure.length && !/^## /.test(revisedForClosure[b] || '')) b++; return revisedForClosure.slice(a, b).join(' '); };
+let ledgerForClosure = '';
+try { ledgerForClosure = $('Build Evidence').first().json.research_ledger || ''; } catch (e) {}
+const closureOf = (u, f) => {
+  const p = presence[u.unit + '|' + f.id];
+  if (!p) return null;
+  if (p.present === true) return { present: true };
+  const problems = [];
+  if (p.reason.length < 25) problems.push('it gives no reason');
+  else {
+    if (PRESENT_TEXT.test(p.reason)) problems.push('its reason says the problem is in the passage, which contradicts its verdict');
+    const about = new Set(wordsOf(f.check + ' ' + f.problem + ' ' + (f.quote || '')));
+    if (wordsOf(p.reason).filter((w) => about.has(w)).length < 2) problems.push('its reason does not address this finding');
+  }
+  const q = flat(p.quote);
+  if (q.length < 12) problems.push('it quotes nothing from the passage, its section, or the ledger');
+  else if (!flat(u.text).includes(q) && !flat(sectionTextAt(u.line || u.start)).includes(q) && !flat(ledgerForClosure).replace(/\\"/g, '"').includes(q)) problems.push('the words it quotes are not in the passage, its section, or the ledger');
+  return problems.length ? { present: null, problems } : { present: false };
+};
 const autoNow = (cc.det_issues || []).map(fromAuto);
 // An automated finding that is still reported keeps the ID it had in the first review.
 autoNow.forEach((n) => { const o = first.find((f) => f.source === 'Automated check' && f.check === n.check && (f.problem === n.problem || (f.quote && f.quote === n.quote))); if (o) n.id = o.id; });
@@ -229,28 +259,30 @@ first.forEach((f) => {
   const leftAlone = (o) => o.located ? unchanged.find((u) => (u.issues || []).includes(f.id) && o.located >= u.start && o.located <= u.end) : null;
   // A replacement that code refused is a correction that was required and not made. The verifier's reading of the
   // passage does not close it: the finding stays open, with its original severity, until the passage is corrected.
-  const judged = (o) => { const u = leftAlone(o); return u && u.kind !== 'rejected' ? presence[u.unit + '|' + f.id] : null; };
+  const judged = (o) => { const u = leftAlone(o); return u && u.kind !== 'rejected' ? closureOf(u, f) : null; };
   const refused = unchanged.filter((u) => u.kind === 'rejected' && (u.issues || []).includes(f.id));
   const editedOcc = occ.filter(edited).length;
   const clearedOcc = occ.filter((o) => !edited(o) && judged(o) && judged(o).present === false).length;
   const stillThere = occ.filter((o) => !edited(o) && judged(o) && judged(o).present === true);
+  const unjustified = occ.filter((o) => !edited(o) && judged(o) && judged(o).present === null);
   const v = verdict[f.id];
   let status, note;
   if (!mine.length) {
     // Nothing was edited. A blocking finding is never closed on the verifier's word alone; a person has to look.
-    if (occ.length && clearedOcc === occ.length && f.severity !== 'BLOCKING') { status = 'FIXED'; note = 'No edit was needed: verification found that the passage' + (occ.length === 1 ? ' does' : 's do') + ' not contain the problem.'; }
+    if (occ.length && clearedOcc === occ.length && f.severity !== 'BLOCKING') { status = 'FIXED'; note = 'CLOSED WITHOUT AN EDIT: verification found that the passage' + (occ.length === 1 ? ' does' : 's do') + ' not contain the problem. ' + occ.map((o) => { const u = leftAlone(o); const p = u ? presence[u.unit + '|' + f.id] : null; return p ? 'L' + o.located + ': ' + p.reason + ' Quoted: "' + p.quote.slice(0, 160) + '"' : ''; }).filter(Boolean).join(' '); }
     else { status = 'NOT_FIXED'; note = 'No edit was applied for this finding.' + (clearedOcc ? ' Verification found the problem absent from ' + clearedOcc + ' of ' + occ.length + ' passages.' : ''); }
   }
   else if (v && ['FIXED', 'PARTLY_FIXED', 'NOT_FIXED'].includes(v.status)) { status = v.status; note = v.note; }
   else { status = 'NOT_VERIFIED'; note = 'An edit was applied but QA gave no verdict on it.'; }
   if (mine.length && status === 'FIXED' && editedOcc + clearedOcc < occ.length) { status = 'PARTLY_FIXED'; note = editedOcc + ' of ' + occ.length + ' occurrences were edited' + (clearedOcc ? ' and ' + clearedOcc + ' left unchanged did not contain the problem' : '') + '. ' + (stillThere.length ? 'The problem is still at L' + stillThere.map((o) => o.located).join(', L') + '. ' : 'The rest were not verified. ') + note; }
   else if (mine.length && status === 'FIXED' && clearedOcc) note = note + ' ' + clearedOcc + ' passage' + (clearedOcc === 1 ? '' : 's') + ' left unchanged did not contain the problem.';
+  if (unjustified.length) note = note + ' The verifier said the problem is absent from L' + unjustified.map((o) => o.located).join(', L') + ', and that answer closes nothing: ' + [...new Set(unjustified.flatMap((o) => judged(o).problems))].join('; ') + '.';
   if (refused.length) {
     if (status === 'FIXED') status = 'PARTLY_FIXED';
     note = 'REQUIRED CORRECTION NOT APPLIED: the replacement for ' + refused.map((u) => u.unit + ' at L' + u.line).join(', ') + ' was refused by code (' + refused.map((u) => u.why).join(' ') + '), so that passage is unchanged and this finding stands with its original severity. ' + note;
   }
-  verification.push({ id: f.id, severity: f.severity, source: f.source, check: f.check, occurrences: occ.length, status, note, ...(refused.length ? { correction_not_applied: true } : {}) });
-  if (status !== 'FIXED') findings.push({ ...f, status, ...(refused.length ? { correction_not_applied: true, not_applied_units: refused.map((u) => u.unit) } : {}), problem: f.problem + ' (After revision: ' + status.replace('_', ' ').toLowerCase() + '. ' + note + ')' });
+  verification.push({ id: f.id, severity: f.severity, source: f.source, check: f.check, occurrences: occ.length, status, note, ...(refused.length ? { correction_not_applied: true } : {}), ...(unjustified.length ? { closure_unjustified: true } : {}), ...(!mine.length && status === 'FIXED' ? { closed_without_edit: true } : {}) });
+  if (status !== 'FIXED') findings.push({ ...f, status, ...(unjustified.length ? { closure_unjustified: true } : {}), ...(refused.length ? { correction_not_applied: true, not_applied_units: refused.map((u) => u.unit) } : {}), problem: f.problem + ' (After revision: ' + status.replace('_', ' ').toLowerCase() + '. ' + note + ')' });
 });
 // A new defect is only something the revision added. If a finding on the same edit unit is still open, the problem belongs to that finding.
 const openIds = new Set(verification.filter((x) => x.status !== 'FIXED').map((x) => x.id));
@@ -387,6 +419,9 @@ return {
   verification,
   new_defects,
   unresolved_checks,
+  // Findings of the first review closed on the verifier's justified answer, with no edit, and answers that closed nothing.
+  closed_without_edit: verification.filter((v) => v.closed_without_edit).map((v) => ({ id: v.id, severity: v.severity, check: v.check, note: v.note })),
+  unjustified_closures: verification.filter((v) => v.closure_unjustified).map((v) => ({ id: v.id, severity: v.severity, check: v.check, note: v.note })),
   // Findings whose correction was refused by code. They are open, each with the severity it had in the first review.
   unapplied_corrections: findings.filter((f) => f.correction_not_applied === true).map((f) => ({ id: f.id, severity: f.severity, check: f.check, line: f.line || null, units: f.not_applied_units || [] })),
   same_claim_elsewhere,
