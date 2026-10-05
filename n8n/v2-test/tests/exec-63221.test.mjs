@@ -236,10 +236,27 @@ test('gap: a clearly labelled hypothesis passes', async () => {
   const { ev } = await evidence();
   for (const s of [
     'A hypothesis worth testing is that the decision stage is underserved.',
-    'IdeaToPlan analysis: among the pages reviewed, none positions around the decision stage. This does not establish that no decision-stage competitor exists.',
+    'Among the pages reviewed, none positions around the decision stage, which is a hypothesis about positioning and not an established gap.',
+    'If the first ten conversations confirm it, the decision stage could be an underserved segment.',
     'Whether a positioning gap exists at the decision stage is untested.',
     'The decision stage may be underserved; this is a hypothesis to test in the first ten conversations.',
   ]) assert.deepEqual((await onLast(ev, s)).filter((x) => /GAP/.test(x)), [], s);
+});
+
+test('gap: each sentence is judged alone, and authorship is not a label', async () => {
+  const { ev } = await evidence();
+  for (const s of [
+    // An unsupported finding, followed by a separate labelled hypothesis.
+    'No competitor offers support at the decision stage. A hypothesis worth testing is that QYLAT could occupy that stage.',
+    // The same two sentences the other way round.
+    'A hypothesis worth testing is that QYLAT could occupy the decision stage. No competitor offers support there.',
+    // Authorship in front of, or after, a finding.
+    'IdeaToPlan analysis: among the pages reviewed, none positions around the decision stage.',
+    'The decision stage is underserved. IdeaToPlan analysis.',
+    'IdeaToPlan analysis: among the pages reviewed, none positions around the decision stage. This does not establish that no decision-stage competitor exists.',
+    // A conditional that comes after the claim does not govern it.
+    'No competitor offers decision-stage planning, which could matter to pricing.',
+  ]) assert.deepEqual((await onLast(ev, s)).filter((x) => /GAP/.test(x)), [GAP], s);
 });
 
 test('gap: the held plan words its gap as a hypothesis on every line, so none blocks', async () => {
@@ -254,7 +271,9 @@ test('gap: the sentence the reviewer found in 63221, before revision, is caught 
   const { ev } = await evidence();
   const before = fx('Plan Revision Request')[0].units.find((u) => u.id === 'U9').text;
   assert.match(before, /None of the pages reviewed explicitly positions around the earlier decision-making stage/);
-  // Without its trailing label the paragraph is a finding. With the label, code passes it to the reviewer, who judges it.
+  // "IdeaToPlan analysis" at the end of the paragraph names the author. It does not make the sentence a hypothesis.
+  assert.match(before, /IdeaToPlan analysis\.$/);
+  assert.ok((await onLast(ev, before)).includes(GAP));
   assert.ok((await onLast(ev, before.replace(' IdeaToPlan analysis.', ''))).includes(GAP));
 });
 
@@ -267,7 +286,8 @@ test('reviewer: the rules for gaps, price comparisons and the startup budget are
   assert.match(blocking, /a comparison of the price with what other services charge when no verified price is cited/);
   assert.match(blocking, /a statement that the startup budget is sufficient while costs are unresolved/);
   assert.ok(!/gap or opportunity stated as a finding/.test(system.slice(system.indexOf('- MAJOR:'), system.indexOf('- MINOR:'))));
-  assert.match(system, /A label elsewhere in the paragraph does not cover a sentence that reads as a finding/);
+  assert.match(system, /a hypothesis label in another sentence of the paragraph does not cover a sentence that reads as a finding/);
+  assert.match(system, /"IdeaToPlan analysis" identifies who wrote the sentence; it is not evidence and it does not make a factual claim conditional/);
   assert.match(system, /the funding requirement of the included costs, which FINANCIAL FACTS give as a figure, and whether the founder's budget covers all costs/);
   assert.match(system, /List an occurrence only for a line that has to change/);
 });
@@ -348,6 +368,93 @@ test('revision: a blocking finding with no edit is never closed on the verifier\
   });
   assert.equal(r.qa023.status, 'NOT_FIXED');
   assert.ok(r.open && r.open.severity === 'BLOCKING');
+});
+
+// ---------------- Company identity ----------------
+
+// The saved run, with the recovered claim E21 reworded. The page (S14, Move One's own site) and the verifier's
+// answer are unchanged: the verifier still calls the claim supported and quotes real page text.
+const REST = ' its services are tailored to individual needs and cover consulting, document collection, translations, legalization, and accompanying clients at immigration offices; its page does not list a price.';
+const recovered = async (claim, pageHook = (p) => p) => {
+  const ce = await runNode('collect-evidence.js', { 'Growth Research': fx('Growth Research'), 'Market Research': fx('Market Research'), 'Brave Search': fx('Brave Search'), 'Founder Context': FOUNDER });
+  const recheck = clone(fx('Build Recheck Request'));
+  recheck.find((r) => r.source_id === 'S14').corrections[0].claim = claim;
+  const fp = clone(fx('Fetch Source Pages'));
+  fp.pages = JSON.stringify(JSON.parse(fp.pages).map(pageHook));
+  const ev = await runNode('build-evidence.js', { 'Collect Evidence': ce, 'Fetch Source Pages': fp, 'Build Verification Request': fx('Build Verification Request'), 'Verify Claims': fx('Verify Claims'), 'Build Recheck Request': recheck, 'Verify Corrections': fx('Verify Corrections'), 'Founder Context': FOUNDER });
+  return { ev, entry: JSON.parse(ev.research_ledger).find((c) => c.claim_id === 'E21'), out: JSON.parse(ev.excluded_claims).find((x) => x.claim_id === 'E21'), entities: JSON.parse(ev.entities), integrity: JSON.parse(ev.source_integrity) };
+};
+
+test('identity: a recovered claim that names the right company is kept, with that company', async () => {
+  const r = await recovered('Move One Relocations says' + REST);
+  assert.equal(r.entry.entity, 'Move One Relocations');
+  assert.equal(r.out, undefined);
+});
+
+test('identity: a recovered claim that names a company the page does not name is excluded', async () => {
+  const r = await recovered('Intermark says' + REST);                  // a known company, and the wrong one for this page
+  assert.equal(r.entry, undefined);
+  assert.equal(r.out.kind, 'identity');
+  assert.match(r.out.reason, /the claim names Intermark, but the fetched page does not name Intermark in its title or text/);
+  assert.ok(!r.entities.find((e) => e.name === 'Intermark').source_ids.includes('S14'));
+});
+
+test('identity: a recovered claim that names an unknown company the page does not carry is excluded', async () => {
+  const r = await recovered('Nordwind Relocation says' + REST);
+  assert.equal(r.entry, undefined);
+  assert.equal(r.out.kind, 'identity');
+  assert.match(r.out.reason, /the claim names Nordwind Relocation, but nothing on the fetched page establishes that company/);
+  assert.ok(!r.entities.some((e) => e.name === 'Nordwind Relocation'));
+  assert.equal(r.integrity.verification.excluded_for_company_identity, 2);   // this one, and E14 from the run itself (its page does not name the company)
+});
+
+test('identity: a company named in passing on another company\'s site is ambiguous, and is excluded', async () => {
+  // The Move One page now mentions Reelo, so the name is on the page. The page is still Move One's.
+  const mention = (p) => p.source_id === 'S14' ? { ...p, text: p.text + ' Reelo is another platform people compare us with.' } : p;
+  const r = await recovered('Reelo says' + REST, mention);
+  assert.equal(r.entry, undefined);
+  assert.equal(r.out.kind, 'identity');
+  assert.match(r.out.reason, /the claim names Reelo, but the page it was checked on is on the site of Move One Relocations/);
+  assert.deepEqual(r.entities.find((e) => e.name === 'Reelo').source_ids, ['S6']);
+});
+
+test('identity: a claim that does not open with a company name is not a company claim, and is kept', async () => {
+  const r = await recovered('Services are tailored to individual needs and cover consulting, document collection, translations, legalization, and accompanying clients at immigration offices.');
+  assert.ok(r.entry);
+  assert.equal(r.entry.entity, undefined);
+  assert.ok(!r.entities.some((e) => /^services$/i.test(e.name)));
+  // Its source is still Move One's page, so citing it for another company blocks.
+  assert.deepEqual(await onLast(r.ev, '| Offer | StartAbroad covers consulting, document collection and translations [S14] |'), ['BLOCKING CITATION ATTACHED TO THE WRONG COMPANY']);
+});
+
+test('identity: search listings and market claims are untouched, and no company claim in the ledger lacks a company', async () => {
+  const r = await evidence();
+  const listings = r.ledger.filter((c) => /^W /.test(c.question));
+  assert.deepEqual(listings.map((c) => c.claim_id), ['E16', 'E18']);
+  assert.ok(listings.every((c) => c.entity === undefined));
+  assert.ok(r.ledger.filter((c) => /^C\d/.test(c.question)).every((c) => c.entity), 'every competitor claim carries its company');
+});
+
+// ---------------- Starter plans follow the same price rules ----------------
+
+const STARTER = { ...FOUNDER, tier: 'Starter' };
+const starterLast = async (line, text = HELD_PLAN) => {
+  const full = text.replace(/\n+$/, '') + '\n\n' + line + '\n';
+  const out = await runNode('citation-check.js', { 'Founder Context': STARTER, 'Compute Financials': FIN, 'Assemble Plan': fx('Assemble Plan'), 'Apply Revisions': { ...fx('Apply Revisions'), text: full } });
+  return { last: at(out, full.replace(/\n+$/, '').split('\n').length), all: out.det_issues.map((i) => i.severity + ' ' + i.type) };
+};
+
+test('starter: an unsupported price comparison blocks in a Starter plan too', async () => {
+  assert.ok((await starterLast('**Price basis.** ' + L175)).last.includes(PRICE));
+  assert.ok((await starterLast('The $297 price sits within the typical range for comparable services.')).last.includes(PRICE));
+});
+
+test('starter: the founder\'s price may stay as an explicitly labelled assumption', async () => {
+  const ok = await starterLast('The $297 price is the founder\'s chosen price and an untested planning assumption.');
+  assert.deepEqual(ok.last.filter((x) => /PRICE/.test(x)), []);
+  assert.ok(!ok.all.includes('BLOCKING PRICE NOT STATED AS AN UNTESTED ASSUMPTION'));
+  const stripped = HELD_PLAN.split('\n').map((l) => l.replace(/untested|unvalidated/gi, 'chosen')).join('\n');
+  assert.ok((await starterLast('The price is $297 per session.', stripped)).all.includes('BLOCKING PRICE NOT STATED AS AN UNTESTED ASSUMPTION'));
 });
 
 // ---------------- The held plan, rechecked as a whole ----------------

@@ -524,27 +524,32 @@ lines.forEach((line, i) => {
   });
 });
 
-// With no verified price anywhere, a researched plan must say that its own price is an untested planning assumption.
-if (G && !ledgerHasPrice && !lines.some((l) => cellsAndSentences(l.trim()).some((x) => /\bassum/i.test(x) && PRICE_UNTESTED.test(x) && /\bprice[ds]?\b|\bpricing\b|\$\s?\d[\d,]*(?:\.\d+)? per (?:session|sale|customer|client|unit|order)\b/i.test(x)))) add('BLOCKING', 'PRICE NOT STATED AS AN UNTESTED ASSUMPTION', 'No verified price exists in the evidence ledger, and no line of the plan says that its price is an untested planning assumption. State the price once as a planning assumption that has not been tested, with no source ID.');
+// With no verified price anywhere, a plan of either tier must say that its own price is an untested planning assumption.
+// A Starter plan has no ledger, so it never has a verified price: the same rules apply to it.
+if (!ledgerHasPrice && !lines.some((l) => cellsAndSentences(l.trim()).some((x) => /\bassum/i.test(x) && PRICE_UNTESTED.test(x) && /\bprice[ds]?\b|\bpricing\b|\$\s?\d[\d,]*(?:\.\d+)? per (?:session|sale|customer|client|unit|order)\b/i.test(x)))) add('BLOCKING', 'PRICE NOT STATED AS AN UNTESTED ASSUMPTION', 'No verified price exists in the evidence ledger, and no line of the plan says that its price is an untested planning assumption. State the price once as a planning assumption that has not been tested, with no source ID.');
 
 // ---------- COMPETITIVE GAPS ----------
 // A gap, an unmet need, or "no competitor does X" is a finding only when a verified claim cited on the sentence states
-// it. Otherwise it must be labelled, on that line, as a hypothesis to test or as IdeaToPlan analysis that does not
-// establish a gap. Reviewing a few pages cannot show that nobody serves a need.
+// it. Otherwise the sentence that makes the claim must itself say it is a hypothesis, or be conditional on a test.
+// A label in another sentence of the paragraph does not cover it. "IdeaToPlan analysis" says who wrote the sentence;
+// it is not evidence and it does not make a claim conditional. Reviewing a few pages cannot show that nobody serves a need.
 const GAP_CLAIM = /\b(?:gap in the market|market gap|positioning gap|competitive gap|unmet (?:need|demand)|under-?served|untapped|white ?space|unaddressed|unoccupied|no (?:one|competitor|provider|company|service|other (?:competitor|provider|company|service)) (?:currently |yet |explicitly |directly )?(?:offers|serves|does|addresses|provides|focuses|positions|targets|covers)|none (?:of [^.;|]{0,60}?)?(?:currently |yet |explicitly |directly )?(?:offers?|serves?|addresses|provides?|focus(?:es)?|positions?|targets?|covers?)\b|(?:competitors|providers|companies) (?:do not|don't|fail to) (?:offer|serve|address|provide|cover|target)|(?:unique|distinct|clear|real|meaningful|key|strong|potential) (?:positioning )?(?:differentiator|advantage|distinction|opening|opportunity)|sets? (?:it|the business|this offer) apart)\b/i;
-const GAP_LABEL = /\b(?:hypothes[ie]s|hypothesi[sz]ed|IdeaToPlan (?:analysis|notes|inference)|untested|unvalidated|not (?:an? )?established|does not (?:establish|show|confirm|mean)|requires? validation|worth testing|to be tested)\b/i;
+const GAP_CONDITIONAL = /\b(?:if|whether|could|may|might)\b/i;
+const GAP_LABEL = /\b(?:hypothes[ie]s|hypothesi[sz]ed|untested|unvalidated|not (?:an? )?established|does not (?:establish|show|confirm|mean)|requires? validation|worth testing|to be tested)\b/i;
 const gapSeen = new Set();
 lines.forEach((line, i) => {
   const t = line.trim();
   const L = i + 1;
   if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || gapSeen.has(L)) return;
-  cellsAndSentences(t).forEach((seg) => {
+  // Whole sentences: a clause after a semicolon belongs to the sentence it is in.
+  (/^\|.*\|$/.test(t) ? t.replace(/^\||\|$/g, '').split('|') : [t]).flatMap((c) => c.split(/(?<=[.!?])\s+/)).map((x) => x.trim()).filter(Boolean).forEach((seg) => {
     if (!GAP_CLAIM.test(seg) || gapSeen.has(L)) return;
     const cited = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);
     if (cited.some((id) => (ledgerBySource[id] || []).some((c) => GAP_CLAIM.test(String(c.claim || '') + ' ' + String(c.page_excerpt || ''))))) return;
-    if (GAP_LABEL.test(t)) return;
+    // A conditional counts only when it governs the claim, so it has to come before it in the sentence.
+    if (GAP_LABEL.test(seg) || GAP_CONDITIONAL.test(seg.slice(0, seg.search(GAP_CLAIM)))) return;
     gapSeen.add(L);
-    add('BLOCKING', 'COMPETITIVE GAP STATED AS A FINDING', 'This text states a competitive gap, an unmet need, or that no competitor does something, as a finding. No verified claim cited here states it, and the line does not label it as a hypothesis. The pages reviewed show what those companies describe; they do not show that nobody serves this need. Reword it as a hypothesis to test, or as IdeaToPlan analysis that says it does not establish a gap.', short(seg), L);
+    add('BLOCKING', 'COMPETITIVE GAP STATED AS A FINDING', 'This text states a competitive gap, an unmet need, or that no competitor does something, as a finding. No verified claim cited here states it, and this sentence does not say it is a hypothesis. A label in another sentence does not cover it, and "IdeaToPlan analysis" names the author without making the claim conditional. The pages reviewed show what those companies describe; they do not show that nobody serves this need. Reword this sentence as a hypothesis to test.', short(seg), L);
   });
 });
 
@@ -599,7 +604,7 @@ ${SEVERITY}
 CHECKS
 1. Unsupported claims: statements about the market, customers, competitors, prices, costs, benchmarks, trends, regulation, tax, or statistics with no source ID. In a Starter plan no research was done, so any such statement is unsupported.
 2. Citations: a source ID on a claim the EVIDENCE LEDGER does not link to that source; a claim stated more strongly or more broadly than the ledger; detail added that the ledger entry does not state; any source name, study, author, URL, or date not in SOURCES. One source ID at the end of a paragraph or table row covers the claims in it.
-3. Research interpretation: analysis presented as a finding. "None of the competitors reviewed does X" does not establish that X is underserved or that customers want X. A competitive gap, an unmet need, an underserved segment, a positioning opportunity, or a statement that no competitor does something is BLOCKING when it is presented as a finding, unless a ledger entry cited on that sentence states it. It is acceptable only when the sentence itself is clearly labelled as a hypothesis to test, or as IdeaToPlan analysis that says it does not establish a gap. A label elsewhere in the paragraph does not cover a sentence that reads as a finding. Say how to reword it.
+3. Research interpretation: analysis presented as a finding. "None of the competitors reviewed does X" does not establish that X is underserved or that customers want X. A competitive gap, an unmet need, an underserved segment, a positioning opportunity, or a statement that no competitor does something is BLOCKING when it is presented as a finding, unless a ledger entry cited on that sentence states it. It is acceptable only when the sentence that makes the claim is itself clearly worded as a hypothesis to test. Judge each sentence alone: a hypothesis label in another sentence of the paragraph does not cover a sentence that reads as a finding. "IdeaToPlan analysis" identifies who wrote the sentence; it is not evidence and it does not make a factual claim conditional, so a finding labelled only that way is still BLOCKING. Say how to reword it.
 4. Known and unknown: any statement that the founder lacks something (no audience, no website, no customers, starting from zero) that the FOUNDER CONTEXT does not state. A blank revenue answer described as "not provided" when the form defines it as pre-revenue. A recommendation that silently assumes an unknown fact instead of reasoning conditionally. Advice to create something the founder already has, or to repeat work the founder has already done. Internal labels such as UNKNOWN or NOT PROVIDED printed in the plan.
 5. Financial consistency: do not recompute the financial tables; code produced them. Check that every financial figure in the prose, the Executive Summary, and the callouts matches FINANCIAL FACTS exactly, and that no figure appears that is in neither FINANCIAL FACTS, the FOUNDER CONTEXT, nor the ledger. Flag any assumption described as verified, validated, typical, standard, realistic, or conservative. Flag a price from a different kind of service presented as evidence of what this offer should cost, rather than as a reference point for an untested assumption.
 6. Budget: the ceiling treated as a spending target. A cost shown as "Amount not yet established" that the plan gives a figure for, calls free, or leaves out where it discusses costs, profit, or viability. A recommendation that depends on paid advertising when the Paid acquisition line in FINANCIAL FACTS says the model contains no committed advertising cost, or a paid channel recommended as part of the strategy with no matching Budget item. The COST REVIEW printed in the plan as a list.

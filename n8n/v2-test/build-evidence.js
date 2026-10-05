@@ -111,32 +111,55 @@ const leadName = (text) => {
   const name = out.join(' ').replace(/['’]s$/, '').replace(/[.,;:]+$/, '');
   return /^[A-Z0-9]/.test(name) ? name : '';
 };
-// The company a recovered claim is about is read from the claim itself, never copied from the claim it replaces: the
-// original may have named the wrong company, which is often why it was contradicted. A company already known is
-// matched by name. A new name is accepted only when the page carries it: the site name, the page title, or the
-// publisher the verifier read on the page. The code checks below still require the page text to name it.
+// COMPANY IDENTITY. A claim about a company (a competitor question, or a source the research tool called a company
+// page) that opens with a company name always carries that company. It is never left without one, because a claim
+// with no company is not checked against the page for who it is about, and its source is not tied to anyone.
+// - Collect Evidence sets the company when a source key spells it. Anything it left empty is resolved here.
+// - A recovered claim takes its company from its own text, never from the claim it replaces: the original may have
+//   named the wrong company, which is often why it was contradicted.
+// - The name is then checked against the fetched page like every other: the page must name it, and the page must not
+//   be the site of a different known company. Otherwise the claim is excluded, with the reason.
+// A claim that does not open with a company name (a market figure, a search listing) is not a company claim.
 const squashName = (v) => spaced(v).replace(/ /g, '');
+const isCompanyClaim = (c) => /company/i.test(c.source_type || '') || /^C\d/.test(c.question || '');
+// Words a claim can open with that are not a company: the subject is a group, a thing, or the page's own "we".
+const NOT_A_NAME = /^(?:it|its|they|their|this|these|those|our|we|services?|customers?|clients?|people|many|most|some|all|each|pricing|prices?|plans?|packages?|companies|providers?|competitors?|users?|members?|relocation|digital|remote|expats?|nomads?|founders?|research|studies|surveys?|reports?|data)$/i;
+// Returns { entity } when the company is established, { unestablished: name } when the claim names a company whose
+// identity the page does not carry, and null when the claim does not open with a company name.
 const entityFor = (claimText, sid) => {
   const lead = spaced(String(claimText || '').replace(/^ADJACENT\s*:\s*/i, '').replace(/^the\s+/i, ''));
   const known = entityList.filter((e) => e.name_words && lead.startsWith(' ' + e.name_words + ' ')).sort((a, b) => b.name_words.length - a.name_words.length)[0];
-  if (known) return { key: known.key, name: known.name, name_words: known.name_words };
+  if (known) return { entity: { key: known.key, name: known.name, name_words: known.name_words } };
   const name = leadName(claimText);
-  const key = squashName(name);
-  if (key.length < 5) return null;
   const nameWords = spaced(name).trim();
+  if (nameWords.length < 2 || NOT_A_NAME.test(nameWords.split(' ')[0])) return null;
+  // A name no source key spelled. It is accepted only when the page itself carries it: the site name, the page title,
+  // or the publisher the verifier read on the page. A mention somewhere in the text of someone else's page is not enough.
+  const key = squashName(name);
   const src = byId(sid) || {};
   const page = pageOf[sid] || {};
   const site = squashName(src.site);
-  const carried = (site.length >= 5 && (site.startsWith(key) || key.startsWith(site))) || spaced((page.title || '') + ' ' + (src.title || '')).includes(' ' + nameWords + ' ') || spaced((pageMeta[sid] || {}).publisher).includes(' ' + nameWords + ' ');
-  return carried ? { key, name, name_words: nameWords } : null;
+  const carried = (key.length >= 5 && site.length >= 5 && (site.startsWith(key) || key.startsWith(site))) || spaced((page.title || '') + ' ' + (src.title || '')).includes(' ' + nameWords + ' ') || spaced((pageMeta[sid] || {}).publisher).includes(' ' + nameWords + ' ');
+  return carried ? { entity: { key: key.length >= 5 ? key : '', name, name_words: nameWords } } : { unestablished: name };
 };
+// A known company, other than the one named, whose own site a source is on. Null when the named company is one of the site's owners.
+const siteOwner = (sid, name) => { const site = (byId(sid) || {}).site; const owners = site ? entityList.filter((e) => (e.sites || []).includes(site)) : []; return owners.length && !owners.some((e) => e.name === name) ? owners[0] : null; };
 const firstPass = {};
 candidates.forEach((c) => { firstPass[c.claim_id] = c; });
 recheckRequests.forEach((r) => (r.corrections || []).forEach((k) => {
   const o = firstPass[k.corrects];
   if (!o || !k.claim_id || firstPass[k.claim_id]) return;
-  candidates.push({ claim_id: k.claim_id, call: o.call, question: o.question, claim: k.claim, source_type: o.source_type, reported_published: 'date not shown', url_given: '', markers: [], entity: entityFor(k.claim, r.source_id), candidate_source_ids: [r.source_id], candidate_basis: ['the fetched page, after research claim ' + k.corrects + ' was contradicted'], corrects: k.corrects });
+  candidates.push({ claim_id: k.claim_id, call: o.call, question: o.question, claim: k.claim, source_type: o.source_type, reported_published: 'date not shown', url_given: '', markers: [], entity: null, candidate_source_ids: [r.source_id], candidate_basis: ['the fetched page, after research claim ' + k.corrects + ' was contradicted'], corrects: k.corrects });
 }));
+// Every company claim that has no company yet, first-pass or recovered, gets the one it names.
+const identityResolved = [];
+candidates.forEach((c) => {
+  if (!(c.corrects || (!c.entity && isCompanyClaim(c)))) return;
+  const r = entityFor(c.claim, (c.candidate_source_ids || [])[0]);
+  c.entity = r && r.entity ? r.entity : null;
+  if (r && r.entity) identityResolved.push(c.claim_id);
+  if (r && r.unestablished) c.identity_unestablished = r.unestablished;
+});
 
 // ---------- 2. Deterministic checks. ----------
 const CUR = { '$': 'USD', 'us$': 'USD', usd: 'USD', dollars: 'USD', dollar: 'USD', '€': 'EUR', eur: 'EUR', euros: 'EUR', euro: 'EUR', '£': 'GBP', gbp: 'GBP', pounds: 'GBP', cad: 'CAD', aud: 'AUD', thb: 'THB', baht: 'THB' };
@@ -229,8 +252,12 @@ const evaluate = (c, sid) => {
   const rec = { ...base, model_verdict: x.verdict, excerpt: ws(x.excerpt), reasoning: ws(x.reasoning).slice(0, 500), checks: x.checks, credibility: { rating: x.credibility.rating, first_party: x.credibility.first_party, origin_stated: x.credibility.origin_stated, basis: ws(x.credibility.basis).slice(0, 400) } };
   if (x.verdict === 'contradicted') return { ...rec, status: 'contradicted', kind: 'model', reasons: ['the page states something different: ' + rec.reasoning] };
   if (x.verdict === 'unverifiable') return { ...rec, status: 'unverifiable', kind: 'model', reasons: ['the page does not state it: ' + rec.reasoning] };
+  if (c.identity_unestablished) return { ...rec, status: 'unverifiable', kind: 'identity', reasons: ['the claim names ' + c.identity_unestablished + ', but nothing on the fetched page establishes that company: not its site name, its title, or its publisher. A claim about a company whose identity is not established is not evidence'] };
   const det = deterministic(c.claim, c.entity, x.excerpt, page);
-  if (det.length) return { ...rec, status: 'unverifiable', kind: det.some((r) => /PUNCTUATION ONLY/.test(r)) ? 'deterministic_punctuation' : 'deterministic', reasons: det };
+  if (det.length) return { ...rec, status: 'unverifiable', kind: det.some((r) => /PUNCTUATION ONLY/.test(r)) ? 'deterministic_punctuation' : det.every((r) => /^the page does not name /.test(r)) ? 'identity' : 'deterministic', reasons: det.map((r) => /^the page does not name /.test(r) ? 'the claim names ' + c.entity.name + ', but the fetched page does not name ' + c.entity.name + ' in its title or text, so the company the statement belongs to is not established' : r) };
+  // The page is the site of a different known company. Who the statement belongs to is then not established.
+  const owner = c.entity ? siteOwner(sid, c.entity.name) : null;
+  if (owner) return { ...rec, status: 'unverifiable', kind: 'identity', reasons: ['the claim names ' + c.entity.name + ', but the page it was checked on is on the site of ' + owner.name + ' (' + (byId(sid) || {}).domain + '), so the company the statement belongs to is not established'] };
   const off = CHECKS.filter((k) => x.checks[k] === 'mismatch' || x.checks[k] === 'not_stated');
   if (off.length) return { ...rec, status: 'unverifiable', kind: 'model_checks', reasons: ['the verifier marked it supported but reported ' + off.map((k) => k + ' ' + x.checks[k].replace('_', ' ')).join(', ')] };
   if (x.credibility.rating === 'low') return { ...rec, status: 'not_credible', kind: 'credibility', reasons: ['the page states it, but the source is not credible evidence for it: ' + rec.credibility.basis] };
@@ -341,7 +368,7 @@ const entities = entityList.map((e) => {
 // Search listings are not research questions: they get one summary line and no detail.
 const LABEL = { contradicted: 'the source page contradicts it', not_credible: 'its source is not credible evidence for it', unverifiable: 'it could not be verified on its source page' };
 const fromSearch = (x) => /^W /.test(x.question || '');
-excluded.filter((x) => !fromSearch(x) && !x.corrects).forEach((x) => gaps.push((x.question ? x.question + ': ' : '') + 'Excluded claim ' + x.claim_id + ' (' + LABEL[x.status] + ')' + (x.entity ? ', about ' + x.entity : '') + '. It is not evidence. Its content is withheld. Do not state anything this research question would have answered unless a ledger entry states it.'));
+excluded.filter((x) => !fromSearch(x) && !x.corrects).forEach((x) => gaps.push((x.question ? x.question + ': ' : '') + 'Excluded claim ' + x.claim_id + ' (' + LABEL[x.status] + ')' + (x.entity && entityList.some((e) => e.name === x.entity) ? ', about ' + x.entity : '') + '. It is not evidence. Its content is withheld. Do not state anything this research question would have answered unless a ledger entry states it.'));
 const listingsExcluded = excluded.filter(fromSearch).length;
 if (listingsExcluded) gaps.push(listingsExcluded + ' page' + (listingsExcluded === 1 ? '' : 's') + ' found by web search could not be verified. They are not evidence and are not listed.');
 entities.filter((e) => !e.verified_claims).forEach((e) => gaps.push('No verified evidence exists about ' + e.name + '. Do not describe its offer, price, customers or history, and do not cite a source for it.'));
@@ -359,6 +386,8 @@ const verification = {
   unverifiable: count('unverifiable'),
   excluded_by_code_after_model_said_supported: excluded.filter((x) => /^deterministic/.test(x.kind)).length,
   excluded_for_punctuation_only: excluded.filter((x) => x.kind === 'deterministic_punctuation').length,
+  excluded_for_company_identity: excluded.filter((x) => x.kind === 'identity').length,
+  company_identity_resolved_here: identityResolved,
   pages_requested: pages.length,
   pages_read: pages.filter((p) => p.outcome === 'ok').length,
   verifier_calls: requests.filter((r) => r && !r.none).length + recheckRequests.length,

@@ -1,0 +1,30 @@
+[
+ {
+  "find": "// A gap, an unmet need, or \"no competitor does X\" is a finding only when a verified claim cited on the sentence states\n// it. Otherwise it must be labelled, on that line, as a hypothesis to test or as IdeaToPlan analysis that does not\n// establish a gap. Reviewing a few pages cannot show that nobody serves a need.",
+  "replace": "// A gap, an unmet need, or \"no competitor does X\" is a finding only when a verified claim cited on the sentence states\n// it. Otherwise the sentence that makes the claim must itself say it is a hypothesis, or be conditional on a test.\n// A label in another sentence of the paragraph does not cover it. \"IdeaToPlan analysis\" says who wrote the sentence;\n// it is not evidence and it does not make a claim conditional. Reviewing a few pages cannot show that nobody serves a need."
+ },
+ {
+  "find": "const GAP_LABEL = /\\b(?:hypothes[ie]s|hypothesi[sz]ed|IdeaToPlan (?:analysis|notes|inference)|untested|unvalidated|",
+  "replace": "const GAP_CONDITIONAL = /\\b(?:if|whether|could|may|might)\\b/i;\nconst GAP_LABEL = /\\b(?:hypothes[ie]s|hypothesi[sz]ed|untested|unvalidated|"
+ },
+ {
+  "find": "  if (!t || t.startsWith('#') || /^\\|?\\s*:?-{2,}/.test(t) || gapSeen.has(L)) return;\n  cellsAndSentences(t).forEach((seg) => {",
+  "replace": "  if (!t || t.startsWith('#') || /^\\|?\\s*:?-{2,}/.test(t) || gapSeen.has(L)) return;\n  // Whole sentences: a clause after a semicolon belongs to the sentence it is in.\n  (/^\\|.*\\|$/.test(t) ? t.replace(/^\\||\\|$/g, '').split('|') : [t]).flatMap((c) => c.split(/(?<=[.!?])\\s+/)).map((x) => x.trim()).filter(Boolean).forEach((seg) => {"
+ },
+ {
+  "find": "    if (GAP_LABEL.test(t)) return;\n",
+  "replace": "    // A conditional counts only when it governs the claim, so it has to come before it in the sentence.\n    if (GAP_LABEL.test(seg) || GAP_CONDITIONAL.test(seg.slice(0, seg.search(GAP_CLAIM)))) return;\n"
+ },
+ {
+  "find": "No verified claim cited here states it, and the line does not label it as a hypothesis. The pages reviewed show what those companies describe; they do not show that nobody serves this need. Reword it as a hypothesis to test, or as IdeaToPlan analysis that says it does not establish a gap.'",
+  "replace": "No verified claim cited here states it, and this sentence does not say it is a hypothesis. A label in another sentence does not cover it, and \"IdeaToPlan analysis\" names the author without making the claim conditional. The pages reviewed show what those companies describe; they do not show that nobody serves this need. Reword this sentence as a hypothesis to test.'"
+ },
+ {
+  "find": "It is acceptable only when the sentence itself is clearly labelled as a hypothesis to test, or as IdeaToPlan analysis that says it does not establish a gap. A label elsewhere in the paragraph does not cover a sentence that reads as a finding. Say how to reword it.",
+  "replace": "It is acceptable only when the sentence that makes the claim is itself clearly worded as a hypothesis to test. Judge each sentence alone: a hypothesis label in another sentence of the paragraph does not cover a sentence that reads as a finding. \"IdeaToPlan analysis\" identifies who wrote the sentence; it is not evidence and it does not make a factual claim conditional, so a finding labelled only that way is still BLOCKING. Say how to reword it."
+ },
+ {
+  "find": "// With no verified price anywhere, a researched plan must say that its own price is an untested planning assumption.\nif (G && !ledgerHasPrice && ",
+  "replace": "// With no verified price anywhere, a plan of either tier must say that its own price is an untested planning assumption.\n// A Starter plan has no ledger, so it never has a verified price: the same rules apply to it.\nif (!ledgerHasPrice && "
+ }
+]
