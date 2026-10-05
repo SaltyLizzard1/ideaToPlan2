@@ -257,7 +257,7 @@ test('sample: lines 43 and 47 are evidence overreaches, and now block', async ()
   assert.deepEqual(at(out, 47), [SIZE]);
   // Line 43 says the same thing and then hedges something else: "..., but it does not establish the size of the addressable market".
   assert.match(lineOf(43), /It indicates that a sizeable, active population is engaging with relocation decisions, but it does not establish/);
-  assert.deepEqual(at(out, 43), [SIZE]);
+  assert.deepEqual(only(at(out, 43), /POPULATION/), [SIZE]);
   assert.deepEqual(out.det_issues.filter((i) => /POPULATION/.test(i.type)).map((i) => i.line), [43, 47]);
   // The run's gate reported nothing at this line, and its three blockers were elsewhere.
   assert.ok(!fx('Delivery Gate').blockers_text.includes('L47'));
@@ -303,7 +303,7 @@ test('63223 recheck: confirmed defects, no unresolved check, and the three run b
   assert.ok(confirmed.includes('L553 PREVALENCE STATED WITHOUT EVIDENCE'));
   assert.ok(f.filter((x) => x.severity === 'BLOCKING').every((x) => [43, 47, 553].includes(x.line)), 'every blocker is at line 43, 47 or 553');
   assert.equal(f.filter((x) => x.unresolved).length, 0);
-  assert.ok(f.filter((x) => x.severity === 'MAJOR').every((x) => x.check === 'FINANCIAL MODEL' || [43, 553].includes(x.line)));
+  assert.ok(f.filter((x) => x.severity === 'MAJOR').every((x) => x.check === 'FINANCIAL MODEL' || x.check === 'UNDATED SOURCES WITHOUT A NOTE IN THIS SECTION' || [43, 553].includes(x.line)));
   assert.equal(f.filter((x) => x.severity === 'MINOR').length, 2);
   // What the run's gate held on.
   const ran = fx('Delivery Gate').blockers_text;

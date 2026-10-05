@@ -171,37 +171,86 @@ test('source verification: the unusable answers were for two claims about a comp
   assert.equal(JSON.parse(EV.sources).find((s) => s.id === 'S14').domain, 'linkedin.com');
 });
 
-test('source verification: it is reported as an incomplete check with its dependency, and still holds', async () => {
-  const { cc, out } = await secondPass();
-  const issue = cc.det_issues.find((i) => i.type === 'SOURCE VERIFICATION INCOMPLETE');
-  assert.equal(issue.severity, 'BLOCKING');
-  assert.match(issue.detail, /covering claims E19, E20/);
-  assert.match(issue.detail, /Nothing in the plan rests on these checks: it does not cite S14 and does not name Wayfinder Travel & Relocation\. The claims stay excluded\./);
-  assert.match(issue.detail, /a required check that did not complete, not a defect that was found; the plan is held/);
-  const f = out.findings.find((x) => x.check === 'SOURCE VERIFICATION INCOMPLETE');
-  assert.equal(f.unresolved, true);
-  const g = await gate(out.findings);
-  assert.equal(g.blocked, true);
-  assert.equal(g.unresolved_check_count, 1);
-  assert.match(g.unresolved_checks_text, /SOURCE VERIFICATION INCOMPLETE/);
-  assert.match(g.blockers_text, /CHECK DID NOT COMPLETE \| AUTO-\w+ \| SOURCE VERIFICATION INCOMPLETE/);
-  // In the run it was counted as a confirmed blocker.
-  assert.equal(fx('Delivery Gate').unresolved_check_count, 0);
-  assert.equal(fx('Delivery Gate').confirmed_blocker_count, 2);
+const UNUSED = 'MAJOR SOURCE VERIFICATION INCOMPLETE FOR UNUSED CLAIMS';
+const HOLDS = 'BLOCKING SOURCE VERIFICATION INCOMPLETE';
+const verificationIssue = async (text = HELD_PLAN, ev = EV) => { const i = (await check(text, { ev })).det_issues.find((x) => /^SOURCE VERIFICATION INCOMPLETE/.test(x.type)); return { ...i, label: i.severity + ' ' + i.type }; };
+const plus = (line) => HELD_PLAN.replace(/\n+$/, '') + '\n\n' + line + '\n';
+
+test('source verification: E19 and E20 on S14 are unused candidates, so the incomplete check is a research warning, not a hold', async () => {
+  const issue = await verificationIssue();
+  assert.equal(issue.label, UNUSED);
+  assert.match(issue.detail, /covering claims E19, E20\. Those claims were kept out of the ledger\./);
+  assert.match(issue.detail, /Nothing in the plan rests on them: the plan does not cite S14 for anything unverified, does not name Wayfinder Travel & Relocation, states no figure from these claims, and has no sentence that says what they say\./);
+  assert.match(issue.detail, /The claims stay excluded and the plan is not held for this\. It is a research warning/);
+  const { out } = await secondPass();
+  const f = out.findings.find((x) => /^SOURCE VERIFICATION INCOMPLETE/.test(x.check));
+  assert.equal(f.severity, 'MAJOR');
+  assert.notEqual(f.unresolved, true);
+  // Alone, it does not hold the plan: the plan goes to review with the warning.
+  const g = await runNode('delivery-gate.js', { 'Finalize Plan': { status: 'REVIEW', final_findings: [] }, 'Plan Revision Request': { findings: [f] } });
+  assert.equal(g.blocked, false);
+  assert.equal(g.unresolved_check_count, 0);
+  assert.equal(g.warning_count, 1);
+  // In the run it was one of the two blockers that held the plan.
+  assert.match(fx('Delivery Gate').blockers_text, /AUTO-002 \| SOURCE VERIFICATION INCOMPLETE/);
 });
 
-test('source verification: alone, an incomplete check still holds the plan', async () => {
-  const g = await gate([{ id: 'AUTO-002', severity: 'BLOCKING', unresolved: true, check: 'SOURCE VERIFICATION INCOMPLETE', line: null, problem: 'x' }]);
+test('source verification: a used claim holds', async () => {
+  // The plan cites the page whose check failed, and no verified claim exists on that page.
+  const cited = await verificationIssue(plus('A further provider offers personalized consulting [S14].'));
+  assert.equal(cited.label, HOLDS);
+  assert.match(cited.detail, /the plan cites S14, and no verified claim exists on that page/);
+  // The plan names the company the unverified claims are about.
+  const named = await verificationIssue(plus('Wayfinder Travel & Relocation is another alternative for this customer.'));
+  assert.equal(named.label, HOLDS);
+  assert.match(named.detail, /E19: the plan names Wayfinder Travel & Relocation/);
+  assert.match(named.detail, /a required check that did not complete, not a defect that was found; the plan is held/);
+});
+
+test('source verification: indirect dependencies hold', async () => {
+  // A short form of the company's name.
+  assert.match((await verificationIssue(plus('Wayfinder also works with people planning a move.'))).detail, /the plan names Wayfinder\b/);
+  assert.equal((await verificationIssue(plus('Wayfinder also works with people planning a move.'))).label, HOLDS);
+  // The claim's content with no name and no citation.
+  const echo = await verificationIssue(plus('One firm helps individuals navigate international travel, relocation and global lifestyle opportunities through personalized consulting, strategic planning, educational resources and concierge support.'));
+  assert.equal(echo.label, HOLDS);
+  assert.match(echo.detail, /E19: a sentence of the plan says most of what this claim says/);
+  // A figure that only the unverified claim gives.
+  const withFigure = { ...EV, excluded_claims: JSON.stringify(JSON.parse(EV.excluded_claims).map((x) => x.claim_id === 'E20' ? { ...x, claim: x.claim.replace(/\.$/, '') + ' and says 87% of its clients relocate within a year.' } : x)) };
+  const fig = await verificationIssue(plus('In one account, 87% of clients relocate within a year.'), withFigure);
+  assert.equal(fig.label, HOLDS);
+  assert.match(fig.detail, /E20: the plan states 87%, a figure only this claim gives/);
+});
+
+test('source verification: when the dependency cannot be worked out, it holds', async () => {
+  // The excluded record of one failed claim is missing.
+  const lost = { ...EV, excluded_claims: JSON.stringify(JSON.parse(EV.excluded_claims).filter((x) => x.claim_id !== 'E19')) };
+  const a = await verificationIssue(HELD_PLAN, lost);
+  assert.equal(a.label, HOLDS);
+  assert.match(a.detail, /E19: its text is not available, so its use cannot be ruled out/);
+  // The failed check does not say which claims it covered.
+  const integrity = JSON.parse(EV.source_integrity);
+  integrity.verification.verifier_problems = [{ source_id: 'S14', claim_ids: [], problem: 'the verifier returned nothing for this page' }];
+  const b = await verificationIssue(HELD_PLAN, { ...EV, source_integrity: JSON.stringify(integrity), verification_incomplete: 1 });
+  assert.equal(b.label, HOLDS);
+  assert.match(b.detail, /the failed check does not say which claims it covered/);
+});
+
+test('source verification: a check that did not run at all, and a held check, are unresolved and hold', async () => {
+  const { out } = await secondPass(clone(fx('Apply Revisions')));
+  const held = { id: 'AUTO-002', severity: 'BLOCKING', unresolved: true, check: 'SOURCE VERIFICATION INCOMPLETE', line: null, problem: 'x' };
+  const g = await gate([held]);
   assert.equal(g.blocked, true);
-  assert.equal(g.version_status, 'changes_requested');
   assert.equal(g.confirmed_blocker_count, 0);
   assert.equal(g.unresolved_check_count, 1);
-});
-
-test('source verification: when the plan does use the page or the company, the dependency says so', async () => {
-  const text = HELD_PLAN.replace(/\n+$/, '') + '\n\nWayfinder Travel & Relocation offers personalized consulting [S14].\n';
-  const issue = (await check(text)).det_issues.find((i) => i.type === 'SOURCE VERIFICATION INCOMPLETE');
-  assert.match(issue.detail, /The plan depends on these checks: it cites S14 and names Wayfinder Travel & Relocation\./);
+  // The real second pass, with a dependency added, marks the finding unresolved.
+  const rev = clone(fx('Apply Revisions'));
+  rev.text = plus('Wayfinder Travel & Relocation is another alternative for this customer.');
+  const r = await secondPass(rev);
+  const f = r.out.findings.find((x) => x.check === 'SOURCE VERIFICATION INCOMPLETE');
+  assert.equal(f.severity, 'BLOCKING');
+  assert.equal(f.unresolved, true);
+  assert.ok(out.findings.length > 0);
 });
 
 // ---------------- 4. Line 157 and the undated sources ----------------
@@ -226,6 +275,7 @@ test('line 157: the comparison and the ranking are not supported, and are now re
   assert.match(lineOf(157), /Intermark Relocation is the most comprehensive provider reviewed/);
   const out = await check();
   assert.deepEqual(at(out, 157), [GAP, 'MAJOR COMPETITOR RANKED WITHOUT EVIDENCE']);
+  assert.match(out.det_issues.find((i) => i.line === 157 && /RANKED/.test(i.type)).detail, /what is being compared .* and source IDs with verified claims for the companies compared/);
 });
 
 test('line 157: what the reviewed evidence supports, with its scope, passes', async () => {
@@ -237,40 +287,106 @@ test('line 157: what the reviewed evidence supports, with its scope, passes', as
   assert.ok((await onLast('The providers reviewed are built for people who have already decided, not on helping them decide.')).includes(GAP));
 });
 
-test('undated sources: the note is at the start of Section 4 only, so the nine rows are covered and three sections are not', () => {
+const RANKED = 'MAJOR COMPETITOR RANKED WITHOUT EVIDENCE';
+
+test('ranking: unsupported superlatives are reported', async () => {
+  for (const s of [
+    'Intermark Relocation is the most comprehensive provider reviewed, covering both planning and execution.',
+    'Intermark Relocation is the most comprehensive provider reviewed [S13].',                                   // one source cannot support a comparison
+    'By the number of services listed, Intermark Relocation is the most comprehensive provider reviewed.',       // a criterion with no evidence
+    'Traveling with Kristin is the leading provider in this space [S4].',
+    'Start Abroad [S2] and LA Relocation Group [S5] are the most established competitors.',                      // evidence with no criterion
+  ]) assert.ok((await onLast(s)).includes(RANKED), s);
+});
+
+test('ranking: a stated criterion with verified evidence for the companies compared passes, and so does removing the ranking', async () => {
+  for (const s of [
+    'By the number of services each page lists, Intermark Relocation is the most comprehensive provider reviewed: its page lists webinars, company registration, digital nomad visas and moving services [S13], against visas, housing and banking for Start Abroad [S2].',
+    'In terms of the range of services listed on the pages reviewed, Intermark Relocation [S13] is the most extensive provider, ahead of Mosline Travel Consultancy Firm [S1] and LA Relocation Group [S5].',
+    'Intermark Relocation\'s page lists webinars, company registration, digital nomad visas and moving services [S13].',
+    'It is a hypothesis that Intermark Relocation is the most comprehensive provider among those reviewed.',
+  ]) assert.deepEqual(only(await onLast(s), /RANKED/), [], s);
+});
+
+test('undated sources: every source the plan cites is undated, and the plan says so in Section 4 only', () => {
+  const sources = JSON.parse(EV.sources);
+  const cited = [...new Set(HELD_PLAN.match(/\b[SW]\d+\b/g))];
+  assert.deepEqual(cited.sort(), ['S1', 'S11', 'S13', 'S2', 'S4', 'S5', 'W3', 'W5']);
+  assert.ok(cited.every((id) => sources.find((x) => x.id === id).published === 'date not shown'));
   const noted = HELD_PLAN.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => /\bundated\b/i.test(l)).map(([n]) => n);
   assert.deepEqual(noted, [80]);
   assert.match(lineOf(78), /^## 4\. Competitive Landscape/);
   assert.match(lineOf(80), /^All sources reviewed for this plan are undated; the service descriptions may not reflect the current state of each provider\./);
-  // The reviewer asked for the note at the start of Section 4 and at the first use of each source in Sections 3, 5 and 11.
-  const qa15 = fx('Apply Revisions').first_findings.find((f) => f.id === 'QA-015');
-  assert.match(qa15.fix, /at the start of Section 4 \(Competitive Landscape\) and at the first use of each source in Sections 3, 5, and 11/);
-  // The nine passages left unchanged are all inside Section 4, below the note.
+});
+
+test('undated sources: the Section 4 note covers its nine rows; Sections 3 and 6 are the ones with no note', async () => {
+  const out = await check();
+  const found = out.det_issues.filter((i) => i.type === 'UNDATED SOURCES WITHOUT A NOTE IN THIS SECTION');
+  assert.deepEqual(found.map((i) => [i.severity, i.line]), [['MAJOR', 69], ['MAJOR', 188]]);
+  assert.match(found[0].detail, /^Section 3 \(Market Opportunity & Fit\) uses S1, S2, S4, S5, S11, S13, W5, W3 from L69 on\. Their pages show no date, and nothing in this section says so\. A note in another section does not cover this one\./);
+  assert.match(found[1].detail, /^Section 6 \(Revenue & Financial Model\) uses S1, S2, S4, S5, S11, S13 from L188 on\./);
+  // The nine passages the reviewer listed are all in Section 4, below the note, and are not reported.
   const unchanged = fx('Apply Revisions').unchanged_units;
   assert.equal(unchanged.length, 9);
   assert.ok(unchanged.every((u) => u.start > 80 && u.start < 171));
-  // Sections 3, 5 and 11 cite the same undated sources and carry no note.
-  assert.match(lineOf(69), /\[S1\] \[S2\] \[S4\] \[S5\] \[S11\] \[S13\]/);
-  assert.ok(lineOf(69) && !/undated/i.test(HELD_PLAN.split('\n').slice(38, 77).join('\n')));
-  assert.ok(!/undated/i.test(HELD_PLAN.split('\n').slice(170, 179).join('\n')));
-  assert.ok(!/undated/i.test(HELD_PLAN.split('\n').slice(609).join('\n')));
+  assert.ok(!found.some((i) => i.line > 78 && i.line < 171));
+  // Sections 5 and 11, which the reviewer's fix also named, cite no source at all, so nothing there needs the note.
+  const body = HELD_PLAN.split('\n');
+  assert.ok(!/\[[SW]\d+\]/.test(body.slice(170, 179).join('\n')) && !/\[[SW]\d+\]/.test(body.slice(609).join('\n')));
 });
 
-test('undated sources: the finding stays open, because the reviser left passages unchanged and the verifier found the problem present', async () => {
-  const { out } = await secondPass();
-  const v = out.verification.find((x) => x.id === 'QA-015');
-  assert.equal(v.status, 'PARTLY_FIXED');
-  assert.match(v.note, /unchanged passages U5-U13 cite undated sources with no staleness flag/);
-  // The verifier read each of the nine passages on its own and answered "present" for all of them.
+test('undated sources: a note covers its own section only, and only the sources it is true of', async () => {
+  const body = HELD_PLAN.split('\n');
+  // The same note at the start of Section 3 covers Section 3; Section 6 is still reported.
+  const s3 = body.slice(); s3.splice(40, 0, 'All sources reviewed for this plan are undated; the descriptions may have changed.', '');
+  assert.deepEqual((await check(s3.join('\n'))).det_issues.filter((i) => /UNDATED SOURCES/.test(i.type)).map((i) => i.detail.slice(0, 9)), ['Section 6']);
+  // A note that names some sources covers those and not the rest.
+  const partial = body.slice(); partial.splice(40, 0, 'The pages for [S1] and [S2] carry no publication date.', '');
+  const p = (await check(partial.join('\n'))).det_issues.find((i) => /UNDATED SOURCES/.test(i.type) && /^Section 3/.test(i.detail));
+  assert.match(p.detail, /uses S4, S5, S11, S13, W5, W3 from/);
+  // Without the Section 4 note, Section 4 is reported too: the finding is not cleared by a note elsewhere.
+  const none = body.slice(); none[79] = none[79].replace('All sources reviewed for this plan are undated; the service descriptions may not reflect the current state of each provider. ', '');
+  assert.deepEqual((await check(none.join('\n'))).det_issues.filter((i) => /UNDATED SOURCES/.test(i.type)).map((i) => i.detail.slice(0, 9)), ['Section 3', 'Section 4', 'Section 6']);
+  // "All sources are undated" is wrong in a section that cites a dated page.
+  const dated = { ...EV, sources: JSON.stringify(JSON.parse(EV.sources).map((x) => x.id === 'S13' ? { ...x, published: 'March 3, 2026', published_iso: '2026-03-03' } : x)) };
+  const wrong = (await check(HELD_PLAN, { ev: dated })).det_issues.find((i) => i.type === 'SOURCE DATE NOTE IS WRONG' && i.line === 80);
+  assert.equal(wrong.severity, 'BLOCKING');
+  assert.match(wrong.detail, /Section 4 says its sources are undated, and it cites S13 \(March 3, 2026\)/);
+});
+
+test('undated sources: the revision verifier is shown each unchanged passage with its section and that section\'s note', async () => {
+  const { cc } = await secondPass();
+  const p = JSON.parse(cc.qa_payload);
+  const user = p.messages[1].content;
+  const block = user.slice(user.indexOf('PASSAGES LEFT UNCHANGED'));
+  assert.equal((block.match(/\n   Section: 4\. Competitive Landscape\n   Notes about source dates in that section: \[L80\] All sources reviewed for this plan are undated;/g) || []).length, 9);
+  assert.match(block, /unit U5 \| id QA-015 \| MAJOR/);
+  assert.match(p.messages[0].content, /a note in the same section that accurately covers the passage's sources answers it, and the problem is not present in that passage\. A note in a different section does not count/);
+});
+
+test('undated sources: the run\'s nine "present" answers were given without that context, and the finding is not cleared by code', async () => {
   const judged = JSON.parse(fx('Final QA')[1].choices[0].message.content.replace(/^[^{]*/, '').replace(/[^}]*$/, '')).unchanged;
   assert.equal(judged.length, 9);
   assert.ok(judged.every((u) => u.id === 'QA-015' && u.present === true));
+  // Replaying the saved answers, QA-015 stays open: code does not overrule the verifier because a note exists.
+  const { out } = await secondPass();
+  assert.equal(out.verification.find((x) => x.id === 'QA-015').status, 'PARTLY_FIXED');
   assert.ok(out.findings.some((f) => f.id === 'QA-015' && f.severity === 'MAJOR'));
+  // With "not present" for the nine rows, which is what the note supports, the finding closes on the verifier's word.
+  const qa = clone(fx('Final QA')[1]);
+  const o = JSON.parse(qa.choices[0].message.content.replace(/^[^{]*/, '').replace(/[^}]*$/, ''));
+  o.unchanged.forEach((u) => { u.present = false; u.note = 'Covered by the note at L80 in the same section.'; });
+  o.verifications.find((v) => String(v.id) === 'QA-015').status = 'FIXED';
+  qa.choices[0].message.content = JSON.stringify(o);
+  const closed = await secondPass(fx('Apply Revisions'), qa);
+  assert.equal(closed.out.verification.find((x) => x.id === 'QA-015').status, 'FIXED');
+  // The two sections that really lack the note are still reported by code.
+  assert.deepEqual(closed.out.findings.filter((f) => f.check === 'UNDATED SOURCES WITHOUT A NOTE IN THIS SECTION').map((f) => f.line), [69, 188]);
 });
 
 // ---------------- The held plan, rechecked as a whole ----------------
 
-test('63225 recheck: confirmed defects, one unresolved check, ordinary findings, and the dismissed false positive', async () => {
+test('63225 recheck: four confirmed defects, no unresolved required check, and the ordinary findings', async () => {
   const { out } = await secondPass();
   const f = out.findings;
   assert.deepEqual(f.filter((x) => x.severity === 'BLOCKING' && !x.unresolved).map((x) => 'L' + x.line + ' ' + x.check), [
@@ -279,16 +395,23 @@ test('63225 recheck: confirmed defects, one unresolved check, ordinary findings,
     'L74 DEMAND INFERRED FROM SUPPLY',
     'L190 DEMAND INFERRED FROM SUPPLY',
   ]);
-  assert.deepEqual(f.filter((x) => x.unresolved).map((x) => x.check), ['SOURCE VERIFICATION INCOMPLETE']);
-  assert.deepEqual(f.filter((x) => x.severity === 'MAJOR').map((x) => x.check).sort(), ['COMPETITOR RANKED WITHOUT EVIDENCE', 'FINANCIAL MODEL', 'Stale or undated evidence used without qualification']);
+  assert.deepEqual(f.filter((x) => x.unresolved), []);
+  assert.deepEqual(f.filter((x) => x.severity === 'MAJOR').map((x) => x.check + (x.line ? ' L' + x.line : '')).sort(), [
+    'COMPETITOR RANKED WITHOUT EVIDENCE L157',
+    'FINANCIAL MODEL',
+    'SOURCE VERIFICATION INCOMPLETE FOR UNUSED CLAIMS',
+    'Stale or undated evidence used without qualification L80',
+    'UNDATED SOURCES WITHOUT A NOTE IN THIS SECTION L188',
+    'UNDATED SOURCES WITHOUT A NOTE IN THIS SECTION L69',
+  ]);
   assert.equal(f.filter((x) => x.severity === 'MINOR').length, 2);
   assert.deepEqual(out.possible_repeats, []);
-  assert.ok(!f.some((x) => x.line === 616), 'the run\'s false blocker at line 616 is gone');
+  assert.ok(!f.some((x) => x.line === 616), 'corrected line 616 passes');
   const g = await gate(f);
   assert.equal(g.blocked, true);
   assert.equal(g.confirmed_blocker_count, 4);
-  assert.equal(g.unresolved_check_count, 1);
-  assert.equal(g.warning_count, 3);
+  assert.equal(g.unresolved_check_count, 0);
+  assert.equal(g.warning_count, 6);
 });
 
 test('63225 recheck: the $500 baseline is unchanged', async () => {

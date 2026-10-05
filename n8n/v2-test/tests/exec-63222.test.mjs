@@ -488,7 +488,10 @@ test('63222 recheck: confirmed defects, unresolved checks and ordinary findings 
   assert.equal(f.filter((x) => x.unresolved).length, 3);
   // Ordinary findings with a clear result. Word overlap alone no longer produces one.
   // The repeat at line 297 keeps the MAJOR severity of QA-016; the same line is blocked by the price check above.
-  assert.deepEqual(f.filter((x) => x.severity === 'MAJOR').map((x) => x.check + ' L' + x.line), ['FINANCIAL MODEL Lnull', 'SAME CLAIM STILL PRESENT ELSEWHERE L297']);
+  const UNDATED = 'UNDATED SOURCES WITHOUT A NOTE IN THIS SECTION';
+  assert.deepEqual(f.filter((x) => x.severity === 'MAJOR' && x.check !== UNDATED).map((x) => x.check + ' L' + x.line), ['FINANCIAL MODEL Lnull', 'SAME CLAIM STILL PRESENT ELSEWHERE L297']);
+  // Six sections use the undated vendor page or an undated competitor page with no note in that section.
+  assert.deepEqual(f.filter((x) => x.check === UNDATED).map((x) => x.line), [40, 68, 127, 132, 297, 511]);
   assert.deepEqual(r.out.possible_repeats, []);
   // In the run, the gate held on these two. Neither is a finding now.
   assert.ok(!f.some((x) => /CITATION NOT TIED|Citation on wrong claim/.test(x.check)));
@@ -496,5 +499,5 @@ test('63222 recheck: confirmed defects, unresolved checks and ordinary findings 
   assert.equal(g.blocked, true);
   assert.equal(g.confirmed_blocker_count, 10);
   assert.equal(g.unresolved_check_count, 3);
-  assert.equal(g.warning_count, 2);
+  assert.equal(g.warning_count, 8);
 });

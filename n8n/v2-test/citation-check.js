@@ -401,20 +401,48 @@ if (costCondition) {
 let excludedClaims = [];
 try { const p = JSON.parse(excludedJson); if (Array.isArray(p)) excludedClaims = p; } catch (e) {}
 if (G && !verificationRan) add('BLOCKING', 'SOURCE VERIFICATION DID NOT RUN', 'The evidence for this plan was not checked against its source pages. No research claim may be treated as verified.');
-// A check that produced no usable answer is not a defect that was found. It is reported as an incomplete check, with
-// what in the plan depends on it: whether the plan cites the page, and whether it names the company the claims are about.
+// INCOMPLETE SOURCE VERIFICATION, AND WHAT DEPENDS ON IT. A check that produced no usable answer is not a defect that
+// was found. Its claims stay out of the ledger either way. Whether the plan is held depends on whether anything in
+// the plan could rest on those claims:
+// - HOLD when the plan cites the page for something no verified claim covers, names the company the claim is about
+//   (in full or by a short form), states a figure only that claim gives, or has a sentence that says most of what the
+//   claim says. HOLD also when this cannot be worked out: the failed check names no claim, or the claim's text is gone.
+// - Otherwise the claims were candidates the plan never used. That is a research warning for the reviewer, not a hold.
 if (verificationIncomplete > 0) {
   let exAll = [];
   try { const p = JSON.parse(excludedJson); if (Array.isArray(p)) exAll = p; } catch (e) {}
+  let ledgerNow = [];
+  try { const p = JSON.parse(ledger); if (Array.isArray(p)) ledgerNow = p; } catch (e) {}
+  const longWords = (v) => [...new Set(String(v || '').toLowerCase().replace(/\[[sw]\d+\]/g, ' ').replace(/[^a-z0-9]+/g, ' ').split(' ').filter((w) => w.length >= 5))];
+  const planSentences = plan.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#')).flatMap((l) => (/^\s*\|.*\|\s*$/.test(l) ? l.trim().replace(/^\||\|$/g, '').split('|') : [l]).flatMap((c) => c.split(/(?<=[.!?])\s+/)));
+  const planFigures = statsIn(plan);
   const affected = [...new Set(verificationProblems.flatMap((v) => v.claim_ids || []))];
-  const pagesHit = [...new Set(verificationProblems.map((v) => v.source_id))];
-  const names = [...new Set(affected.map((id) => { const x = exAll.find((c) => c.claim_id === id); if (!x) return ''; return x.entity || ((String(x.claim || '').match(/^(?:ADJACENT\s*:\s*)?(.{2,70}?)\s+(?:says?|offers?|provides?|lists?|helps?|is|serves?|states?)\b/) || [])[1] || ''); }).filter(Boolean))];
-  const citedPages = pagesHit.filter((id) => new RegExp('\\b' + id + '\\b').test(plan));
-  const namedIn = names.filter((n) => plan.toLowerCase().includes(n.toLowerCase()));
-  const dependency = (citedPages.length || namedIn.length)
-    ? 'The plan depends on these checks: it ' + [citedPages.length ? 'cites ' + citedPages.join(', ') : '', namedIn.length ? 'names ' + namedIn.join(', ') : ''].filter(Boolean).join(' and ') + '.'
-    : 'Nothing in the plan rests on these checks: it does not cite ' + pagesHit.join(', ') + (names.length ? ' and does not name ' + names.join(', ') : '') + '. The claims stay excluded.';
-  add('BLOCKING', 'SOURCE VERIFICATION INCOMPLETE', 'The verifier output could not be read for ' + verificationIncomplete + ' page or claim check' + (verificationIncomplete === 1 ? '' : 's') + ' (' + verificationProblems.slice(0, 4).map((v) => v.source_id + ': ' + v.problem).join('; ') + '), covering claim' + (affected.length === 1 ? ' ' : 's ') + affected.join(', ') + '. Those claims were kept out of the ledger. ' + dependency + ' This is a required check that did not complete, not a defect that was found; the plan is held until verification is rerun.');
+  const pagesHit = [...new Set(verificationProblems.map((v) => v.source_id).filter(Boolean))];
+  const depends = [];
+  const names = [];
+  if (!affected.length) depends.push('the failed check does not say which claims it covered, so their use cannot be ruled out');
+  pagesHit.forEach((id) => { if (new RegExp('\\b' + id + '\\b').test(plan) && !ledgerNow.some((c) => (c.source_ids || []).includes(id))) depends.push('the plan cites ' + id + ', and no verified claim exists on that page'); });
+  affected.forEach((id) => {
+    if (ledgerNow.some((c) => c.claim_id === id)) return;          // verified on another page: this claim has a completed check
+    const x = exAll.find((c) => c.claim_id === id);
+    const text = x ? String(x.claim || '').trim() : '';
+    if (!text) { depends.push(id + ': its text is not available, so its use cannot be ruled out'); return; }
+    const name = x.entity || ((text.match(/^(?:ADJACENT\s*:\s*)?(.{2,70}?)\s+(?:says?|offers?|provides?|lists?|helps?|is|serves?|states?)\b/) || [])[1] || '');
+    if (name) names.push(name);
+    const tk = name.split(/\s+/).filter(Boolean);
+    const forms = [...new Set([name, tk.slice(0, 2).join(' '), tk[0] || ''].filter((n) => n.length >= 6))];
+    const namedAs = forms.find((n) => new RegExp('(?:^|[^A-Za-z0-9])' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![A-Za-z0-9])').test(plan));
+    if (namedAs) depends.push(id + ': the plan names ' + namedAs);
+    const figure = statsIn(text).find((tok) => !ownStats.has(tok) && !statOwners[tok] && planFigures.includes(tok));
+    if (figure) depends.push(id + ': the plan states ' + figure + ', a figure only this claim gives');
+    const said = longWords(name ? text.replace(name, ' ') : text);
+    const echo = said.length >= 5 ? planSentences.find((s) => { const there = new Set(longWords(s)); return said.filter((w) => there.has(w)).length / said.length >= 0.6; }) : null;
+    if (echo) depends.push(id + ': a sentence of the plan says most of what this claim says ("' + echo.trim().slice(0, 100) + '")');
+    if (!name && said.length < 5) depends.push(id + ': too little of this claim is known to rule out its use');
+  });
+  const what = 'The verifier output could not be read for ' + verificationIncomplete + ' page or claim check' + (verificationIncomplete === 1 ? '' : 's') + ' (' + verificationProblems.slice(0, 4).map((v) => v.source_id + ': ' + v.problem).join('; ') + ')' + (affected.length ? ', covering claim' + (affected.length === 1 ? ' ' : 's ') + affected.join(', ') : '') + '. Those claims were kept out of the ledger.';
+  if (depends.length) add('BLOCKING', 'SOURCE VERIFICATION INCOMPLETE', what + ' The plan depends on these checks, or may: ' + depends.join('; ') + '. This is a required check that did not complete, not a defect that was found; the plan is held until verification is rerun.');
+  else add('MAJOR', 'SOURCE VERIFICATION INCOMPLETE FOR UNUSED CLAIMS', what + ' Nothing in the plan rests on them: the plan does not cite ' + pagesHit.join(', ') + ' for anything unverified' + ([...new Set(names)].length ? ', does not name ' + [...new Set(names)].join(' or ') : '') + ', states no figure from these claims, and has no sentence that says what they say. The claims stay excluded and the plan is not held for this. It is a research warning: the plan was written without them, so rerun verification if that part of the research matters.');
 }
 const unverifiedEntities = entities.filter((e) => e.verified_claims === 0);
 const exclusionSeen = new Set();
@@ -704,6 +732,36 @@ lines.forEach((line, i) => {
   });
 });
 
+// ---------- UNDATED SOURCES, SECTION BY SECTION ----------
+// A source with no date on its page has to be called undated where it is used. One note covers the section it stands
+// in: "All sources reviewed for this plan are undated" at the start of Section 4 covers every row of Section 4. It
+// does not cover Section 3 or Section 6. A general note has to be true of the sources that section cites.
+const isUndatedSource = (id) => { const x = srcById[id]; return !!x && /date not shown|^not provided/i.test(String(x.published || '')); };
+const UNDATED_SAID = /\bundated\b|\bno publication date\b|\bdate (?:is |was )?not shown\b|\bwithout a (?:publication )?date\b|\bcarr(?:y|ies) no (?:publication )?date\b/i;
+const NOTE_FOR_ALL = /\ball (?:of )?(?:the )?(?:[a-z-]+ ){0,3}?sources\b|\bevery source\b|\b(?:the )?sources (?:reviewed|cited|used)[^.;]{0,40}\bare undated\b|\bnone of the (?:sources|pages)\b[^.;]{0,30}\b(?:shows?|carr(?:y|ies)|gives?) a (?:publication )?date\b/i;
+const sectionsOfPlan = [];
+lines.forEach((l, i) => { const m = l.trim().match(/^## (\d+)\.\s*(.*)$/); if (m) sectionsOfPlan.push({ no: m[1], title: m[2], start: i, end: lines.length }); });
+sectionsOfPlan.forEach((s, n) => { if (n + 1 < sectionsOfPlan.length) s.end = sectionsOfPlan[n + 1].start; });
+const sectionAt = (lineNo) => sectionsOfPlan.find((s) => lineNo - 1 > s.start && lineNo - 1 < s.end) || null;
+const dateNotesIn = (s) => { const out = []; for (let i = s.start + 1; i < s.end; i++) if (UNDATED_SAID.test(lines[i])) out.push({ line: i + 1, text: lines[i].trim() }); return out; };
+sectionsOfPlan.forEach((s) => {
+  const firstUse = {};
+  for (let i = s.start + 1; i < s.end; i++) (lines[i].match(/\b[SW]\d+\b/g) || []).forEach((id) => { if (srcById[id] && !(id in firstUse)) firstUse[id] = i + 1; });
+  const used = Object.keys(firstUse);
+  const undated = used.filter(isUndatedSource);
+  if (!undated.length) return;
+  const notes = dateNotesIn(s);
+  const general = notes.filter((n) => NOTE_FOR_ALL.test(n.text));
+  // A note that says every source is undated is wrong when this section cites one whose page shows a date.
+  const dated = used.filter((id) => !isUndatedSource(id));
+  if (general.length && dated.length) add('BLOCKING', 'SOURCE DATE NOTE IS WRONG', 'Section ' + s.no + ' says its sources are undated, and it cites ' + dated.map((id) => id + ' (' + srcById[id].published + ')').join(', ') + ', whose page shows a date. Correct the note so that it names the undated sources only.', short(general[0].text), general[0].line);
+  const covered = (id) => general.length > 0 || notes.some((n) => new RegExp('\\b' + id + '\\b').test(n.text));
+  const missing = undated.filter((id) => !covered(id));
+  if (!missing.length) return;
+  const at = Math.min(...missing.map((id) => firstUse[id]));
+  add('MAJOR', 'UNDATED SOURCES WITHOUT A NOTE IN THIS SECTION', 'Section ' + s.no + ' (' + s.title + ') uses ' + missing.join(', ') + ' from L' + at + ' on. Their pages show no date, and nothing in this section says so' + (notes.length ? ' for these sources' : '') + '. A note in another section does not cover this one. Say at their first use here that these sources are undated and that the descriptions may have changed.', short(lines[at - 1]), at);
+});
+
 // ---------- DEMAND INFERRED FROM SUPPLY ----------
 // Providers describing their services, and resources being available, establish supply. They do not establish that
 // customers seek, want, need, or pay for such help. A sentence that draws customer behaviour or demand from supply
@@ -736,12 +794,20 @@ lines.forEach((line, i) => {
 // ---------- COMPETITORS RANKED ----------
 // "The most comprehensive provider reviewed" ranks companies. The ledger holds what each page says about itself;
 // it does not compare them.
-const RANKED = /\bthe most (?:comprehensive|established|complete|credible|popular|advanced|experienced|trusted|expensive|affordable|capable|direct)\b[^.;]{0,50}?\b(?:providers?|competitors?|compan(?:y|ies)|firms?|options?|alternatives?|services?)\b/i;
+const RANKED = /\b(?:most|least) (?:comprehensive|established|complete|credible|popular|advanced|experienced|trusted|expensive|affordable|capable|direct|relevant|extensive)\b[^.;]{0,50}?\b(?:providers?|competitors?|compan(?:y|ies)|firms?|options?|alternatives?|services?)\b|\bthe (?:best|largest|biggest|leading|top|cheapest|strongest|broadest|widest|closest)(?:[- ][a-z]+)? (?:providers?|competitors?|compan(?:y|ies)|firms?|options?|alternatives?)\b/i;
+// A ranking is supported when the sentence says what is being compared and cites verified claims for the companies
+// compared (at least two), or when a verified claim cited on the sentence states the ranking itself.
+const RANK_CRITERION = /\b(?:by|in|on|counting|comparing) (?:the )?(?:number|range|breadth|count|list|variety|length) of\b|\bin terms of\b|\bmeasured by\b|\bjudged by\b|\bon the basis of\b/i;
 lines.forEach((line, i) => {
   const t = line.trim();
   if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || demandComputed.has(t)) return;
-  const hit = cellsAndSentences(t).find((seg) => RANKED.test(seg) && !DENIES_OR_LABELS.test(seg));
-  if (hit) add('MAJOR', 'COMPETITOR RANKED WITHOUT EVIDENCE', 'This text ranks a company against the others reviewed. The verified entries describe each company in its own words and do not compare them. Say what that company\'s page lists, and leave the ranking out or word it as IdeaToPlan\'s reading of the pages reviewed.', short(hit), i + 1);
+  const hit = (/^\|.*\|$/.test(t) ? t.replace(/^\||\|$/g, '').split('|') : [t]).flatMap((c) => c.split(/(?<=[.!?])\s+/)).find((seg) => {
+    if (!RANKED.test(seg) || DENIES_OR_LABELS.test(seg)) return false;
+    const backed = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => (ledgerBySource[id] || []).length > 0);
+    const stated = backed.some((id) => ledgerBySource[id].some((c) => RANKED.test(String(c.claim || '') + ' ' + String(c.page_excerpt || ''))));
+    return !(stated || (RANK_CRITERION.test(seg) && backed.length >= 2));
+  });
+  if (hit) add('MAJOR', 'COMPETITOR RANKED WITHOUT EVIDENCE', 'This text ranks a company against the others reviewed. A ranking needs two things in the sentence: what is being compared (for example the number of services each page lists), and source IDs with verified claims for the companies compared. The verified entries describe each company in its own words and do not compare them. Give the criterion and the evidence, word the ranking as a hypothesis, or remove it.', short(hit), i + 1);
 });
 
 // ---------- PREVALENCE ----------
@@ -839,12 +905,12 @@ ${SEVERITY}
 CHECKS
 1. Unsupported claims: statements about the market, customers, competitors, prices, costs, benchmarks, trends, regulation, tax, or statistics with no source ID. In a Starter plan no research was done, so any such statement is unsupported.
 2. Citations: a source ID on a claim the EVIDENCE LEDGER does not link to that source; a claim stated more strongly or more broadly than the ledger; detail added that the ledger entry does not state; any source name, study, author, URL, or date not in SOURCES. One source ID at the end of a paragraph or table row covers the claims in it.
-3. Research interpretation: analysis presented as a finding. "None of the competitors reviewed does X" does not establish that X is underserved or that customers want X. A competitive gap, an unmet need, an underserved segment, a positioning opportunity, or a statement that no competitor does something is BLOCKING when it is presented as a finding, unless a ledger entry cited on that sentence states it. It is acceptable only when the sentence that makes the claim is itself clearly worded as a hypothesis to test. Judge each sentence alone: a hypothesis label in another sentence of the paragraph does not cover a sentence that reads as a finding. A contrast is the same claim: "all five competitors focus on executing a move rather than on the decision stage" asserts what the competitors do not do. The ledger entries list services in each company's own words; none states what a company focuses on or leaves out. Check such a sentence against every entry it covers and allow only what those entries state, with the scope said in the sentence ("the pages reviewed list ..."). A ranking of the companies reviewed ("the most comprehensive provider") is an unsupported comparison. "IdeaToPlan analysis" identifies who wrote the sentence; it is not evidence and it does not make a factual claim conditional, so a finding labelled only that way is still BLOCKING. Say how to reword it.
+3. Research interpretation: analysis presented as a finding. "None of the competitors reviewed does X" does not establish that X is underserved or that customers want X. A competitive gap, an unmet need, an underserved segment, a positioning opportunity, or a statement that no competitor does something is BLOCKING when it is presented as a finding, unless a ledger entry cited on that sentence states it. It is acceptable only when the sentence that makes the claim is itself clearly worded as a hypothesis to test. Judge each sentence alone: a hypothesis label in another sentence of the paragraph does not cover a sentence that reads as a finding. A contrast is the same claim: "all five competitors focus on executing a move rather than on the decision stage" asserts what the competitors do not do. The ledger entries list services in each company's own words; none states what a company focuses on or leaves out. Check such a sentence against every entry it covers and allow only what those entries state, with the scope said in the sentence ("the pages reviewed list ..."). A ranking of the companies reviewed ("the most comprehensive provider") is an unsupported comparison unless the sentence states what is being compared and cites verified claims for the companies compared; without both, ask for the criterion and the evidence, or for the ranking to be removed. "IdeaToPlan analysis" identifies who wrote the sentence; it is not evidence and it does not make a factual claim conditional, so a finding labelled only that way is still BLOCKING. Say how to reword it.
 4. Known and unknown: any statement that the founder lacks something (no audience, no website, no customers, starting from zero) that the FOUNDER CONTEXT does not state. A blank revenue answer described as "not provided" when the form defines it as pre-revenue. A recommendation that silently assumes an unknown fact instead of reasoning conditionally. Advice to create something the founder already has, or to repeat work the founder has already done. Internal labels such as UNKNOWN or NOT PROVIDED printed in the plan.
 5. Financial consistency: do not recompute the financial tables; code produced them. Check that every financial figure in the prose, the Executive Summary, and the callouts matches FINANCIAL FACTS exactly, and that no figure appears that is in neither FINANCIAL FACTS, the FOUNDER CONTEXT, nor the ledger. Flag any assumption described as verified, validated, typical, standard, realistic, or conservative. Flag a price from a different kind of service presented as evidence of what this offer should cost, rather than as a reference point for an untested assumption.
 6. Budget: the ceiling treated as a spending target. A cost shown as "Amount not yet established" that the plan gives a figure for, calls free, or leaves out where it discusses costs, profit, or viability. A recommendation that depends on paid advertising when the Paid acquisition line in FINANCIAL FACTS says the model contains no committed advertising cost, or a paid channel recommended as part of the strategy with no matching Budget item. The COST REVIEW printed in the plan as a list.
 7. Channels: a channel recommended by default, or ruled in or out by an age or demographic stereotype, or a verdict where the evidence only supports a test. Founder-reported traction or assets that the recommendation ignores.
-8. Stale data: prices, rules, features, or market figures from a source dated more than 24 months before the RUN DATE, or undated, not flagged as such. Judge every date against the RUN DATE given at the top of the user message, never against your own sense of the current year. A source date on or before the RUN DATE is not anomalous, future-dated, or suspicious, and a plan sentence that says so is a MAJOR defect to remove. Only a date after the RUN DATE is a future date.
+8. Stale data: prices, rules, features, or market figures from a source dated more than 24 months before the RUN DATE, or undated, not flagged as such. An undated source has to be called undated in each section that uses it. One note covers the section it stands in, when it is true of the sources that section cites; it does not cover other sections. Report the first use in every section that has no such note, as its own occurrence, and never list a line that is already covered by a note in its own section. Judge every date against the RUN DATE given at the top of the user message, never against your own sense of the current year. A source date on or before the RUN DATE is not anomalous, future-dated, or suspicious, and a plan sentence that says so is a MAJOR defect to remove. Only a date after the RUN DATE is a future date.
 9. Structure: compare the plan's headers with SECTIONS. SECTIONS is the only correct structure and numbering. Never flag numbering that matches SECTIONS. A Sources section is added later and is not expected here.
 10. Required content: the Executive Summary table; the scenario table and the 12-month forecast with its planning-estimate statement; the 90-day roadmap table and a Done when for every action, where the plan has that section; the Critical Assumptions and Viability Assessment content.
 11. Repetition: the same risk, assumption, insight, or disclaimer explained at length more than once. Name both places and say which to cut to a one-clause reference.
@@ -881,7 +947,7 @@ const verifySystem = `You are verifying an automated revision of an IdeaToPlan b
 
 2. For each edit, look only at its After text for a new BLOCKING defect, or a clearly material MAJOR defect, that the edit itself introduced and that was not in its Before text: a new factual claim, figure, or source ID that the EVIDENCE LEDGER or FINANCIAL FACTS do not support; a new absolute, comparative, or predictive claim stated as fact; a founder fact stated wrongly; a broken sentence or table row. Give exactly one entry in "edit_checks" for every edit unit shown, with an explicit verdict. The verdict is NEW_DEFECT only when the After text contains such a defect; then give its severity, a quote, the problem, and the fix. The verdict is NO_NEW_DEFECT in every other case, including when you considered a concern and concluded that the edit is consistent with the ledger and the financial facts; then leave severity, quote, problem, and fix empty. Never give NEW_DEFECT with an explanation that concludes there is no defect: an entry whose verdict and explanation disagree is discarded and the edit is treated as not verified. Do not report style, repetition, actionability, stale sources, or anything that was already in the Before text. Never report an original finding as a new defect: if an edit did not fully fix its finding, say so in that finding's verdict. Edits that were not applied, required sections, source IDs, and financial figures are checked by code and are not your concern.
 
-3. PASSAGES LEFT UNCHANGED lists passages the reviser was asked to correct and returned as they were. Nothing was edited there. For each one, read the passage and decide whether the finding's root problem is in that passage as it stands: "present" is true when it is, false when the passage does not contain the problem (for example it is already worded as a labelled hypothesis). Do not assume the passage is acceptable because it was left alone, and do not assume it is defective because it was listed. Give one answer for every unit and finding id listed.
+3. PASSAGES LEFT UNCHANGED lists passages the reviser was asked to correct and returned as they were. Nothing was edited there. For each one, read the passage and decide whether the finding's root problem is in that passage as it stands: "present" is true when it is, false when the passage does not contain the problem (for example it is already worded as a labelled hypothesis). Do not assume the passage is acceptable because it was left alone, and do not assume it is defective because it was listed. Each passage is shown with its section and with any note about source dates that stands in that section. Read the passage in that context: when the finding is that a source is undated and not flagged, a note in the same section that accurately covers the passage's sources answers it, and the problem is not present in that passage. A note in a different section does not count, and a note that does not cover the passage's sources does not count. Give one answer for every unit and finding id listed.
 
 ${SEVERITY}
 
@@ -941,7 +1007,7 @@ if (attempt) {
     '', 'FINDINGS AND THEIR EDITS (give one verdict per id)',
     pairs.length ? pairs.map((f) => 'id ' + f.id + ' | ' + f.severity + ' | ' + f.check + '\n   Root problem: ' + f.problem + (f.fix ? '\n   Requested fix: ' + f.fix : '') + editLog.filter((e) => (e.issues || []).includes(f.id)).map((e) => '\n   Edit ' + e.unit + (e.issues.length > 1 ? ' (one replacement that also serves ' + e.issues.filter((x) => x !== f.id).join(', ') + ')' : '') + '\n     Before: ' + e.before + '\n     After: ' + (e.after || '(passage removed)')).join('')).join('\n') : 'None. Return empty lists.',
     '', 'PASSAGES LEFT UNCHANGED (say for each unit and finding id whether the root problem is present in the passage)',
-    (rev.unchanged_units || []).some((u) => (u.issues || []).some((id) => byFinding[id] && byFinding[id].source === 'QA review')) ? (rev.unchanged_units || []).flatMap((u) => (u.issues || []).filter((id) => byFinding[id] && byFinding[id].source === 'QA review').map((id) => 'unit ' + u.unit + ' | id ' + id + ' | ' + byFinding[id].severity + ' | ' + byFinding[id].check + '\n   Root problem: ' + byFinding[id].problem + '\n   Passage, unchanged: ' + u.text)).join('\n') : 'None.',
+    (rev.unchanged_units || []).some((u) => (u.issues || []).some((id) => byFinding[id] && byFinding[id].source === 'QA review')) ? (rev.unchanged_units || []).flatMap((u) => (u.issues || []).filter((id) => byFinding[id] && byFinding[id].source === 'QA review').map((id) => 'unit ' + u.unit + ' | id ' + id + ' | ' + byFinding[id].severity + ' | ' + byFinding[id].check + '\n   Root problem: ' + byFinding[id].problem + '\n   Section: ' + (sectionAt(u.line || u.start) ? sectionAt(u.line || u.start).no + '. ' + sectionAt(u.line || u.start).title : 'not found') + '\n   Notes about source dates in that section: ' + (sectionAt(u.line || u.start) && dateNotesIn(sectionAt(u.line || u.start)).length ? dateNotesIn(sectionAt(u.line || u.start)).map((n) => '[L' + n.line + '] ' + n.text.slice(0, 260)).join(' | ') : 'none') + '\n   Passage, unchanged: ' + u.text)).join('\n') : 'None.',
   ].join('\n');
 }
 

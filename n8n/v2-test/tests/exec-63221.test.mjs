@@ -90,7 +90,7 @@ test('citations: the two rows blocked in 63221 are correct and now pass', async 
   assert.match(lineOf(14), /Reelo \[S6\]/);
   assert.match(lineOf(169), /Reelo \[S6\]/);
   assert.deepEqual(at(out, 14), []);
-  assert.deepEqual(at(out, 169).filter((x) => /CITATION|SOURCE/.test(x)), []);
+  assert.deepEqual(at(out, 169).filter((x) => /CITATION|VERIFIED CLAIM/.test(x)), []);
   assert.ok(!out.det_issues.some((i) => /CITATION NOT TIED|WRONG COMPANY|WITHOUT A VERIFIED CLAIM/.test(i.type)));
 });
 
