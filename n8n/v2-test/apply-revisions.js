@@ -35,6 +35,57 @@ const idsIn = (v) => [...new Set(String(v || '').match(/\b[SW]\d+\b/g) || [])];
 const tableStart = (lineNo) => { let i = lineNo - 1; while (i > 0 && isRow(original[i - 1])) i--; return i; };
 // The sources a section cites, in the plan as it was before the edits. A date note is about the section.
 const sectionIds = (lineNo) => { let a = lineNo - 1; while (a > 0 && !/^## /.test(original[a] || '')) a--; let b = lineNo; while (b < original.length && !/^## /.test(original[b] || '')) b++; return idsIn(original.slice(a, b).join(' ')); };
+// A NOTE ABOUT A SOURCE'S DATE IS CHECKED AGAINST THE SOURCE RECORD. Two kinds are accepted beside a table row: that
+// sources are undated, and that a source is old ("W5 is dated March 2016; what it lists may no longer be current").
+// Each sentence of the note is checked: a source called undated must have no date in its record, and a date given for
+// a source must be the date in its record. A note that fails is refused, with the reason, and nothing is changed.
+let sourceRecords = [];
+try { sourceRecords = JSON.parse($('Build Evidence').first().json.sources || '[]'); } catch (e) {}
+const recordOf = (id) => sourceRecords.find((x) => x.id === id) || null;
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const STALE_NOTE = /\b(?:dated|published|posted|updated|carr(?:y|ies) a date|dates? from|(?:is|are) from)\b/i;
+const NOTE_CAVEAT = /\b(?:may|might|could) (?:have changed|no longer be (?:current|accurate|available)|be out of date|not reflect)\b|\bat the time of retrieval\b|\bsince retrieval\b/i;
+const datesIn = (v) => {
+  const out = [];
+  let m;
+  const a = /\b(?:(\d{1,2})(?:st|nd|rd|th)?\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(?:(\d{1,2})(?:st|nd|rd|th)?,?\s+)?((?:19|20)\d{2})\b/gi;
+  while ((m = a.exec(v)) !== null) out.push({ y: +m[4], mo: MONTHS.indexOf(m[2].toLowerCase()), raw: m[0] });
+  const b = /\b(\d{1,2})[\/.](\d{1,2})[\/.]((?:19|20)\d{2})\b/g;
+  while ((m = b.exec(v)) !== null) { const p = +m[1], q = +m[2]; out.push({ y: +m[3], mo: p > 12 ? q - 1 : q > 12 ? p - 1 : -1, raw: m[0] }); }
+  const c = /\b((?:19|20)\d{2})-(\d{2})-\d{2}\b/g;
+  while ((m = c.exec(v)) !== null) out.push({ y: +m[1], mo: +m[2] - 1, raw: m[0] });
+  // A year standing alone ("dates from 2016"), once the fuller dates above are set aside.
+  const rest = out.reduce((x, d) => x.split(d.raw).join(' '), String(v || ''));
+  const y = /(?<![$\d,.-])((?:19|20)\d{2})(?![\d,-])/g;
+  while ((m = y.exec(rest)) !== null) out.push({ y: +m[1], mo: -1, raw: m[1] });
+  return out;
+};
+// Returns the reason a date note cannot be accepted, or '' when it can.
+const dateNoteProblem = (note) => {
+  const sentences = note.replace(/^note:\s*/i, '').split(/(?<=[.!?;])\s+(?=[A-Za-z])/).map((x) => x.trim()).filter(Boolean);
+  if (!sentences.some((x) => DATE_NOTE.test(x) || (STALE_NOTE.test(x) && datesIn(x).length))) return 'the replacement put text other than a source-date note beside a table row. Only the row itself and a note about the dates of sources are accepted there.';
+  for (const x of sentences) {
+    const ids = idsIn(x);
+    const stated = datesIn(x);
+    if (STALE_NOTE.test(x) && stated.length) {
+      if (!ids.length) return 'the note gives a date ("' + stated[0].raw + '") without naming the source it dates.';
+      for (const id of ids) {
+        const rec = recordOf(id);
+        if (!sourceRecords.length || !rec) return 'the note gives a date for ' + id + ', and its source record could not be read to check it.';
+        const iso = String(rec.published_iso || '');
+        if (!iso) return 'the note gives ' + id + ' the date "' + stated[0].raw + '", and the source record holds no date for it (' + (rec.published || 'none') + ').';
+        if (!stated.some((d) => d.y === +iso.slice(0, 4) && (d.mo < 0 || d.mo === +iso.slice(5, 7) - 1))) return 'the note gives ' + id + ' the date "' + stated[0].raw + '", and the source record shows "' + rec.published + '".';
+      }
+    } else if (DATE_NOTE.test(x)) {
+      const dated = ids.filter((id) => { const rec = recordOf(id); return !!rec && !!rec.published_iso; });
+      if (dated.length) return 'the note calls ' + dated.join(', ') + ' undated, and the source record shows "' + recordOf(dated[0]).published + '".';
+    } else if (!(NOTE_CAVEAT.test(x) && x.split(/\s+/).length <= 24)) {
+      // A note is placed without review of its meaning, so it may say nothing except what the records can confirm.
+      return 'the note also says "' + x.slice(0, 160) + '", which is not about the date of a source. Only the row itself and a note about the dates of sources are accepted there.';
+    }
+  }
+  return '';
+};
 const notesAbove = {};
 
 edits.forEach((e) => {
@@ -66,7 +117,8 @@ edits.forEach((e) => {
     if (note) {
       const strange = idsIn(note).filter((id) => !sectionIds(u.start).includes(id) && !idsIn(newText).includes(id));
       if (/\|/.test(note) || note.length > 500) { refuse(u, 'rejected', 'the text given beside the table row is not one short note, so nothing was changed.'); return; }
-      if (!DATE_NOTE.test(note)) { refuse(u, 'rejected', 'the replacement put text other than a source-date note beside a table row. Only the row itself and a note about undated sources are accepted there.'); return; }
+      const wrong = dateNoteProblem(note);
+      if (wrong) { refuse(u, 'rejected', wrong); return; }
       if (strange.length) { refuse(u, 'rejected', 'the source-date note names a source its section does not cite (' + strange.join(', ') + ').'); return; }
     }
     if (newText === current && !note) { done.add(uid); refuse(u, 'unchanged', 'the reviser returned the passage unchanged.'); return; }

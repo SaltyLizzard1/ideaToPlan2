@@ -276,7 +276,8 @@ test('line 157: the comparison and the ranking are not supported, and are now re
   assert.match(lineOf(157), /all five direct competitors focus primarily on the execution of a move - logistics, visas, housing, compliance - rather than on the earlier decision-making stage/);
   assert.match(lineOf(157), /Intermark Relocation is the most comprehensive provider reviewed/);
   const out = await check();
-  assert.deepEqual(at(out, 157), [GAP, 'BLOCKING COMPETITOR RANKED WITHOUT EVIDENCE']);
+  // The same line also says what the free substitutes do not provide, a rule added after execution 63237.
+  assert.deepEqual(at(out, 157), [GAP, 'BLOCKING SUBSTITUTE LIMITATION STATED WITHOUT EVIDENCE', 'BLOCKING COMPETITOR RANKED WITHOUT EVIDENCE']);
   assert.match(out.det_issues.find((i) => i.line === 157 && /RANKED/.test(i.type)).detail, /it does not say what is being compared; it cites no verified claim for Mosline Travel Consultancy Firm, Start Abroad, Traveling with Kristin, LA Relocation Group, International Relocation Partner, Intermark Relocation/);
 });
 
@@ -421,7 +422,7 @@ test('undated sources: the run\'s nine "present" answers were given without that
 test('63225 recheck: seven confirmed defects, no unresolved required check, and the ordinary findings', async () => {
   const { out } = await secondPass();
   const f = out.findings;
-  assert.deepEqual(f.filter((x) => x.severity === 'BLOCKING' && !x.unresolved).map((x) => 'L' + x.line + ' ' + x.check), [
+  assert.deepEqual(f.filter((x) => x.severity === 'BLOCKING' && !x.unresolved).map((x) => 'L' + x.line + ' ' + x.check).sort(), [
     'L157 COMPETITIVE GAP STATED AS A FINDING',
     'L72 DEMAND INFERRED FROM SUPPLY',
     'L74 DEMAND INFERRED FROM SUPPLY',
@@ -432,7 +433,7 @@ test('63225 recheck: seven confirmed defects, no unresolved required check, and 
     'L153 SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE',
     // An unsupported ranking of companies is a statement of fact, and blocks like any other since commit after 10c023c.
     'L157 COMPETITOR RANKED WITHOUT EVIDENCE',
-  ]);
+  ].concat(['L157 SUBSTITUTE LIMITATION STATED WITHOUT EVIDENCE']).sort());
   assert.deepEqual(f.filter((x) => x.unresolved), []);
   assert.deepEqual(f.filter((x) => x.severity === 'MAJOR').map((x) => x.check + (x.line ? ' L' + x.line : '')).sort(), [
     'FINANCIAL MODEL',
@@ -446,7 +447,7 @@ test('63225 recheck: seven confirmed defects, no unresolved required check, and 
   assert.ok(!f.some((x) => x.line === 616), 'corrected line 616 passes');
   const g = await gate(f);
   assert.equal(g.blocked, true);
-  assert.equal(g.confirmed_blocker_count, 8);
+  assert.equal(g.confirmed_blocker_count, 9);
   assert.equal(g.unresolved_check_count, 0);
   assert.equal(g.warning_count, 5);
 });

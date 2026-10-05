@@ -30,9 +30,17 @@ const INCOMPLETE_CHECK = /^(?:SOURCE VERIFICATION INCOMPLETE|SOURCE VERIFICATION
 const fromAuto = (i) => ({ severity: i.severity, ...(INCOMPLETE_CHECK.test(i.type) || i.needs_judgment ? { unresolved: true } : {}), ...(i.needs_judgment ? { needs_judgment: true } : {}), source: 'Automated check', check: i.type, problem: i.detail, fix: '', occurrences: i.line ? [{ line: i.line, section: '', quote: i.quote || '' }] : [], line: i.line || null, quote: i.quote || '', section: '' });
 // A QA finding is one root problem with one or more occurrences.
 const fromQa = (f, source, fallback) => {
-  const occ = (Array.isArray(f.occurrences) ? f.occurrences : []).map((o) => ({ line: lineNo(o && o.line), section: s(o && o.section), quote: s(o && o.quote) })).filter((o) => o.line);
+  // AN OCCURRENCE IS A LINE THAT HAS TO CHANGE. A reviewer sometimes lists a line and says, in the same finding, that it
+  // is acceptable as written ("L25 is quoting the founder's hypothesis and is acceptable; no change needed there").
+  // Such a line is not where the defect is. It is taken off the finding, and the finding is located at the lines that
+  // do have to change. This reads the reviewer's own statement; it does not judge the wording of the line.
+  const said = s(f.fix) + ' ' + s(f.root_problem || f.problem);
+  const exempt = new Set([...said.matchAll(/\bL(\d+)\b[^.;]{0,200}?\b(?:acceptable as written|is acceptable|no change (?:is )?needed|needs? no change|does not need (?:a |to )?chang\w*|leave (?:it )?(?:as it is|as written|unchanged)|not (?:itself )?a defect)\b/gi)].map((m) => +m[1]));
+  const listed = (Array.isArray(f.occurrences) ? f.occurrences : []).map((o) => ({ line: lineNo(o && o.line), section: s(o && o.section), quote: s(o && o.quote) })).filter((o) => o.line);
+  const occ = listed.some((o) => !exempt.has(o.line)) ? listed.filter((o) => !exempt.has(o.line)) : listed;
+  const not_occurrences = listed.filter((o) => !occ.includes(o)).map((o) => o.line);
   if (!occ.length && lineNo(f.line)) occ.push({ line: lineNo(f.line), section: s(f.section), quote: s(f.quote) });
-  return { severity: sev(f.severity, fallback), source, check: s(f.check), problem: s(f.root_problem) || s(f.problem), fix: s(f.fix), occurrences: occ, line: occ.length ? occ[0].line : null, quote: occ.length ? occ[0].quote : s(f.quote), section: occ.length ? occ[0].section : s(f.section) };
+  return { severity: sev(f.severity, fallback), source, check: s(f.check), problem: s(f.root_problem) || s(f.problem), fix: s(f.fix), occurrences: occ, ...(not_occurrences.length ? { not_occurrences } : {}), line: occ.length ? occ[0].line : null, quote: occ.length ? occ[0].quote : s(f.quote), section: occ.length ? occ[0].section : s(f.section) };
 };
 const order = (list) => list.sort((x, y) => SEV.indexOf(x.severity) - SEV.indexOf(y.severity));
 
@@ -289,12 +297,18 @@ first.forEach((f) => {
     else if (!refused.length) { status = 'FIXED'; note = basis + ' Every undated source the section cites is covered by a note in it.' + (v && v.status !== 'FIXED' ? ' The verifier answered ' + v.status.replace('_', ' ').toLowerCase() + ' ("' + String(v.note || '').slice(0, 160) + '"), which was judged against the earlier source list.' : ''); }
   }
   if (unjustified.length) note = note + ' The verifier said the problem is absent from L' + unjustified.map((o) => o.located).join(', L') + ', and that answer closes nothing: ' + [...new Set(unjustified.flatMap((o) => judged(o).problems))].join('; ') + '.';
+  // THE VERIFIER'S TWO ANSWERS HAVE TO AGREE. For a passage nobody edited it may say, with a checked justification, that
+  // the problem is not there, and in its verdict on the finding say that the finding is not fully fixed because of that
+  // same passage. Every edited passage is fixed and every unedited one is cleared, yet the finding is called open. That
+  // is not a confirmed defect and not a clean result: the finding is held as an unresolved check for a person to read.
+  const conflicted = mine.length > 0 && status !== 'FIXED' && !refused.length && !stillThere.length && !unjustified.length && clearedOcc > 0 && editedOcc + clearedOcc === occ.length;
+  if (conflicted) note = 'THE VERIFIER DISAGREES WITH ITSELF. It judged every edited passage for this finding and called the finding ' + status.replace('_', ' ').toLowerCase() + ' ("' + String((v && v.note) || '').slice(0, 200) + '"). For the passage nobody edited (L' + occ.filter((o) => !edited(o)).map((o) => o.located).join(', L') + ') it answered, with a justification code accepted, that the problem is not there. Both cannot hold. A person has to read that passage.';
   if (refused.length) {
     if (status === 'FIXED') status = 'PARTLY_FIXED';
     note = 'REQUIRED CORRECTION NOT APPLIED: the replacement for ' + refused.map((u) => u.unit + ' at L' + u.line).join(', ') + ' was refused by code (' + refused.map((u) => u.why).join(' ') + '), so that passage is unchanged and this finding stands with its original severity. ' + note;
   }
   verification.push({ id: f.id, severity: f.severity, source: f.source, check: f.check, occurrences: occ.length, status, note, ...(refused.length ? { correction_not_applied: true } : {}), ...(unjustified.length ? { closure_unjustified: true } : {}), ...(!mine.length && status === 'FIXED' && !datesNow ? { closed_without_edit: true } : {}), ...(datesNow ? { decided_by_code: true } : {}) });
-  if (status !== 'FIXED') findings.push({ ...f, status, ...(unjustified.length ? { closure_unjustified: true } : {}), ...(refused.length ? { correction_not_applied: true, not_applied_units: refused.map((u) => u.unit) } : {}), problem: f.problem + ' (After revision: ' + status.replace('_', ' ').toLowerCase() + '. ' + note + ')' });
+  if (status !== 'FIXED') findings.push({ ...f, status, ...(conflicted ? { unresolved: true, verifier_conflict: true } : {}), ...(unjustified.length ? { closure_unjustified: true } : {}), ...(refused.length ? { correction_not_applied: true, not_applied_units: refused.map((u) => u.unit) } : {}), problem: f.problem + ' (After revision: ' + status.replace('_', ' ').toLowerCase() + '. ' + note + ')' });
 });
 // A new defect is only something the revision added. If a finding on the same edit unit is still open, the problem belongs to that finding.
 const openIds = new Set(verification.filter((x) => x.status !== 'FIXED').map((x) => x.id));
@@ -426,15 +440,29 @@ same_claim_elsewhere.filter((d) => d.certain).forEach((d, i) => findings.push({ 
 // - UNSUPPORTED is a confirmed finding, BLOCKING, at that line.
 // A line with no verdict, two verdicts, or a verdict that fails these checks is not reviewed. That is a required
 // check that did not complete: the plan is held, and the lines are listed.
-const required = cc.review_lines || [];
-const plan_review = { required: required.length, supported: 0, labelled: 0, no_external_claim: 0, unsupported: [], unresolved: [], added_by_reviewer: [], judged: [] };
+// What code decides without the model: a source-only row states nothing, and a date note is checked against the source
+// record by Citation Check. Every other listed line needs a verdict.
+const listedLines = cc.review_lines || [];
+const required = listedLines.filter((r) => r.kind !== 'source_row' && r.kind !== 'date_note');
+// THREE OUTCOMES, KEPT APART.
+// - unsupported: the reviewer said so. A confirmed defect at that line.
+// - contradicted: the reviewer's own verdict, checked by code, shows the defect. It said the statement is labelled
+//   and the line has no label: so by its own account the statement is not in the ledger, and it is not labelled.
+//   Or it named the entries that support the line and none of them is from any source the line cites: so the
+//   citation points at the wrong page. These are confirmed defects, not incomplete verification.
+// - unusable: no verdict, two verdicts, a verdict that is not one of the five, or one code cannot check either way.
+//   The line has not been reviewed. That is a required check that did not complete.
+const plan_review = { listed: listedLines.length, required: required.length, supported: 0, from_intake: 0, labelled: 0, no_external_claim: 0, source_rows: listedLines.filter((r) => r.kind === 'source_row').length, date_notes_checked_by_code: listedLines.filter((r) => r.kind === 'date_note').map((r) => ({ line: r.line, ok: r.date_note_ok !== false })), unsupported: [], contradicted: [], unresolved: [], added_by_reviewer: [], judged: [], coverage: cc.review_coverage || null };
 // The verdict the final review gave for a line, kept only when it passed the checks below.
 const verdictAt = {};
 if (verOk && required.length) {
-  const entries = Array.isArray(qa.plan_review) ? qa.plan_review : [];
+  const entries = (Array.isArray(qa.plan_review) ? qa.plan_review : []).slice();
+  // Lines with nothing to judge may be given together as numbers.
+  (Array.isArray(qa.no_external_claim) ? qa.no_external_claim : []).forEach((n) => { if (Number(n) > 0 && !entries.some((e) => e && Number(e.line) === Number(n))) entries.push({ line: Number(n), verdict: 'NO_EXTERNAL_CLAIM' }); });
   let ledgerList = [];
   try { const p = JSON.parse(ledgerForClosure); if (Array.isArray(p)) ledgerList = p; } catch (e) {}
-  const LABEL_ON_LINE = /\bhypothes|\bnot (?:yet )?(?:been )?(?:established|known|verified|confirmed|shown|stated)\b|\bwhether\b|\bassum|\buntested\b|\bunvalidated\b|\bIdeaToPlan(?:'s)? (?:reads?|recommends?|hypothesis|assumes?|inference|reading)\b|\bour read\b|\bmay\b|\bmight\b|\bcould\b|\bif\b/i;
+  const intakeText = flat(ctx.founder_context);
+  const LABEL_ON_LINE = /\bhypothes|\bnot (?:yet )?(?:been )?(?:established|known|verified|confirmed|shown|stated|captured)\b|\bwhether\b|\bassum|\buntested\b|\bunvalidated\b|\bIdeaToPlan(?:'s)? (?:reads?|recommends?|hypothesis|assumes?|inference|reading|notes)\b|\bmay\b|\bmight\b|\bcould\b|\bif\b/i;
   required.forEach((r) => {
     const text = revisedForClosure[r.line - 1] || '';
     const mine = entries.filter((e) => e && Number(e.line) === r.line);
@@ -449,19 +477,40 @@ if (verOk && required.length) {
       if (!ids.length) return open('the verdict is SUPPORTED and names no ledger entry');
       const unknown = ids.filter((id) => !ledgerList.some((c) => c.claim_id === id));
       if (unknown.length) return open('the verdict names ' + unknown.join(', ') + ', which is not in the ledger');
-      const uncovered = cited.filter((id) => !ids.some((cid) => (ledgerList.find((c) => c.claim_id === cid).source_ids || []).includes(id)));
+      const sourcesNamed = [...new Set(ids.flatMap((cid) => ledgerList.find((c) => c.claim_id === cid).source_ids || []))];
+      const uncovered = cited.filter((id) => !sourcesNamed.includes(id));
+      if (cited.length && uncovered.length === cited.length) {
+        plan_review.contradicted.push({ line: r.line, edited: r.edited, kind: 'cited source does not carry the support', quote: '', problem: 'The final review named ' + ids.join(', ') + ' as the support for this line. ' + (ids.length === 1 ? 'That entry was' : 'Those entries were') + ' verified on ' + sourcesNamed.join(', ') + '. The line cites ' + cited.join(', ') + ', and none of the entries named comes from there. The citation points at a page that does not carry the statement: cite the source of the entry, or remove the statement.' });
+        verdictAt[r.line] = { verdict: 'UNSUPPORTED' };
+        return;
+      }
       if (uncovered.length) return open('the line cites ' + uncovered.join(', ') + ', and no entry named for it comes from that source');
       plan_review.supported++;
       verdictAt[r.line] = { verdict: 'SUPPORTED', claim_ids: ids };
       return;
     }
-    if (v === 'LABELLED') { if (!LABEL_ON_LINE.test(text)) return open('the verdict is LABELLED and the line carries no label'); plan_review.labelled++; verdictAt[r.line] = { verdict: 'LABELLED' }; return; }
+    if (v === 'FROM_INTAKE') {
+      const q = flat(e.quote);
+      if (q.length < 12) return open('the verdict is FROM_INTAKE and quotes nothing from the founder context');
+      if (!intakeText.includes(q)) return open('the verdict is FROM_INTAKE and the words it quotes are not in the founder context');
+      plan_review.from_intake++;
+      verdictAt[r.line] = { verdict: 'FROM_INTAKE' };
+      return;
+    }
+    if (v === 'LABELLED') {
+      if (!LABEL_ON_LINE.test(text)) {
+        plan_review.contradicted.push({ line: r.line, edited: r.edited, kind: 'called labelled, and the line has no label', quote: s(e.quote), problem: 'The final review judged this line LABELLED: by its own account the line states something the ledger does not state, excused by a label. The line carries no hypothesis, assumption, or not-established wording at all. So the statement is unsupported and unlabelled.' + (s(e.problem) ? ' The reviewer wrote: "' + s(e.problem).slice(0, 200) + '"' : '') });
+        verdictAt[r.line] = { verdict: 'UNSUPPORTED' };
+        return;
+      }
+      plan_review.labelled++; verdictAt[r.line] = { verdict: 'LABELLED' }; return;
+    }
     if (v === 'NO_EXTERNAL_CLAIM') { if (cited.length) return open('the verdict is NO_EXTERNAL_CLAIM and the line cites ' + cited.join(', ')); plan_review.no_external_claim++; return; }
-    open('the verdict is not SUPPORTED, LABELLED, UNSUPPORTED, or NO_EXTERNAL_CLAIM');
+    open('the verdict is not SUPPORTED, FROM_INTAKE, LABELLED, UNSUPPORTED, or NO_EXTERNAL_CLAIM');
   });
   // The list of lines is built by code and can miss one. The reviewer may report an unsupported statement on a line
   // that was not listed. Such a line is real when it exists and is not empty.
-  const listed = new Set(required.map((r) => r.line));
+  const listed = new Set(listedLines.map((r) => r.line));
   entries.filter((e) => e && !listed.has(Number(e.line)) && s(e.verdict).toUpperCase() === 'UNSUPPORTED' && String(revisedForClosure[Number(e.line) - 1] || '').trim()).forEach((e) => {
     if (plan_review.unsupported.some((u) => u.line === Number(e.line))) return;
     plan_review.unsupported.push({ line: Number(e.line), edited: '', quote: s(e.quote), problem: s(e.problem), unlisted: true });
@@ -478,6 +527,7 @@ if (verOk && required.length) {
     plan_review.judged.push({ line: f.line, check: f.check, verdict: v.verdict, claim_ids: v.claim_ids || [] });
     findings.splice(k, 1);
   }
+  plan_review.contradicted.forEach((u, i) => findings.push({ id: 'FC-' + String(i + 1).padStart(3, '0'), severity: 'BLOCKING', source: 'Final review', check: u.kind === 'cited source does not carry the support' ? 'CITED SOURCE DOES NOT CARRY THE STATEMENT' : 'UNSUPPORTED AND NOT LABELLED', section: '', line: u.line, quote: u.quote, occurrences: [{ line: u.line, section: '', quote: u.quote }], problem: u.problem, fix: '' }));
   plan_review.unsupported.forEach((u, i) => findings.push({ id: 'FR-' + String(i + 1).padStart(3, '0'), severity: 'BLOCKING', source: 'Final review', check: 'UNSUPPORTED CLAIM IN THE REVISED PLAN', section: '', line: u.line, quote: u.quote, occurrences: [{ line: u.line, section: '', quote: u.quote }], problem: (u.unlisted ? 'This line was not on the list code built for the final review; the reviewer reported it. ' : u.edited ? 'This line was written or changed by edit ' + u.edited + '. ' : 'This line was not edited, and no earlier finding covered it. ') + (u.problem || 'The final review found a statement of fact that the ledger does not support and the line does not label.'), fix: '' }));
   if (plan_review.unresolved.length) findings.push({ id: 'FR-OPEN', severity: 'BLOCKING', unresolved: true, source: 'Final review', check: 'FINAL REVIEW OF THE REVISED PLAN IS INCOMPLETE', section: '', line: plan_review.unresolved[0].line, quote: '', occurrences: [], problem: plan_review.unresolved.length + ' of the ' + required.length + ' lines of the revised plan that state something about sources, companies, the market, or research have no usable verdict from the final review: ' + plan_review.unresolved.slice(0, 25).map((u) => 'L' + u.line + ' (' + u.why + ')').join('; ') + (plan_review.unresolved.length > 25 ? '; and ' + (plan_review.unresolved.length - 25) + ' more' : '') + '. This is a required check that did not complete, not a defect that was found. The plan is held until those lines have been read.', fix: '' });
 }

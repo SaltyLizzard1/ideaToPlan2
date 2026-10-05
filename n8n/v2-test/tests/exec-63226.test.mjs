@@ -33,7 +33,7 @@ const reviserOutput = (change = {}) => {
   return { choices: [{ message: { content: JSON.stringify(o) } }] };
 };
 const savedEdit = (unit) => { const raw = fx('Revise Plan').choices[0].message.content; return JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)).edits.find((e) => e.unit === unit); };
-const apply = (change) => runNode('apply-revisions.js', { 'Plan Revision Request': fx('Plan Revision Request')[0], 'Assemble Plan': fx('Assemble Plan') }, reviserOutput(change));
+const apply = (change, ev = EV) => runNode('apply-revisions.js', { 'Plan Revision Request': fx('Plan Revision Request')[0], 'Assemble Plan': fx('Assemble Plan'), 'Build Evidence': ev }, reviserOutput(change));
 const ASSEMBLED = fx('Assemble Plan').text.split('\n');
 const rowOnly = (e) => e.new_text.split('\n').filter((l) => /^\s*\|.*\|\s*$/.test(l)).pop();
 const noteOnly = (e) => e.new_text.split('\n').filter((l) => l.trim() && !/^\s*\|.*\|\s*$/.test(l)).join(' ');
@@ -132,7 +132,8 @@ test('table rows: malformed replacements are refused, the row is left as it was,
     [(e) => ({ new_text: rowOnly(e).replace(/\|\s*$/, '| a third cell |') }), /it has 3 cells and the row has 2/],
     [() => ({ new_text: 'Expat US supports global companies and individuals [S1].' }), /it holds no row where the table has one/],
     [(e) => ({ new_text: 'Expat US is the market leader in this space.\n\n' + rowOnly(e) }), /text other than a source-date note beside a table row/],
-    [(e) => ({ new_text: rowOnly(e), section_note: 'Note: S1 and S28 are undated.' }), /names a source its section does not cite \(S28\)/],
+    [(e) => ({ new_text: rowOnly(e), section_note: 'Note: S1 and W1 are undated.' }), /names a source its section does not cite \(W1\)/],
+    [(e) => ({ new_text: rowOnly(e), section_note: 'Note: S1 and S28 are undated.' }), /the note calls S28 undated, and the source record shows "Updated Sept\. 29, 2026/],
     [(e) => ({ new_text: rowOnly(e), section_note: '## 4. Competitive Landscape' }), /would have added a section header/],
     [() => ({ new_text: '' }), /no replacement text was given/],
   ];
@@ -310,7 +311,7 @@ test('closure: the verifier is told what a "not present" answer must contain', a
 const REPLAY = path.join(DIR, 'replay');
 const replayJson = (name) => JSON.parse(readFileSync(path.join(REPLAY, name), 'utf8'));
 const replayResponse = (name) => ({ choices: [{ message: { content: readFileSync(path.join(REPLAY, name), 'utf8') } }], usage: {} });
-const replayRev = () => runNode('apply-revisions.js', { 'Plan Revision Request': replayJson('Plan Revision Request pass 1.json'), 'Assemble Plan': fx('Assemble Plan') }, replayResponse('reviser-output.json'));
+const replayRev = async () => runNode('apply-revisions.js', { 'Plan Revision Request': replayJson('Plan Revision Request pass 1.json'), 'Assemble Plan': fx('Assemble Plan'), 'Build Evidence': await rebuiltEvidence() }, replayResponse('reviser-output.json'));
 // The evidence as the corrected nodes build it from the saved answers of the run: E24 excluded, E44 not yet checked.
 let rebuilt = null;
 const rebuiltEvidence = async () => { if (!rebuilt) rebuilt = await runNode('build-evidence.js', evStubs({ 'Build Recheck Request': (await runNode('build-recheck-request.js', { 'Collect Evidence': fx('Collect Evidence'), 'Build Verification Request': fx('Build Verification Request'), 'Verify Claims': fx('Verify Claims') })).map((i) => i.json) })); return rebuilt; };
@@ -648,11 +649,12 @@ test('focus: no ledger entry of this run says which stage a provider works at', 
   assert.ok(!LEDGER.some((c) => /decision|decid|after (?:a|the) move|post-|already committed|execution/i.test(c.claim + ' ' + c.page_excerpt)));
 });
 
-test('focus: lines 57, 64, 76, 89, 125 and 481 assign providers a post-decision focus and block', async () => {
+test('focus: lines 57, 64, 76, 77, 89, 125 and 481 assign providers a post-decision focus and block', async () => {
   const out = await check();
   for (const n of [64, 125, 481]) assert.match(lineOf(n), /services oriented toward logistics and execution after a relocation decision is made/);
   assert.match(lineOf(89), /Our read: RELONXT, like Expat US, appears to serve people who have already committed to a move and need execution support\./);
-  assert.deepEqual(out.det_issues.filter((i) => /PROVIDER FOCUS/.test(i.type)).map((i) => i.line), [57, 64, 76, 89, 125, 481]);
+  assert.match(lineOf(77), /Our read: Expat US is focused on people who have already made the decision and are moving to the US specifically\./);
+  assert.deepEqual(out.det_issues.filter((i) => /PROVIDER FOCUS/.test(i.type)).map((i) => i.line), [57, 64, 76, 77, 89, 125, 481]);
   out.det_issues.filter((i) => /PROVIDER FOCUS/.test(i.type)).forEach((i) => assert.equal(i.severity, 'BLOCKING'));
   assert.ok(!/L57\b|L125 .*focus|L481\b/i.test(fx('Delivery Gate').blockers_text), 'the run did not block on these lines for this');
 });
@@ -762,7 +764,17 @@ test('63226 recheck: the saved plan, read only, against the corrected checks', a
     'L64 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
     'L76 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
     'L89 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
-  ].concat(['L121 DATE NOT IN THE SOURCE RECORD']).sort());
+  ].concat(['L121 DATE NOT IN THE SOURCE RECORD']).concat([
+    // Found by the rules added after the paid replay, execution 63237.
+    'L77 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
+    'L100 PROVIDER CHARACTERISATION NEEDS VERIFICATION',
+    'L101 PROVIDER CHARACTERISATION NEEDS VERIFICATION',
+    'L125 SUBSTITUTE LIMITATION STATED WITHOUT EVIDENCE',
+    'L127 PAYMENT STATED WITHOUT EVIDENCE',
+    'L27 UNKNOWN STATED AS NONE',
+    'L47 PROBLEM STATED AS CONFIRMED',
+    'L493 PROBLEM STATED AS CONFIRMED',
+  ]).sort());
   // L121 gives W5 the date March 2016. The saved record of the run has no date for W5; the rebuilt record has it.
   assert.ok(!(await check(HELD_PLAN, { ev: await rebuiltEvidence() })).det_issues.some((i) => i.line === 121 && /DATE NOT IN|DATE NOTE IS/.test(i.type)));
   // The two blockers the run raised in error are gone, and nothing is reported at their lines for those checks.
@@ -805,7 +817,7 @@ test('63226 replay: with the corrected Apply Revisions, the L139 gap claim and b
   const out = await check(rev.text, { rev });
   assert.ok(!out.det_issues.some((i) => /COMPETITIVE GAP|UNDATED SOURCES WITHOUT|ONE SOURCE CITED|SOURCE DATE NOTE/.test(i.type)));
   // What the reviser was never asked to fix in the run is still there, and is now reported.
-  assert.deepEqual([...new Set(out.det_issues.filter((i) => i.severity === 'BLOCKING').map((i) => i.type))].sort(), ['CHARACTERISATION NOT FOUND IN THE CITED ENTRIES', 'DATE NOT IN THE SOURCE RECORD', 'PAYMENT STATED WITHOUT EVIDENCE', 'PROVIDER FOCUS STATED WITHOUT EVIDENCE', 'SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE', 'SURVEY FINDING GENERALISED']);
+  assert.deepEqual([...new Set(out.det_issues.filter((i) => i.severity === 'BLOCKING').map((i) => i.type))].sort(), ['CHARACTERISATION NOT FOUND IN THE CITED ENTRIES', 'DATE NOT IN THE SOURCE RECORD', 'PAYMENT STATED WITHOUT EVIDENCE', 'PROBLEM STATED AS CONFIRMED', 'PROVIDER CHARACTERISATION NEEDS VERIFICATION', 'PROVIDER FOCUS STATED WITHOUT EVIDENCE', 'SUBSTITUTE LIMITATION STATED WITHOUT EVIDENCE', 'SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE', 'SURVEY FINDING GENERALISED', 'UNKNOWN STATED AS NONE']);
 });
 
 // ---------------- 6. Rankings of companies ----------------
@@ -872,16 +884,21 @@ test('replay misses: the four defects are now reported by code on the replayed p
   assert.equal(rev.applied_count, 28);
   const out = await check(rev.text, { rev, ev });
   assert.deepEqual(out.det_issues.filter((i) => i.severity === 'BLOCKING' && i.line).map((i) => 'L' + i.line + ' ' + i.type).sort(), [
+    'L102 PROVIDER CHARACTERISATION NEEDS VERIFICATION',
+    'L103 PROVIDER CHARACTERISATION NEEDS VERIFICATION',
     'L127 COMPETITIVE GAP STATED AS A FINDING',
+    'L129 PAYMENT STATED WITHOUT EVIDENCE',
     'L143 CHARACTERISATION NOT FOUND IN THE CITED ENTRIES',
+    'L27 UNKNOWN STATED AS NONE',
     'L485 COMPETITIVE GAP STATED AS A FINDING',
     'L68 SOURCE DATE NOTE IS WRONG',
     'L78 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
+    'L79 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
   ]);
   assert.match(out.det_issues.find((i) => i.line === 143).detail, /"oriented toward logistics and compliance", and the verified entries of S1, S4, S10, S15 do not say that/);
   assert.match(out.det_issues.find((i) => i.line === 68).detail, /W5 is called undated, but its page shows "31\/03\/2016"/);
   // Three are confirmed by code. The characterisation at L143 is a comparison of words, which code cannot decide.
-  assert.deepEqual(out.det_issues.filter((i) => i.needs_judgment).map((i) => i.line), [143]);
+  assert.deepEqual(out.det_issues.filter((i) => i.needs_judgment).map((i) => i.line).sort((a, b) => a - b), [102, 103, 143]);
 });
 
 test('absence: "no page reviewed positions around X" is a finding unless that sentence labels it', async () => {
@@ -998,7 +1015,7 @@ const LABELS = /hypothes|whether|\bmay\b|\bmight\b|\bcould\b|\bif\b|assum|untest
 const scriptedReview = (cc, ev, rev, over = {}) => {
   const ledger = JSON.parse(ev.research_ledger);
   const text = rev.text.split('\n');
-  return cc.review_lines.map((r) => {
+  return cc.review_lines.filter((r) => r.kind !== 'source_row' && r.kind !== 'date_note').map((r) => {
     if (over[r.line]) return { line: r.line, ...over[r.line] };
     const cited = [...new Set(text[r.line - 1].match(/\b[SW]\d+\b/g) || [])];
     if (cited.length) return { line: r.line, verdict: 'SUPPORTED', claim_ids: ledger.filter((c) => cited.some((id) => c.source_ids.includes(id))).map((c) => c.claim_id), quote: '', problem: '' };
@@ -1006,15 +1023,18 @@ const scriptedReview = (cc, ev, rev, over = {}) => {
   });
 };
 
+const needVerdict = (cc) => cc.review_lines.filter((r) => r.kind !== 'source_row' && r.kind !== 'date_note');
+
 test('whole plan: the final review is owed a verdict for edited and untouched lines alike', async () => {
   const ev = await rebuiltEvidence();
   const rev = await replayRev();
   const cc = await check(rev.text, { rev, ev });
   const text = rev.text.split('\n');
-  assert.equal(cc.review_lines.length, 81);
-  assert.equal(cc.review_lines.filter((r) => r.edited).length, 30);
-  // The untouched line the replay missed is on the list, and so is every line that cites a source or names a company.
-  assert.deepEqual(cc.review_lines.find((r) => r.line === 78), { line: 78, edited: '' });
+  assert.equal(cc.review_lines.length, cc.review_coverage.listed);
+  assert.equal(needVerdict(cc).length, cc.review_coverage.needing_a_verdict);
+  assert.ok(cc.review_lines.filter((r) => r.edited).length >= 30);
+  // The untouched line the replay missed is on the list, with its company and that company's entries beside it.
+  assert.deepEqual(cc.review_lines.find((r) => r.line === 78), { line: 78, edited: '', kind: 'profile_row', company: 'Expat US', entries: ['E1', 'E2', 'E3', 'E4', 'E5'] });
   text.forEach((l, i) => { if (/\[[SW]\d+\]/.test(l) || /Expat US|RELONXT|Fragomen|WhereNext|Relocate Now/.test(l)) assert.ok(cc.review_lines.some((r) => r.line === i + 1), 'L' + (i + 1)); });
   assert.ok(cc.review_lines.every((r) => !text[r.line - 1].trim().startsWith('#')));
   const p = JSON.parse(cc.qa_payload);
@@ -1023,18 +1043,20 @@ test('whole plan: the final review is owed a verdict for edited and untouched li
   assert.match(p.messages[0].content, /4\. WHOLE-PLAN REVIEW\. The edits are not the whole plan\./);
   assert.match(p.messages[0].content, /A statement that something is absent \("no page reviewed positions around X"\) is a statement of fact\./);
   const user = p.messages[1].content;
-  assert.match(user, /LINES TO REVIEW \(give one "plan_review" entry for each of these 81 line numbers\)\n.*\bL78\b/);
+  assert.ok(user.includes('LINES TO REVIEW (' + needVerdict(cc).length + ' lines need a verdict; what each one is about is in brackets)'));
+  assert.ok(user.includes('L78 [profile of Expat US; its ledger entries: E1, E2, E3, E4, E5]'));
   assert.ok(user.slice(user.indexOf('REVISED PLAN (complete')).includes('[L78] | Why a customer might choose them | A customer who has already decided to relocate'));
 });
 
 test('whole plan: an answer without the review holds the plan as an incomplete required check', async () => {
   const ev = await rebuiltEvidence();
   const rev = await replayRev();
-  const { out } = await secondPass(rev, replayVerifier(), { review: true, ev });
-  assert.deepEqual([out.plan_review.required, out.plan_review.unresolved.length], [81, 81]);
+  const { cc, out } = await secondPass(rev, replayVerifier(), { review: true, ev });
+  const n = needVerdict(cc).length;
+  assert.deepEqual([out.plan_review.required, out.plan_review.unresolved.length], [n, n]);
   const f = out.findings.find((x) => x.id === 'FR-OPEN');
   assert.deepEqual([f.severity, f.unresolved, f.check], ['BLOCKING', true, 'FINAL REVIEW OF THE REVISED PLAN IS INCOMPLETE']);
-  assert.match(f.problem, /81 of the 81 lines .* have no usable verdict from the final review: L\d+ \(no verdict was given\)/);
+  assert.match(f.problem, new RegExp(n + ' of the ' + n + ' lines .* have no usable verdict from the final review: L\\d+ \\(no verdict was given\\)'));
   const g = await gateOf(out);
   assert.equal(g.blocked, true);
   assert.ok(g.unresolved_check_count >= 1);
@@ -1049,33 +1071,39 @@ test('whole plan: an unsupported verdict on an untouched line is a confirmed blo
   const { out } = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: review })), { review: true, ev });
   assert.deepEqual(out.plan_review.unresolved, []);
   assert.deepEqual(out.plan_review.unsupported.map((u) => u.line), [78]);
-  assert.equal(out.plan_review.supported + out.plan_review.labelled + out.plan_review.no_external_claim, 80);
+  assert.equal(out.plan_review.supported + out.plan_review.from_intake + out.plan_review.labelled + out.plan_review.no_external_claim + out.plan_review.contradicted.length, needVerdict(cc).length - 1);
   const f = out.findings.find((x) => x.id === 'FR-001');
   assert.deepEqual([f.severity, f.unresolved, f.check, f.line], ['BLOCKING', undefined, 'UNSUPPORTED CLAIM IN THE REVISED PLAN', 78]);
   assert.match(f.problem, /^This line was not edited, and no earlier finding covered it\. No ledger entry says/);
   assert.ok(!out.findings.some((x) => x.id === 'FR-OPEN'));
 });
 
-test('whole plan: a verdict that code can check and that does not hold up leaves the line unreviewed', async () => {
+test('whole plan: a verdict code cannot use leaves the line unreviewed, which is not a finding', async () => {
   const ev = await rebuiltEvidence();
   const rev = await replayRev();
   const cc = await check(rev.text, { rev, ev });
   const text = rev.text.split('\n');
-  const citedLine = cc.review_lines.find((r) => /\[S15\]/.test(text[r.line - 1]) && !/\[S1\]/.test(text[r.line - 1])).line;
-  const plainLine = cc.review_lines.find((r) => !/\b[SW]\d+\b/.test(text[r.line - 1]) && !LABELS.test(text[r.line - 1])).line;
+  const citedLine = needVerdict(cc).find((r) => /\[S15\]/.test(text[r.line - 1]) && !/\[S1\]/.test(text[r.line - 1])).line;
+  const manyCited = needVerdict(cc).find((r) => /\[S1\] \[S3\] \[S6\]/.test(text[r.line - 1])).line;
+  const plainLine = needVerdict(cc).find((r) => !/\b[SW]\d+\b/.test(text[r.line - 1]) && !LABELS.test(text[r.line - 1])).line;
   const cases = [
     [citedLine, { verdict: 'SUPPORTED', claim_ids: [] }, /SUPPORTED and names no ledger entry/],
     [citedLine, { verdict: 'SUPPORTED', claim_ids: ['E99'] }, /names E99, which is not in the ledger/],
-    [citedLine, { verdict: 'SUPPORTED', claim_ids: ['E1'] }, /the line cites S15, and no entry named for it comes from that source/],
+    // Some of the cited sources are covered by the entries named and some are not: the reviewer may have left one out.
+    [manyCited, { verdict: 'SUPPORTED', claim_ids: ['E1'] }, /the line cites S3, S6, and no entry named for it comes from that source/],
     [citedLine, { verdict: 'NO_EXTERNAL_CLAIM' }, /NO_EXTERNAL_CLAIM and the line cites/],
-    [plainLine, { verdict: 'LABELLED' }, /LABELLED and the line carries no label/],
-    [plainLine, { verdict: 'FINE' }, /the verdict is not SUPPORTED, LABELLED, UNSUPPORTED, or NO_EXTERNAL_CLAIM/],
+    [plainLine, { verdict: 'FROM_INTAKE', quote: '' }, /FROM_INTAKE and quotes nothing from the founder context/],
+    [plainLine, { verdict: 'FROM_INTAKE', quote: 'the founder has run this business for nine years' }, /FROM_INTAKE and the words it quotes are not in the founder context/],
+    [plainLine, { verdict: 'FINE' }, /the verdict is not SUPPORTED, FROM_INTAKE, LABELLED, UNSUPPORTED, or NO_EXTERNAL_CLAIM/],
   ];
   for (const [line, entry, why] of cases) {
     const { out } = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: scriptedReview(cc, ev, rev, { [line]: entry }) })), { review: true, ev });
     assert.deepEqual(out.plan_review.unresolved.map((u) => u.line), [line], String(why));
     assert.match(out.plan_review.unresolved[0].why, why);
-    assert.equal(out.findings.find((x) => x.id === 'FR-OPEN').unresolved, true);
+    assert.deepEqual(out.plan_review.contradicted, []);
+    const open = out.findings.find((x) => x.id === 'FR-OPEN');
+    assert.equal(open.unresolved, true);
+    assert.ok(!out.findings.some((x) => /^F[RC]-\d/.test(x.id)), 'no finding is raised for a line that was not reviewed');
   }
   // Two verdicts for one line, and a line left out, are unreviewed too.
   const full = scriptedReview(cc, ev, rev);
@@ -1085,17 +1113,83 @@ test('whole plan: a verdict that code can check and that does not hold up leaves
   assert.deepEqual(short.out.plan_review.unresolved.map((u) => u.line + ' ' + u.why), [full[0].line + ' no verdict was given']);
 });
 
+test('whole plan: a verdict that shows the defect by its own account is a confirmed finding, not an incomplete check', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const cc = await check(rev.text, { rev, ev });
+  const text = rev.text.split('\n');
+  const citedLine = needVerdict(cc).find((r) => /\[S15\]/.test(text[r.line - 1]) && !/\[S1\]/.test(text[r.line - 1])).line;
+  const plainLine = needVerdict(cc).find((r) => !/\b[SW]\d+\b/.test(text[r.line - 1]) && !LABELS.test(text[r.line - 1])).line;
+  // The reviewer names its support, and none of it is on any page the line cites.
+  const a = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: scriptedReview(cc, ev, rev, { [citedLine]: { verdict: 'SUPPORTED', claim_ids: ['E1'] } }) })), { review: true, ev });
+  assert.deepEqual(a.out.plan_review.contradicted.map((u) => u.line + ' ' + u.kind), [citedLine + ' cited source does not carry the support']);
+  assert.deepEqual(a.out.plan_review.unresolved, []);
+  const fa = a.out.findings.find((x) => x.id === 'FC-001');
+  assert.deepEqual([fa.severity, fa.unresolved, fa.check, fa.line], ['BLOCKING', undefined, 'CITED SOURCE DOES NOT CARRY THE STATEMENT', citedLine]);
+  assert.match(fa.problem, /named E1 as the support for this line\. That entry was verified on S1\. The line cites S15, and none of the entries named comes from there/);
+  // The reviewer says the line is excused by a label, and the line has none.
+  const b = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: scriptedReview(cc, ev, rev, { [plainLine]: { verdict: 'LABELLED' } }) })), { review: true, ev });
+  assert.deepEqual(b.out.plan_review.contradicted.map((u) => u.line + ' ' + u.kind), [plainLine + ' called labelled, and the line has no label']);
+  const fb = b.out.findings.find((x) => x.id === 'FC-001');
+  assert.deepEqual([fb.severity, fb.unresolved, fb.check], ['BLOCKING', undefined, 'UNSUPPORTED AND NOT LABELLED']);
+  assert.ok(!b.out.findings.some((x) => x.id === 'FR-OPEN'));
+  const g = await gateOf(b.out);
+  assert.match(g.blockers_text, /FC-001 \| UNSUPPORTED AND NOT LABELLED/);
+  assert.ok(!/FC-001/.test(g.unresolved_checks_text));
+});
+
+test('whole plan: what the intake states is accepted only with its words, and lines with nothing to judge may be given as numbers', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const cc = await check(rev.text, { rev, ev });
+  const text = rev.text.split('\n');
+  const founderLine = needVerdict(cc).find((r) => r.kind === 'founder' && /firsthand experience living abroad/.test(text[r.line - 1])).line;
+  assert.match(FOUNDER.founder_context, /firsthand experiences living abroad/);
+  const full = scriptedReview(cc, ev, rev, { [founderLine]: { verdict: 'FROM_INTAKE', quote: 'firsthand experiences living abroad' } });
+  // The same answer with every NO_EXTERNAL_CLAIM entry given as a bare line number.
+  const compact = { plan_review: full.filter((e) => e.verdict !== 'NO_EXTERNAL_CLAIM'), no_external_claim: full.filter((e) => e.verdict === 'NO_EXTERNAL_CLAIM').map((e) => e.line) };
+  const one = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: full })), { review: true, ev });
+  const two = await secondPass(rev, replayVerifier((o) => ({ ...o, ...compact })), { review: true, ev });
+  for (const { out } of [one, two]) {
+    assert.equal(out.plan_review.from_intake, 1);
+    assert.deepEqual(out.plan_review.unresolved, []);
+  }
+  assert.equal(two.out.plan_review.no_external_claim, one.out.plan_review.no_external_claim);
+  assert.ok(compact.no_external_claim.length > 10);
+});
+
+test('whole plan: source-only rows and date notes are decided by code and need no verdict', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const cc = await check(rev.text, { rev, ev });
+  const text = rev.text.split('\n');
+  const rows = cc.review_lines.filter((r) => r.kind === 'source_row');
+  assert.ok(rows.length >= 4);
+  rows.forEach((r) => assert.match(text[r.line - 1], /^\| Source \| (?:\[[SW]\d+\]\s*)+\|$/));
+  const notes = cc.review_lines.filter((r) => r.kind === 'date_note');
+  assert.deepEqual(notes.map((r) => r.line + ' ' + r.date_note_ok), ['68 false', '137 true']);
+  // L68 calls W5 undated against a record that dates it: the note is judged on the record, and fails.
+  assert.ok(cc.det_issues.some((i) => i.line === 68 && i.type === 'SOURCE DATE NOTE IS WRONG'));
+  const { out } = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: scriptedReview(cc, ev, rev) })), { review: true, ev });
+  assert.deepEqual(out.plan_review.unresolved, []);
+  assert.equal(out.plan_review.source_rows, rows.length);
+  assert.deepEqual(out.plan_review.date_notes_checked_by_code, [{ line: 68, ok: false }, { line: 137, ok: true }]);
+  // A "no external claim" verdict for a source-only row is not an error, and neither is its absence.
+  const withRow = scriptedReview(cc, ev, rev).concat([{ line: rows[0].line, verdict: 'NO_EXTERNAL_CLAIM' }]);
+  assert.deepEqual((await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: withRow })), { review: true, ev })).out.plan_review.unresolved, []);
+});
+
 test('whole plan: a complete review with no unsupported line adds no finding and does not overrule code', async () => {
   const ev = await rebuiltEvidence();
   const rev = await replayRev();
   const cc = await check(rev.text, { rev, ev });
   const { out } = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: scriptedReview(cc, ev, rev) })), { review: true, ev });
-  assert.ok(!out.findings.some((x) => /^FR-/.test(x.id)));
-  assert.deepEqual([out.plan_review.unsupported.length, out.plan_review.unresolved.length], [0, 0]);
-  // The code findings on the same plan still hold it: the four that code confirms by itself.
-  assert.deepEqual(out.findings.filter((f) => f.severity === 'BLOCKING' && !f.unresolved).map((f) => f.line).sort((a, b) => a - b), [68, 78, 127, 485]);
+  assert.ok(!out.findings.some((x) => /^F[RC]-/.test(x.id)));
+  assert.deepEqual([out.plan_review.unsupported.length, out.plan_review.contradicted.length, out.plan_review.unresolved.length], [0, 0, 0]);
+  // The code findings on the same plan still hold it: the ones code confirms by itself.
+  assert.deepEqual(out.findings.filter((f) => f.severity === 'BLOCKING' && !f.unresolved).map((f) => f.line).sort((a, b) => a - b), [27, 68, 78, 79, 127, 129, 485]);
   // The comparison at L143 was a question, and the review answered it.
-  assert.deepEqual(out.plan_review.judged.map((j) => j.line + ' ' + j.verdict), ['143 SUPPORTED']);
+  assert.ok(out.plan_review.judged.map((j) => j.line + ' ' + j.verdict).includes('143 SUPPORTED'));
 });
 
 // ---------------- 10. W5, the date on its page, and line 68 ----------------
@@ -1175,19 +1269,24 @@ test('judgment: an expansion becomes a confirmed blocker only on the final revie
   assert.match(at[0].problem, /No entry for Expat US mentions luxury relocations/);
 });
 
-test('judgment: with no usable verdict the comparison stays an unresolved check and holds the plan', async () => {
+test('judgment: with no verdict the comparison stays an unresolved check and holds the plan', async () => {
   for (const line of [PARAPHRASE, EXPANSION]) {
-    // No verdict for the line, and then a verdict that fails code's own check (the entry named is from another source).
-    for (const verdictFor of [null, { verdict: 'SUPPORTED', claim_ids: ['E17'] }]) {
-      const { n, out } = await withLastLine(line, verdictFor);
-      const f = out.findings.find((x) => x.line === n && x.needs_judgment);
-      assert.deepEqual([f.severity, f.unresolved, f.check], ['BLOCKING', true, 'CHARACTERISATION NOT FOUND IN THE CITED ENTRIES'], line);
-      const g = await gateOf(out);
-      assert.equal(g.blocked, true);
-      assert.match(g.unresolved_checks_text, /CHARACTERISATION NOT FOUND IN THE CITED ENTRIES \| L\d+/);
-      assert.ok(!g.blockers_text.split('\n').some((l) => /CHARACTERISATION/.test(l) && !/CHECK DID NOT COMPLETE/.test(l)), 'it is never listed as a confirmed defect');
-    }
+    const { n, out } = await withLastLine(line, null);
+    const f = out.findings.find((x) => x.line === n && x.needs_judgment);
+    assert.deepEqual([f.severity, f.unresolved, f.check], ['BLOCKING', true, 'CHARACTERISATION NOT FOUND IN THE CITED ENTRIES'], line);
+    const g = await gateOf(out);
+    assert.equal(g.blocked, true);
+    assert.match(g.unresolved_checks_text, /CHARACTERISATION NOT FOUND IN THE CITED ENTRIES \| L\d+/);
+    assert.ok(!g.blockers_text.split('\n').some((l) => /CHARACTERISATION/.test(l) && !/CHECK DID NOT COMPLETE/.test(l)), 'it is never listed as a confirmed defect');
   }
+});
+
+test('judgment: support named on a page the line does not cite settles the comparison as a citation defect', async () => {
+  // The line cites S1. The reviewer says it is supported, by E17, which was verified on S15.
+  const { n, out } = await withLastLine(EXPANSION, { verdict: 'SUPPORTED', claim_ids: ['E17'] });
+  assert.ok(!out.findings.some((x) => x.line === n && x.needs_judgment), 'the open question is closed');
+  const f = out.findings.find((x) => x.line === n && /^FC-/.test(x.id));
+  assert.deepEqual([f.severity, f.unresolved, f.check], ['BLOCKING', undefined, 'CITED SOURCE DOES NOT CARRY THE STATEMENT']);
 });
 
 test('judgment: without the whole-plan review at all, the comparison is still unresolved, not confirmed', async () => {
@@ -1271,5 +1370,6 @@ test('coverage limit: when the reviewer reports such a line unprompted, it is a 
   const r2 = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: noise })), { review: true, ev });
   assert.ok(!r2.out.findings.some((x) => x.line === n || x.line === 9999));
   const report = await reportOf(rev, cc2, out);
-  assert.match(report, /Coverage limit: the lines listed for this review are those that cite a source, name a company, or use a topic word\. A statement of fact on any other line is read only if the reviewer reports it unprompted\./);
+  assert.match(report, /COVERAGE: \d+ of \d+ lines of text were on the review list \(.*\)\. NOT ON THE LIST \(\d+\): L3, .*A statement of fact on one of them is read only if the reviewer reports it unprompted\./);
+  assert.ok(cc.review_coverage.not_listed.includes(n));
 });
