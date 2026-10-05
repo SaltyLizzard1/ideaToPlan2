@@ -805,7 +805,7 @@ test('63226 replay: with the corrected Apply Revisions, the L139 gap claim and b
   const out = await check(rev.text, { rev });
   assert.ok(!out.det_issues.some((i) => /COMPETITIVE GAP|UNDATED SOURCES WITHOUT|ONE SOURCE CITED|SOURCE DATE NOTE/.test(i.type)));
   // What the reviser was never asked to fix in the run is still there, and is now reported.
-  assert.deepEqual([...new Set(out.det_issues.filter((i) => i.severity === 'BLOCKING').map((i) => i.type))].sort(), ['DATE NOT IN THE SOURCE RECORD', 'PAYMENT STATED WITHOUT EVIDENCE', 'PROVIDER FOCUS STATED WITHOUT EVIDENCE', 'SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE', 'SURVEY FINDING GENERALISED']);
+  assert.deepEqual([...new Set(out.det_issues.filter((i) => i.severity === 'BLOCKING').map((i) => i.type))].sort(), ['CHARACTERISATION NOT FOUND IN THE CITED ENTRIES', 'DATE NOT IN THE SOURCE RECORD', 'PAYMENT STATED WITHOUT EVIDENCE', 'PROVIDER FOCUS STATED WITHOUT EVIDENCE', 'SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE', 'SURVEY FINDING GENERALISED']);
 });
 
 // ---------------- 6. Rankings of companies ----------------
@@ -873,13 +873,15 @@ test('replay misses: the four defects are now reported by code on the replayed p
   const out = await check(rev.text, { rev, ev });
   assert.deepEqual(out.det_issues.filter((i) => i.severity === 'BLOCKING' && i.line).map((i) => 'L' + i.line + ' ' + i.type).sort(), [
     'L127 COMPETITIVE GAP STATED AS A FINDING',
-    'L143 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
+    'L143 CHARACTERISATION NOT FOUND IN THE CITED ENTRIES',
     'L485 COMPETITIVE GAP STATED AS A FINDING',
     'L68 SOURCE DATE NOTE IS WRONG',
     'L78 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
   ]);
   assert.match(out.det_issues.find((i) => i.line === 143).detail, /"oriented toward logistics and compliance", and the verified entries of S1, S4, S10, S15 do not say that/);
   assert.match(out.det_issues.find((i) => i.line === 68).detail, /W5 is called undated, but its page shows "31\/03\/2016"/);
+  // Three are confirmed by code. The characterisation at L143 is a comparison of words, which code cannot decide.
+  assert.deepEqual(out.det_issues.filter((i) => i.needs_judgment).map((i) => i.line), [143]);
 });
 
 test('absence: "no page reviewed positions around X" is a finding unless that sentence labels it', async () => {
@@ -906,15 +908,28 @@ test('stage: a stage attributed to a named company blocks wherever the name stan
   ]) assert.deepEqual(only(await onLast(s), /PROVIDER FOCUS/), [], s);
 });
 
-test('characterisation: what pages are said to be oriented toward has to be in the entries of each page cited', async () => {
-  assert.ok((await onLast('The pages reviewed for Expat US [S1] and RELONXT [S4] list services oriented toward logistics and compliance.')).includes(FOCUS));
+const CHAR = 'BLOCKING CHARACTERISATION NOT FOUND IN THE CITED ENTRIES';
+const ITEM = 'BLOCKING LISTED ITEM NOT FOUND IN THE CITED ENTRIES';
+
+test('characterisation: when the words are in the entries of every page cited, code passes it', async () => {
   // Fragomen's verified entry speaks of compliance in its own words.
   assert.match(LEDGER.find((c) => c.claim_id === 'E17').claim, /remain in compliance/);
-  assert.deepEqual(only(await onLast("Fragomen's Digital Nomad Services are focused on compliance [S15]."), /PROVIDER FOCUS/), []);
-  // The same description of Expat US, whose entries do not use the word, blocks.
-  assert.ok((await onLast('Expat US is focused on compliance [S1].')).includes(FOCUS));
-  // A list of what the pages name passes.
-  assert.deepEqual(only(await onLast('The pages reviewed list home search, school search and utility setup [S1] [S4].'), /PROVIDER FOCUS|DETAIL NOT/), []);
+  assert.deepEqual(only(await onLast("Fragomen's Digital Nomad Services are focused on compliance [S15]."), /CHARACTERISATION|PROVIDER FOCUS/), []);
+  assert.deepEqual(only(await onLast('The pages reviewed list home search, school search and utility setup [S1] [S4].'), /CHARACTERISATION|LISTED ITEM/), []);
+});
+
+test('characterisation: different words are a question for the final review, never a confirmed defect', async () => {
+  // A fair paraphrase and an expansion look the same to code: the words are not in the entry. Both are unresolved.
+  assert.match(LEDGER.find((c) => c.claim_id === 'E2').claim, /home search, lease signing, school search and enrollment/);
+  const paraphrase = "Expat US's services are focused on finding accommodation and enrolling children [S1].";
+  const expansion = 'Expat US is focused on luxury relocations for senior executives [S1].';
+  for (const s of [paraphrase, expansion, 'The pages reviewed for Expat US [S1] and RELONXT [S4] list services oriented toward logistics and compliance.']) {
+    const text = HELD_PLAN.replace(/\n+$/, '') + '\n\n' + s + '\n';
+    const issue = (await check(text)).det_issues.find((i) => i.line === text.replace(/\n+$/, '').split('\n').length && /CHARACTERISATION/.test(i.type));
+    assert.equal(issue.severity + ' ' + issue.type, CHAR, s);
+    assert.equal(issue.needs_judgment, true);
+    assert.match(issue.detail, /That is not proof of a defect: the entries may say the same thing differently\. Code cannot judge meaning/);
+  }
 });
 
 test('dates: a date given for a source has to be the date in its record', async () => {
@@ -1077,6 +1092,184 @@ test('whole plan: a complete review with no unsupported line adds no finding and
   const { out } = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: scriptedReview(cc, ev, rev) })), { review: true, ev });
   assert.ok(!out.findings.some((x) => /^FR-/.test(x.id)));
   assert.deepEqual([out.plan_review.unsupported.length, out.plan_review.unresolved.length], [0, 0]);
-  // The code findings on the same plan still hold it.
-  assert.ok(out.findings.filter((f) => f.severity === 'BLOCKING' && !f.unresolved).length >= 5);
+  // The code findings on the same plan still hold it: the four that code confirms by itself.
+  assert.deepEqual(out.findings.filter((f) => f.severity === 'BLOCKING' && !f.unresolved).map((f) => f.line).sort((a, b) => a - b), [68, 78, 127, 485]);
+  // The comparison at L143 was a question, and the review answered it.
+  assert.deepEqual(out.plan_review.judged.map((j) => j.line + ' ' + j.verdict), ['143 SUPPORTED']);
+});
+
+// ---------------- 10. W5, the date on its page, and line 68 ----------------
+
+test('W5: the date on the page is a posting date, the record now says so, and line 68 contradicts the record', async () => {
+  // The page prints the date with its label.
+  assert.match(S7_PAGE.length ? JSON.parse(fx('Fetch Source Pages').pages).find((p) => p.source_id === 'W5').text : '', /Post Author[\s\S]{0,8}31\/03\/2016[\s\S]{0,8}Date Posted/);
+  const ev = await rebuiltEvidence();
+  const w5 = JSON.parse(ev.sources).find((s) => s.id === 'W5');
+  assert.deepEqual([w5.published, w5.published_iso, w5.published_kind], ['31/03/2016', '2016-03-31', 'publication']);
+  assert.match(w5.published_context, /Post Author[\s\S]{0,8}31\/03\/2016[\s\S]{0,8}Date Posted/);
+  // The exact statement of the replayed plan.
+  const rev = await replayRev();
+  const l68 = rev.text.split('\n')[67];
+  assert.equal(l68, 'Note: the pages cited in this section (S1, S3, S4, S6, S10, S13, S15) show no date, so their descriptions may have changed. W5 is also undated in the research record, and its page carries a date of 31/03/2016.');
+  // The failing rule: a source is called undated, and its record carries a date.
+  const issue = (await check(rev.text, { rev, ev })).det_issues.find((i) => i.line === 68);
+  assert.equal(issue.severity + ' ' + issue.type, 'BLOCKING SOURCE DATE NOTE IS WRONG');
+  assert.match(issue.detail, /W5 is called undated, but its page shows "31\/03\/2016"/);
+  assert.equal(issue.needs_judgment, undefined);
+  // The reviser wrote that sentence against the record of the run, in which W5 had no date. Against that record it passes this rule.
+  assert.ok(!(await check(rev.text, { rev })).det_issues.some((i) => i.line === 68 && /SOURCE DATE NOTE IS WRONG/.test(i.type)));
+  // With the sentence stating what the record states, nothing is reported at line 68.
+  const fixed = rev.text.replace('W5 is also undated in the research record, and its page carries a date of 31/03/2016.', 'W5 was posted on 31/03/2016, so what it lists may no longer be current.');
+  assert.deepEqual((await check(fixed, { rev: { ...rev, text: fixed }, ev })).det_issues.filter((i) => i.line === 68), []);
+});
+
+test('W5: other dates on the same page are not its publication date', async () => {
+  const page = JSON.parse(fx('Fetch Source Pages').pages).find((p) => p.source_id === 'W5').text;
+  // The page also shows comment dates and a copyright year.
+  for (const d of ['01/04/2016', '06/05/2020', 'Copyright © 2023']) assert.ok(page.includes(d), d);
+  const ev = await rebuiltEvidence();
+  for (const s of ['The BecomeNomad page [W5] was published on 06/05/2020.', 'The BecomeNomad page [W5] was last updated in 2023, dated 01/04/2016.']) assert.ok((await onLast(s, { ev })).some((x) => /DATE NOT IN|DATE NOTE IS/.test(x)), s);
+});
+
+test('dates: a date with no label next to it is recorded as shown, and may not be called the publication date', async () => {
+  const ev = await rebuiltEvidence();
+  const kinds = Object.fromEntries(JSON.parse(ev.sources).filter((s) => s.published_iso).map((s) => [s.id, s.published_kind]));
+  assert.equal(kinds.W5, 'publication');
+  assert.equal(kinds.S28, 'updated');
+  // The same record with the label taken away: the date is on the page, and what it dates is not known.
+  const bare = { ...ev, sources: JSON.stringify(JSON.parse(ev.sources).map((s) => (s.id === 'W5' ? { ...s, published_kind: 'kind not established' } : s))) };
+  assert.deepEqual(only(await onLast('The BecomeNomad page [W5] carries a date of 31/03/2016.', { ev: bare }), /DATE NOT IN|DATE NOTE IS/), []);
+  const issue = await onLast('The BecomeNomad page [W5] was published on 31/03/2016.', { ev: bare });
+  assert.ok(issue.includes('BLOCKING DATE NOT IN THE SOURCE RECORD'));
+  assert.deepEqual(only(await onLast('The BecomeNomad page [W5] was published on 31/03/2016.', { ev }), /DATE NOT IN|DATE NOTE IS/), []);
+});
+
+// ---------------- 11. Comparisons code cannot decide ----------------
+
+const withLastLine = async (line, verdictFor) => {
+  const ev = await rebuiltEvidence();
+  const base = await replayRev();
+  const text = base.text.replace(/\n+$/, '') + '\n\n' + line + '\n';
+  const rev = { ...base, text };
+  const n = text.replace(/\n+$/, '').split('\n').length;
+  const cc = await check(text, { rev, ev });
+  const review = verdictFor === undefined ? null : scriptedReview(cc, ev, rev, verdictFor === null ? {} : { [n]: verdictFor }).filter((e) => verdictFor !== null || e.line !== n);
+  const { out } = await secondPass(rev, replayVerifier((o) => (review ? { ...o, plan_review: review } : o)), { review: true, ev });
+  return { n, cc, out };
+};
+const PARAPHRASE = "Expat US's services are focused on finding accommodation and enrolling children [S1].";
+const EXPANSION = 'Expat US is focused on luxury relocations for senior executives [S1].';
+
+test('judgment: a fair paraphrase is cleared when the final review names the entry that supports it', async () => {
+  const { n, cc, out } = await withLastLine(PARAPHRASE, { verdict: 'SUPPORTED', claim_ids: ['E2'], quote: '', problem: '' });
+  assert.ok(cc.det_issues.some((i) => i.line === n && i.needs_judgment));
+  // The line was appended after the last section, so the missing date note for S1 there is a separate, real finding.
+  assert.ok(!out.findings.some((f) => f.line === n && !/UNDATED SOURCES/.test(f.check)), 'no finding about the comparison remains at the line');
+  assert.deepEqual(out.plan_review.judged.filter((j) => j.line === n), [{ line: n, check: 'CHARACTERISATION NOT FOUND IN THE CITED ENTRIES', verdict: 'SUPPORTED', claim_ids: ['E2'] }]);
+});
+
+test('judgment: an expansion becomes a confirmed blocker only on the final review\'s verdict', async () => {
+  const { n, out } = await withLastLine(EXPANSION, { verdict: 'UNSUPPORTED', claim_ids: [], quote: 'luxury relocations for senior executives', problem: 'No entry for Expat US mentions luxury relocations or senior executives.' });
+  const at = out.findings.filter((f) => f.line === n && !/UNDATED SOURCES/.test(f.check));
+  assert.deepEqual(at.map((f) => [f.severity, f.check, f.unresolved]), [['BLOCKING', 'UNSUPPORTED CLAIM IN THE REVISED PLAN', undefined]]);
+  assert.match(at[0].problem, /No entry for Expat US mentions luxury relocations/);
+});
+
+test('judgment: with no usable verdict the comparison stays an unresolved check and holds the plan', async () => {
+  for (const line of [PARAPHRASE, EXPANSION]) {
+    // No verdict for the line, and then a verdict that fails code's own check (the entry named is from another source).
+    for (const verdictFor of [null, { verdict: 'SUPPORTED', claim_ids: ['E17'] }]) {
+      const { n, out } = await withLastLine(line, verdictFor);
+      const f = out.findings.find((x) => x.line === n && x.needs_judgment);
+      assert.deepEqual([f.severity, f.unresolved, f.check], ['BLOCKING', true, 'CHARACTERISATION NOT FOUND IN THE CITED ENTRIES'], line);
+      const g = await gateOf(out);
+      assert.equal(g.blocked, true);
+      assert.match(g.unresolved_checks_text, /CHARACTERISATION NOT FOUND IN THE CITED ENTRIES \| L\d+/);
+      assert.ok(!g.blockers_text.split('\n').some((l) => /CHARACTERISATION/.test(l) && !/CHECK DID NOT COMPLETE/.test(l)), 'it is never listed as a confirmed defect');
+    }
+  }
+});
+
+test('judgment: without the whole-plan review at all, the comparison is still unresolved, not confirmed', async () => {
+  const { n, out } = await withLastLine(EXPANSION);
+  const f = out.findings.find((x) => x.line === n && x.needs_judgment);
+  assert.equal(f.unresolved, true);
+});
+
+// ---------------- 12. The list-item check ----------------
+
+test('list items: an item named by a cited entry passes, in an enumeration about one company', async () => {
+  assert.match(LEDGER.find((c) => c.claim_id === 'E2').claim, /temporary housing booking, airport pick up, .* home search, .* school search and enrollment, .* utility setup, banking/);
+  for (const s of [
+    "Expat US's page lists temporary housing, airport pickup, home search, school search and utility setup [S1].",
+    'Expat US offers support including temporary housing, airport pickup, home search, banking and utility setup [S1].',
+  ]) assert.deepEqual(only(await onLast(s), /LISTED ITEM/), [], s);
+  // The profile row of the held plan cites four pages, and every item is in one of their entries.
+  assert.match(lineOf(72), /^\| Offer \| End-to-end relocation support including temporary housing, .* visa guidance, .* \[S1\] \[S3\] \[S6\] \[S7\] \|$/);
+  assert.deepEqual(only(at(await check(), 72), /LISTED ITEM/), []);
+});
+
+test('list items: an item whose words are in no cited entry is a question for the final review', async () => {
+  const text = HELD_PLAN.replace(/\n+$/, '') + "\n\nExpat US's page lists temporary housing, airport pickup, home search, pet transport and school search [S1].\n";
+  const issue = (await check(text)).det_issues.find((i) => /LISTED ITEM/.test(i.type));
+  assert.equal(issue.severity + ' ' + issue.type, ITEM);
+  assert.equal(issue.needs_judgment, true);
+  assert.match(issue.detail, /This list cites S1 and includes "pet transport"\. None of the words of that item is in the verified claims from that page\. That is not proof of a defect/);
+  // A paraphrase of an item the entry does name is flagged the same way, which is why code does not confirm it.
+  const para = await onLast("Expat US's page lists temporary housing, airport pickup, home search, opening an account and school search [S1].");
+  assert.ok(para.includes(ITEM));
+  // What this check does not catch: "visa guidance" in the replayed row at L74. The word "visa" is in a verified entry
+  // of one of the pages still cited, so a word comparison finds support. That line is held by the E44 dependency check.
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const out = await check(rev.text, { rev, ev });
+  assert.deepEqual(out.det_issues.filter((i) => /LISTED ITEM/.test(i.type)), []);
+  assert.match(out.det_issues.find((i) => i.type === 'SOURCE VERIFICATION INCOMPLETE').detail, /E44: L74 says something about Expat US/);
+});
+
+test('list items: ordinary prose, short lists, and sentences about several companies are not read as lists', async () => {
+  for (const s of [
+    'Competing offers from Expat US [S1], RELONXT [S4], and Fragomen [S15] are live, undated, and describe active services.',
+    "Expat US's page lists home search, pet transport and school search [S1].",
+    'Expat US [S1] and RELONXT [S4] each list housing, pet transport, schooling, banking and immigration help.',
+    'The founder plans content covering budgeting, visas, housing, schooling and healthcare.',
+  ]) assert.deepEqual(only(await onLast(s), /LISTED ITEM/), [], s);
+});
+
+// ---------------- 13. What the whole-plan review does not reach ----------------
+
+const NO_CUE = 'Most people who move overseas in their fifties return home within two years.';
+
+test('coverage limit: an uncited statement of fact with no company and no topic word is not on the list', async () => {
+  const { n, cc, out } = await withLastLine(NO_CUE, null);
+  assert.ok(!cc.review_lines.some((r) => r.line === n), 'code did not list the line');
+  // No code check reports it either, and a review that answers only the listed lines says nothing about it.
+  assert.deepEqual(cc.det_issues.filter((i) => i.line === n), []);
+  assert.ok(!out.findings.some((f) => f.line === n));
+  assert.deepEqual(out.plan_review.unresolved, []);
+  // The reviewer is given the whole plan and is told the list can miss a line.
+  const p = JSON.parse(cc.qa_payload);
+  assert.ok(p.messages[1].content.includes('[L' + n + '] ' + NO_CUE));
+  assert.match(p.messages[0].content, /The list is built by code from source IDs, company names, and a few topic words, so it can miss a line: if any other line of the REVISED PLAN states an external fact that is neither supported nor labelled, add an UNSUPPORTED entry for that line as well\./);
+});
+
+test('coverage limit: when the reviewer reports such a line unprompted, it is a confirmed blocker', async () => {
+  const ev = await rebuiltEvidence();
+  const base = await replayRev();
+  const text = base.text.replace(/\n+$/, '') + '\n\n' + NO_CUE + '\n';
+  const rev = { ...base, text };
+  const n = text.replace(/\n+$/, '').split('\n').length;
+  const cc = await check(text, { rev, ev });
+  const review = scriptedReview(cc, ev, rev).concat([{ line: n, verdict: 'UNSUPPORTED', claim_ids: [], quote: 'return home within two years', problem: 'No ledger entry reports how many people return, or when.' }]);
+  const { cc: cc2, out } = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: review })), { review: true, ev });
+  const f = out.findings.find((x) => x.line === n);
+  assert.deepEqual([f.severity, f.check, f.unresolved], ['BLOCKING', 'UNSUPPORTED CLAIM IN THE REVISED PLAN', undefined]);
+  assert.match(f.problem, /^This line was not on the list code built for the final review; the reviewer reported it\./);
+  assert.deepEqual(out.plan_review.added_by_reviewer, [n]);
+  // A verdict other than UNSUPPORTED for an unlisted line, or one for a line that does not exist, changes nothing.
+  const noise = scriptedReview(cc, ev, rev).concat([{ line: n, verdict: 'SUPPORTED', claim_ids: ['E1'] }, { line: 9999, verdict: 'UNSUPPORTED', quote: 'x', problem: 'y' }]);
+  const r2 = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: noise })), { review: true, ev });
+  assert.ok(!r2.out.findings.some((x) => x.line === n || x.line === 9999));
+  const report = await reportOf(rev, cc2, out);
+  assert.match(report, /Coverage limit: the lines listed for this review are those that cite a source, name a company, or use a topic word\. A statement of fact on any other line is read only if the reviewer reports it unprompted\./);
 });

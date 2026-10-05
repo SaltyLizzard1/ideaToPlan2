@@ -369,6 +369,15 @@ sources.forEach((s) => {
     s.future_date_shown = date;
   } else if (shown) {
     s.published = date;
+    // WHAT KIND OF DATE. A page shows many dates: when it was posted, when it was updated, the dates of its comments,
+    // a copyright year. The verifier is asked for the publication or last-updated date. The words the page prints
+    // next to the date say which it is: "31/03/2016 / Date Posted" is a publication date. With no such words the
+    // date is recorded as shown on the page and its kind is not established.
+    const whole = ws(p.text);
+    const at = whole.indexOf(date);
+    const near = whole.slice(Math.max(0, at - 60), at + date.length + 60);
+    s.published_context = near;
+    s.published_kind = /\b(?:last\s+)?(?:updated|modified|revised)\b/i.test(date + ' ' + near) ? 'updated' : /\b(?:date posted|posted|published|publication date|written on)\b/i.test(date + ' ' + near) ? 'publication' : 'kind not established';
     s.published_basis = 'shown on the fetched page' + (when === null ? ' (not parsed, so not compared with the run date)' : ', on or before the run date ' + runDate.iso);
     if (when !== null) s.published_iso = new Date(when).toISOString().slice(0, 10);
   } else { s.published = 'date not shown'; s.published_basis = p.outcome === 'ok' ? 'no publication date found on the fetched page' : 'page could not be read (' + p.outcome + ')'; }

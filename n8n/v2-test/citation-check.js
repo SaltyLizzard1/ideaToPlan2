@@ -27,7 +27,7 @@ if (G) {
 const known = new Set(sources.map((s) => s.id));
 const issues = [];
 const short = (l) => l.trim().slice(0, 200);
-const add = (severity, type, detail, quote, line) => issues.push({ severity, type, detail, quote: quote || '', line: line || null });
+const add = (severity, type, detail, quote, line, extra) => issues.push({ severity, type, detail, quote: quote || '', line: line || null, ...(extra || {}) });
 
 if (!plan) add('BLOCKING', 'NO PLAN TEXT', 'The plan text is empty.');
 if (truncated) add('BLOCKING', 'TRUNCATED', 'The writer hit its token limit. The plan is incomplete.');
@@ -906,7 +906,11 @@ lines.forEach((line, i) => {
     detail = '"' + m[0].trim().slice(0, 90) + '", and the verified entries of ' + lacking.map((x) => x.id).join(', ') + ' do not say that';
     return true;
   });
-  if (hit) add('BLOCKING', 'PROVIDER FOCUS STATED WITHOUT EVIDENCE', 'This text characterises the pages it cites: ' + detail + '. The entries list services in each company\'s own words; a summary of what they are oriented toward is IdeaToPlan\'s description, not theirs. Say what each page lists, with its source ID, or state the characterisation as IdeaToPlan\'s reading with no source ID.', short(hit), i + 1);
+  // DIFFERENT WORDS ARE NOT A DEFECT. "Focused on finding a home" may be a fair paraphrase of an entry that says
+  // "home search". Code compares words and cannot tell a paraphrase from an expansion, so it never confirms a defect
+  // here. It reports that it could not find the support: a required check with no result, which holds the plan until
+  // the final review has judged the line (SUPPORTED with the entries named, or UNSUPPORTED).
+  if (hit) add('BLOCKING', 'CHARACTERISATION NOT FOUND IN THE CITED ENTRIES', 'This text characterises the pages it cites: ' + detail + ' in those words. That is not proof of a defect: the entries may say the same thing differently. Code cannot judge meaning, so this needs the final review\'s verdict on this line. If it is an expansion, say what each page lists, with its source ID, or state the characterisation as IdeaToPlan\'s reading with no source ID.', short(hit), i + 1, { needs_judgment: true });
 });
 // (b) A list. "Temporary housing, airport pickup, home search, visa guidance [S1] [S3] [S6]" is checked item by
 //     item: an item none of whose words is in the entries of the pages cited was not verified on those pages.
@@ -932,11 +936,11 @@ lines.forEach((line, i) => {
     ids = cited;
     return loose.length > 0;
   });
-  if (hit) add('BLOCKING', 'DETAIL NOT IN THE VERIFIED CLAIMS', 'This list cites ' + ids.join(', ') + ' and includes ' + loose.map((x) => '"' + x.slice(0, 40) + '"').join(', ') + ', which no verified claim from ' + (ids.length === 1 ? 'that page' : 'those pages') + ' states. An item is supported only when a ledger entry for a cited page names it. Remove the item, or cite the entry that states it.', short(hit), i + 1);
+  if (hit) add('BLOCKING', 'LISTED ITEM NOT FOUND IN THE CITED ENTRIES', 'This list cites ' + ids.join(', ') + ' and includes ' + loose.map((x) => '"' + x.slice(0, 40) + '"').join(', ') + '. None of the words of ' + (loose.length === 1 ? 'that item' : 'those items') + ' is in the verified claims from ' + (ids.length === 1 ? 'that page' : 'those pages') + '. That is not proof of a defect: an entry may name the same thing in other words. Code cannot judge meaning, so this needs the final review\'s verdict on this line. If no entry names the item, remove it or cite the entry that does.', short(hit), i + 1, { needs_judgment: true });
 });
 // (c) A date. A date given for a source has to be the date in that source's record.
 const NUM_DATE = /\b(\d{1,2})[\/.](\d{1,2})[\/.]((?:19|20)\d{2})\b/g;
-const datesStated = (v) => { const out = statedDates(v); let m; NUM_DATE.lastIndex = 0; while ((m = NUM_DATE.exec(v)) !== null) { const a = +m[1], b = +m[2]; out.push({ y: +m[3], mo: a > 12 ? b - 1 : b > 12 ? a - 1 : -1 }); } return out; };
+const datesStated = (v) => { const out = statedDates(v); let m; NUM_DATE.lastIndex = 0; while ((m = NUM_DATE.exec(v)) !== null) { const a = +m[1], b = +m[2]; out.push({ y: +m[3], mo: a > 12 ? b - 1 : b > 12 ? a - 1 : -1, day: a > 12 ? a : b > 12 ? b : 0, raw: m[0] }); } return out; };
 const DATE_SAID = /\b(?:dated?|published|updated|publication)\b/i;
 lines.forEach((line, i) => {
   const t = line.trim();
@@ -950,8 +954,12 @@ lines.forEach((line, i) => {
     let ids = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);
     if (!ids.length) ids = [...new Set(t.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);
     if (!ids.length) return false;
-    const agrees = ids.some((id) => { const iso = String(srcById[id].published_iso || ''); return !!iso && stated.some((d) => d.y === +iso.slice(0, 4) && (d.mo < 0 || d.mo === +iso.slice(5, 7) - 1)); });
-    if (agrees) return false;
+    const agrees = ids.some((id) => { const iso = String(srcById[id].published_iso || ''); return !!iso && stated.some((d) => d.raw ? (String(srcById[id].published || '').includes(d.raw) || (d.mo >= 0 && d.y === +iso.slice(0, 4) && d.mo === +iso.slice(5, 7) - 1 && d.day === +iso.slice(8, 10))) : (d.y === +iso.slice(0, 4) && (d.mo < 0 || d.mo === +iso.slice(5, 7) - 1))); });
+    // The record has this date. Calling it the publication date needs the record to say what kind of date it is.
+    const saysPublished = /\b(?:published|posted|publication date)\b/i.test(seg);
+    const kinds = ids.filter((id) => srcById[id].published_iso).map((id) => String(srcById[id].published_kind || ''));
+    if (agrees && !(saysPublished && kinds.length && kinds.every((k) => k === 'kind not established'))) return false;
+    if (agrees) { detail = ids.map((id) => id + ': "' + srcById[id].published + '" is shown on the page, and nothing next to it says it is the date of publication').join('; '); return true; }
     detail = ids.map((id) => id + ': ' + (srcById[id].published_iso ? '"' + srcById[id].published + '"' : 'no date (' + (srcById[id].published_basis || srcById[id].published || 'none recorded') + ')')).join('; ');
     return true;
   });
@@ -1192,7 +1200,7 @@ const verifySystem = `You are verifying an automated revision of an IdeaToPlan b
 
 3. PASSAGES LEFT UNCHANGED lists passages the reviser was asked to correct that stand as they were: the reviser returned them unchanged, gave no edit, or gave a replacement that code refused. Nothing was edited there. For each one, read the passage and decide whether the finding's root problem is in that passage as it stands: "present" is true when it is, false when the passage does not contain the problem (for example it is already worded as a labelled hypothesis). Do not assume the passage is acceptable because it was left alone, and do not assume it is defective because it was listed. Each passage is shown with its section and with any note about source dates that stands in that section. Read the passage in that context: when the finding is that a source is undated and not flagged, a note in the same section that accurately covers the passage's sources answers it, and the problem is not present in that passage. A note in a different section does not count, and a note that does not cover the passage's sources does not count. Give one answer for every unit and finding id listed. An answer of "present": false closes a finding that nobody edited, so it has to be justified: "reason" says, in one or two sentences about this finding, why the root problem is not in the passage; "basis" names what you rely on, "passage", "section_note", or "ledger"; and "quote" copies, exactly, the words you rely on from the passage, from a line of the same section, or from the evidence ledger entry. A false answer with no reason, with a reason that describes the problem as being there, or with a quote that is not in the passage, its section, or the ledger is discarded and the finding stays open. When you are not sure, answer true. For "present": true, give the reason and leave "quote" empty. Where a finding is about undated or dated sources, judge it against SOURCE DATES BY SECTION OF THE REVISED PLAN: what the section cites now, not the sources the finding listed when it was written.
 
-4. WHOLE-PLAN REVIEW. The edits are not the whole plan. LINES TO REVIEW lists every line of the revised plan that cites a source, names a company, or speaks about competitors, the market, or research, whether or not it was edited. Read each one in the REVISED PLAN and give exactly one "plan_review" entry for it. Verdicts: SUPPORTED when every external statement on the line is stated by the ledger entries you name in "claim_ids", with the same subject, the same qualifiers (from, about, nearly, per month), the same date, the same population and sample, and no wider scope than the entry (one company is not all providers; a sample is not a population; two companies are not a ranking of five). LABELLED when every statement the ledger does not state is, in its own sentence, worded as a hypothesis, an assumption, a recommendation or reading of IdeaToPlan, or as not established; a label in a neighbouring sentence does not cover it. UNSUPPORTED when any statement of fact on the line is neither: quote the words and say what is missing. NO_EXTERNAL_CLAIM when the line says nothing about anyone but the founder, this plan, or its model. A statement that something is absent ("no page reviewed positions around X") is a statement of fact. A date given for a source must be the date SOURCES gives it. A line with a source ID is never NO_EXTERNAL_CLAIM. When you are not sure, answer UNSUPPORTED. A line you leave out holds the plan.
+4. WHOLE-PLAN REVIEW. The edits are not the whole plan. LINES TO REVIEW lists every line of the revised plan that cites a source, names a company, or speaks about competitors, the market, or research, whether or not it was edited. Read each one in the REVISED PLAN and give exactly one "plan_review" entry for it. Verdicts: SUPPORTED when every external statement on the line is stated by the ledger entries you name in "claim_ids", with the same subject, the same qualifiers (from, about, nearly, per month), the same date, the same population and sample, and no wider scope than the entry (one company is not all providers; a sample is not a population; two companies are not a ranking of five). LABELLED when every statement the ledger does not state is, in its own sentence, worded as a hypothesis, an assumption, a recommendation or reading of IdeaToPlan, or as not established; a label in a neighbouring sentence does not cover it. UNSUPPORTED when any statement of fact on the line is neither: quote the words and say what is missing. NO_EXTERNAL_CLAIM when the line says nothing about anyone but the founder, this plan, or its model. A statement that something is absent ("no page reviewed positions around X") is a statement of fact. A date given for a source must be the date SOURCES gives it. A line with a source ID is never NO_EXTERNAL_CLAIM. When you are not sure, answer UNSUPPORTED. A line you leave out holds the plan. The list is built by code from source IDs, company names, and a few topic words, so it can miss a line: if any other line of the REVISED PLAN states an external fact that is neither supported nor labelled, add an UNSUPPORTED entry for that line as well.
 
 ${SEVERITY}
 
@@ -1273,6 +1281,8 @@ if (attempt) {
     sectionDates.filter((d) => d.used.length).map((d) => 'Section ' + d.no + '. ' + d.title + ' | cites ' + d.used.join(', ') + ' | undated: ' + (d.undated.join(', ') || 'none') + ' | dated: ' + (d.dated.join(', ') || 'none') + ' | date notes at: ' + (d.note_lines.map((n) => 'L' + n).join(', ') || 'none') + ' | undated sources with no note: ' + (d.missing.join(', ') || 'none')).join('\n') || 'No section cites a source.',
     '', 'SOURCES CITED IN THE REVISED PLAN', JSON.stringify(sources.filter((x) => citedInPlan.has(x.id)).map(({ id, kind, title, domain, published }) => ({ id, kind, title, domain, published })), null, 1),
     '', 'LINES TO REVIEW (give one "plan_review" entry for each of these ' + reviewLines.length + ' line numbers)', reviewLines.map((r) => 'L' + r.line + (r.edited ? ' (edited by ' + r.edited + ')' : '')).join(', ') || 'None.',
+    '', 'COMPARISONS CODE COULD NOT DECIDE (the words of these lines are not in the entries they cite; that may be a paraphrase or an expansion, and your plan_review verdict for the line decides it)',
+    issues.filter((x) => x.needs_judgment && x.line).map((x) => 'L' + x.line + ' | ' + x.type + ' | ' + x.detail.slice(0, 300)).join('\n') || 'None.',
     '', 'REVISED PLAN (complete, for the whole-plan review)', numbered,
   ].join('\n');
 }

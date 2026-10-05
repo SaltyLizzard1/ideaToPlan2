@@ -1,0 +1,34 @@
+[
+ {
+  "find": "const add = (severity, type, detail, quote, line) => issues.push({ severity, type, detail, quote: quote || '', line: line || null });",
+  "replace": "const add = (severity, type, detail, quote, line, extra) => issues.push({ severity, type, detail, quote: quote || '', line: line || null, ...(extra || {}) });"
+ },
+ {
+  "find": "  if (hit) add('BLOCKING', 'PROVIDER FOCUS STATED WITHOUT EVIDENCE', 'This text characterises the pages it cites: ' + detail + '. The entries list services in each company\\'s own words; a summary of what they are oriented toward is IdeaToPlan\\'s description, not theirs. Say what each page lists, with its source ID, or state the characterisation as IdeaToPlan\\'s reading with no source ID.', short(hit), i + 1);",
+  "replace": "  // DIFFERENT WORDS ARE NOT A DEFECT. \"Focused on finding a home\" may be a fair paraphrase of an entry that says\n  // \"home search\". Code compares words and cannot tell a paraphrase from an expansion, so it never confirms a defect\n  // here. It reports that it could not find the support: a required check with no result, which holds the plan until\n  // the final review has judged the line (SUPPORTED with the entries named, or UNSUPPORTED).\n  if (hit) add('BLOCKING', 'CHARACTERISATION NOT FOUND IN THE CITED ENTRIES', 'This text characterises the pages it cites: ' + detail + ' in those words. That is not proof of a defect: the entries may say the same thing differently. Code cannot judge meaning, so this needs the final review\\'s verdict on this line. If it is an expansion, say what each page lists, with its source ID, or state the characterisation as IdeaToPlan\\'s reading with no source ID.', short(hit), i + 1, { needs_judgment: true });"
+ },
+ {
+  "find": "  if (hit) add('BLOCKING', 'DETAIL NOT IN THE VERIFIED CLAIMS', 'This list cites ' + ids.join(', ') + ' and includes ' + loose.map((x) => '\"' + x.slice(0, 40) + '\"').join(', ') + ', which no verified claim from ' + (ids.length === 1 ? 'that page' : 'those pages') + ' states. An item is supported only when a ledger entry for a cited page names it. Remove the item, or cite the entry that states it.', short(hit), i + 1);",
+  "replace": "  if (hit) add('BLOCKING', 'LISTED ITEM NOT FOUND IN THE CITED ENTRIES', 'This list cites ' + ids.join(', ') + ' and includes ' + loose.map((x) => '\"' + x.slice(0, 40) + '\"').join(', ') + '. None of the words of ' + (loose.length === 1 ? 'that item' : 'those items') + ' is in the verified claims from ' + (ids.length === 1 ? 'that page' : 'those pages') + '. That is not proof of a defect: an entry may name the same thing in other words. Code cannot judge meaning, so this needs the final review\\'s verdict on this line. If no entry names the item, remove it or cite the entry that does.', short(hit), i + 1, { needs_judgment: true });"
+ },
+ {
+  "find": "    if (agrees) return false;",
+  "replace": "    // The record has this date. Calling it the publication date needs the record to say what kind of date it is.\n    const saysPublished = /\\b(?:published|posted|publication date)\\b/i.test(seg);\n    const kinds = ids.filter((id) => srcById[id].published_iso).map((id) => String(srcById[id].published_kind || ''));\n    if (agrees && !(saysPublished && kinds.length && kinds.every((k) => k === 'kind not established'))) return false;\n    if (agrees) { detail = ids.map((id) => id + ': \"' + srcById[id].published + '\" is shown on the page, and nothing next to it says it is the date of publication').join('; '); return true; }"
+ },
+ {
+  "find": "    '', 'REVISED PLAN (complete, for the whole-plan review)', numbered,",
+  "replace": "    '', 'COMPARISONS CODE COULD NOT DECIDE (the words of these lines are not in the entries they cite; that may be a paraphrase or an expansion, and your plan_review verdict for the line decides it)',\n    issues.filter((x) => x.needs_judgment && x.line).map((x) => 'L' + x.line + ' | ' + x.type + ' | ' + x.detail.slice(0, 300)).join('\\n') || 'None.',\n    '', 'REVISED PLAN (complete, for the whole-plan review)', numbered,"
+ },
+ {
+  "find": "A line you leave out holds the plan.",
+  "replace": "A line you leave out holds the plan. The list is built by code from source IDs, company names, and a few topic words, so it can miss a line: if any other line of the REVISED PLAN states an external fact that is neither supported nor labelled, add an UNSUPPORTED entry for that line as well."
+ },
+ {
+  "find": "out.push({ y: +m[3], mo: a > 12 ? b - 1 : b > 12 ? a - 1 : -1 }); } return out; };",
+  "replace": "out.push({ y: +m[3], mo: a > 12 ? b - 1 : b > 12 ? a - 1 : -1, day: a > 12 ? a : b > 12 ? b : 0, raw: m[0] }); } return out; };"
+ },
+ {
+  "find": "return !!iso && stated.some((d) => d.y === +iso.slice(0, 4) && (d.mo < 0 || d.mo === +iso.slice(5, 7) - 1)); });",
+  "replace": "return !!iso && stated.some((d) => d.raw ? (String(srcById[id].published || '').includes(d.raw) || (d.mo >= 0 && d.y === +iso.slice(0, 4) && d.mo === +iso.slice(5, 7) - 1 && d.day === +iso.slice(8, 10))) : (d.y === +iso.slice(0, 4) && (d.mo < 0 || d.mo === +iso.slice(5, 7) - 1))); });"
+ }
+]

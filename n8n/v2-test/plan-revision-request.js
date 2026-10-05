@@ -27,7 +27,7 @@ const lineNo = (v) => { const n = parseInt(String(v).replace(/[^0-9]/g, ''), 10)
 // A check that did not complete (the source verifier or the reviewer returned nothing usable) holds the plan, and is
 // marked unresolved: it is not a defect that was found.
 const INCOMPLETE_CHECK = /^(?:SOURCE VERIFICATION INCOMPLETE|SOURCE VERIFICATION DID NOT RUN|QA DID NOT RUN|VERIFICATION DID NOT RUN)$/;
-const fromAuto = (i) => ({ severity: i.severity, ...(INCOMPLETE_CHECK.test(i.type) ? { unresolved: true } : {}), source: 'Automated check', check: i.type, problem: i.detail, fix: '', occurrences: i.line ? [{ line: i.line, section: '', quote: i.quote || '' }] : [], line: i.line || null, quote: i.quote || '', section: '' });
+const fromAuto = (i) => ({ severity: i.severity, ...(INCOMPLETE_CHECK.test(i.type) || i.needs_judgment ? { unresolved: true } : {}), ...(i.needs_judgment ? { needs_judgment: true } : {}), source: 'Automated check', check: i.type, problem: i.detail, fix: '', occurrences: i.line ? [{ line: i.line, section: '', quote: i.quote || '' }] : [], line: i.line || null, quote: i.quote || '', section: '' });
 // A QA finding is one root problem with one or more occurrences.
 const fromQa = (f, source, fallback) => {
   const occ = (Array.isArray(f.occurrences) ? f.occurrences : []).map((o) => ({ line: lineNo(o && o.line), section: s(o && o.section), quote: s(o && o.quote) })).filter((o) => o.line);
@@ -427,7 +427,9 @@ same_claim_elsewhere.filter((d) => d.certain).forEach((d, i) => findings.push({ 
 // A line with no verdict, two verdicts, or a verdict that fails these checks is not reviewed. That is a required
 // check that did not complete: the plan is held, and the lines are listed.
 const required = cc.review_lines || [];
-const plan_review = { required: required.length, supported: 0, labelled: 0, no_external_claim: 0, unsupported: [], unresolved: [] };
+const plan_review = { required: required.length, supported: 0, labelled: 0, no_external_claim: 0, unsupported: [], unresolved: [], added_by_reviewer: [], judged: [] };
+// The verdict the final review gave for a line, kept only when it passed the checks below.
+const verdictAt = {};
 if (verOk && required.length) {
   const entries = Array.isArray(qa.plan_review) ? qa.plan_review : [];
   let ledgerList = [];
@@ -441,7 +443,7 @@ if (verOk && required.length) {
     const e = mine[0];
     const v = s(e.verdict).toUpperCase().replace(/[\s-]+/g, '_');
     const cited = [...new Set(text.match(/\b[SW]\d+\b/g) || [])];
-    if (v === 'UNSUPPORTED') { plan_review.unsupported.push({ line: r.line, edited: r.edited, quote: s(e.quote), problem: s(e.problem) }); return; }
+    if (v === 'UNSUPPORTED') { plan_review.unsupported.push({ line: r.line, edited: r.edited, quote: s(e.quote), problem: s(e.problem) }); verdictAt[r.line] = { verdict: 'UNSUPPORTED' }; return; }
     if (v === 'SUPPORTED') {
       const ids = [...new Set((Array.isArray(e.claim_ids) ? e.claim_ids : []).map((x) => s(x).toUpperCase()).filter(Boolean))];
       if (!ids.length) return open('the verdict is SUPPORTED and names no ledger entry');
@@ -450,13 +452,33 @@ if (verOk && required.length) {
       const uncovered = cited.filter((id) => !ids.some((cid) => (ledgerList.find((c) => c.claim_id === cid).source_ids || []).includes(id)));
       if (uncovered.length) return open('the line cites ' + uncovered.join(', ') + ', and no entry named for it comes from that source');
       plan_review.supported++;
+      verdictAt[r.line] = { verdict: 'SUPPORTED', claim_ids: ids };
       return;
     }
-    if (v === 'LABELLED') { if (!LABEL_ON_LINE.test(text)) return open('the verdict is LABELLED and the line carries no label'); plan_review.labelled++; return; }
+    if (v === 'LABELLED') { if (!LABEL_ON_LINE.test(text)) return open('the verdict is LABELLED and the line carries no label'); plan_review.labelled++; verdictAt[r.line] = { verdict: 'LABELLED' }; return; }
     if (v === 'NO_EXTERNAL_CLAIM') { if (cited.length) return open('the verdict is NO_EXTERNAL_CLAIM and the line cites ' + cited.join(', ')); plan_review.no_external_claim++; return; }
     open('the verdict is not SUPPORTED, LABELLED, UNSUPPORTED, or NO_EXTERNAL_CLAIM');
   });
-  plan_review.unsupported.forEach((u, i) => findings.push({ id: 'FR-' + String(i + 1).padStart(3, '0'), severity: 'BLOCKING', source: 'Final review', check: 'UNSUPPORTED CLAIM IN THE REVISED PLAN', section: '', line: u.line, quote: u.quote, occurrences: [{ line: u.line, section: '', quote: u.quote }], problem: (u.edited ? 'This line was written or changed by edit ' + u.edited + '. ' : 'This line was not edited, and no earlier finding covered it. ') + (u.problem || 'The final review found a statement of fact that the ledger does not support and the line does not label.'), fix: '' }));
+  // The list of lines is built by code and can miss one. The reviewer may report an unsupported statement on a line
+  // that was not listed. Such a line is real when it exists and is not empty.
+  const listed = new Set(required.map((r) => r.line));
+  entries.filter((e) => e && !listed.has(Number(e.line)) && s(e.verdict).toUpperCase() === 'UNSUPPORTED' && String(revisedForClosure[Number(e.line) - 1] || '').trim()).forEach((e) => {
+    if (plan_review.unsupported.some((u) => u.line === Number(e.line))) return;
+    plan_review.unsupported.push({ line: Number(e.line), edited: '', quote: s(e.quote), problem: s(e.problem), unlisted: true });
+    plan_review.added_by_reviewer.push(Number(e.line));
+  });
+  // COMPARISONS CODE COULD NOT DECIDE. Code found that the words of a line are not in the entries it cites. That is a
+  // question, not an answer. The reviewer's verdict for the line answers it: SUPPORTED or LABELLED closes the question,
+  // UNSUPPORTED turns it into the confirmed finding below, and no usable verdict leaves it open, which holds the plan.
+  for (let k = findings.length - 1; k >= 0; k--) {
+    const f = findings[k];
+    if (!f.needs_judgment || !f.line) continue;
+    const v = verdictAt[f.line];
+    if (!v) continue;
+    plan_review.judged.push({ line: f.line, check: f.check, verdict: v.verdict, claim_ids: v.claim_ids || [] });
+    findings.splice(k, 1);
+  }
+  plan_review.unsupported.forEach((u, i) => findings.push({ id: 'FR-' + String(i + 1).padStart(3, '0'), severity: 'BLOCKING', source: 'Final review', check: 'UNSUPPORTED CLAIM IN THE REVISED PLAN', section: '', line: u.line, quote: u.quote, occurrences: [{ line: u.line, section: '', quote: u.quote }], problem: (u.unlisted ? 'This line was not on the list code built for the final review; the reviewer reported it. ' : u.edited ? 'This line was written or changed by edit ' + u.edited + '. ' : 'This line was not edited, and no earlier finding covered it. ') + (u.problem || 'The final review found a statement of fact that the ledger does not support and the line does not label.'), fix: '' }));
   if (plan_review.unresolved.length) findings.push({ id: 'FR-OPEN', severity: 'BLOCKING', unresolved: true, source: 'Final review', check: 'FINAL REVIEW OF THE REVISED PLAN IS INCOMPLETE', section: '', line: plan_review.unresolved[0].line, quote: '', occurrences: [], problem: plan_review.unresolved.length + ' of the ' + required.length + ' lines of the revised plan that state something about sources, companies, the market, or research have no usable verdict from the final review: ' + plan_review.unresolved.slice(0, 25).map((u) => 'L' + u.line + ' (' + u.why + ')').join('; ') + (plan_review.unresolved.length > 25 ? '; and ' + (plan_review.unresolved.length - 25) + ' more' : '') + '. This is a required check that did not complete, not a defect that was found. The plan is held until those lines have been read.', fix: '' });
 }
 order(findings);
