@@ -416,7 +416,7 @@ test('undated sources: the run\'s nine "present" answers were given without that
 
 // ---------------- The held plan, rechecked as a whole ----------------
 
-test('63225 recheck: four confirmed defects, no unresolved required check, and the ordinary findings', async () => {
+test('63225 recheck: seven confirmed defects, no unresolved required check, and the ordinary findings', async () => {
   const { out } = await secondPass();
   const f = out.findings;
   assert.deepEqual(f.filter((x) => x.severity === 'BLOCKING' && !x.unresolved).map((x) => 'L' + x.line + ' ' + x.check), [
@@ -424,6 +424,10 @@ test('63225 recheck: four confirmed defects, no unresolved required check, and t
     'L72 DEMAND INFERRED FROM SUPPLY',
     'L74 DEMAND INFERRED FROM SUPPLY',
     'L190 DEMAND INFERRED FROM SUPPLY',
+    // Found by the superlative rule added after execution 63226: "the most common alternative", "substitute", "outcome".
+    'L55 SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE',
+    'L152 SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE',
+    'L153 SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE',
   ]);
   assert.deepEqual(f.filter((x) => x.unresolved), []);
   assert.deepEqual(f.filter((x) => x.severity === 'MAJOR').map((x) => x.check + (x.line ? ' L' + x.line : '')).sort(), [
@@ -439,7 +443,7 @@ test('63225 recheck: four confirmed defects, no unresolved required check, and t
   assert.ok(!f.some((x) => x.line === 616), 'corrected line 616 passes');
   const g = await gate(f);
   assert.equal(g.blocked, true);
-  assert.equal(g.confirmed_blocker_count, 4);
+  assert.equal(g.confirmed_blocker_count, 7);
   assert.equal(g.unresolved_check_count, 0);
   assert.equal(g.warning_count, 6);
 });

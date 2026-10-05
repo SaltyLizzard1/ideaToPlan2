@@ -301,7 +301,11 @@ test('63223 recheck: confirmed defects, no unresolved check, and the three run b
   assert.ok(confirmed.includes('L47 POPULATION OR DEMAND STATED WITHOUT EVIDENCE'));
   assert.ok(f.some((x) => x.line === 43 && x.check === 'SAME CLAIM STILL PRESENT ELSEWHERE'));
   assert.ok(confirmed.includes('L553 PREVALENCE STATED WITHOUT EVIDENCE'));
-  assert.ok(f.filter((x) => x.severity === 'BLOCKING').every((x) => [43, 47, 553].includes(x.line)), 'every blocker is at line 43, 47 or 553');
+  // Two more were found by rules added after execution 63226: "the most common substitute" at L118 and providers
+  // said to "serve customers who have already decided to move" at L122.
+  assert.ok(confirmed.includes('L118 SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE'));
+  assert.ok(confirmed.includes('L122 PROVIDER FOCUS STATED WITHOUT EVIDENCE'));
+  assert.ok(f.filter((x) => x.severity === 'BLOCKING').every((x) => [43, 47, 553, 118, 122].includes(x.line)), 'every blocker is at line 43, 47, 118, 122 or 553');
   assert.equal(f.filter((x) => x.unresolved).length, 0);
   assert.ok(f.filter((x) => x.severity === 'MAJOR').every((x) => x.check === 'FINANCIAL MODEL' || x.check === 'UNDATED SOURCES WITHOUT A NOTE IN THIS SECTION' || [43, 553].includes(x.line)));
   assert.equal(f.filter((x) => x.severity === 'MINOR').length, 2);

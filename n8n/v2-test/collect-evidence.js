@@ -170,6 +170,8 @@ const readCall = (nodeName) => {
       url_given: urlField,
       markers,
       entity,
+      // "Paid", "charges", "sells": the claim asserts that money changes hands. That needs its own evidence on the page.
+      asserts_payment: /\bpaid(?:-for)?\b|\bcharg(?:es|ed|ing)\b|\bcharge (?:for|clients|customers|a fee|fees)\b|\bfor a fee\b|\b(?:customers|clients|people|buyers|users|members) (?:pay|are paying|have paid)\b|\bsells?\b/i.test(claimText),
       candidate_source_ids: kept.map((x) => x.id),
       candidate_basis: kept.map((x) => x.basis),
     };

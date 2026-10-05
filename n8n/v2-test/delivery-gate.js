@@ -16,6 +16,9 @@ const blockers = findings.filter((f) => f.severity === 'BLOCKING');
 // it is not a defect that was confirmed.
 const incomplete = blockers.filter((f) => f.unresolved === true);
 const confirmed = blockers.filter((f) => f.unresolved !== true);
+// A correction that was required and refused by code is still open, with the severity of its finding. It is counted
+// and listed on its own, so that "every applied edit passed" can never be read as "every finding was dealt with".
+const unapplied = findings.filter((f) => f.correction_not_applied === true);
 const known = ['SEND', 'REVIEW', 'HOLD'].includes(status);
 const blocked = !known || status === 'HOLD' || blockers.length > 0;
 const citationBlockers = blockers.filter((f) => CITATION.test(String(f.check || '')));
@@ -26,16 +29,19 @@ const reason = !known
   : blockers.length
     ? [confirmed.length ? confirmed.length + ' confirmed blocking finding' + (confirmed.length === 1 ? '' : 's') + ' remain' + (confirmed.length === 1 ? 's' : '') + ', ' + citationBlockers.length + ' of them about citations or sources.' : '', incomplete.length ? incomplete.length + ' required check' + (incomplete.length === 1 ? '' : 's') + ' did not complete, so the result is unresolved, not a confirmed defect.' : ''].filter(Boolean).join(' ')
     : status === 'HOLD' ? 'The final review set the status to HOLD. See the review report.' : '';
+const unappliedNote = unapplied.length ? unapplied.length + ' required correction' + (unapplied.length === 1 ? ' was' : 's were') + ' refused by code and not applied (' + unapplied.filter((f) => f.severity === 'BLOCKING').length + ' blocking, ' + unapplied.filter((f) => f.severity === 'MAJOR').length + ' major). ' + (unapplied.length === 1 ? 'Its finding remains' : 'Their findings remain') + ' open.' : '';
 
 return {
   blocked,
   version_status: blocked ? 'changes_requested' : 'awaiting_approval',
   review_status: known ? status : 'HOLD',
-  reason,
+  reason: [reason, unappliedNote].filter(Boolean).join(' '),
   blocker_count: blockers.length,
   confirmed_blocker_count: confirmed.length,
   unresolved_check_count: incomplete.length,
   unresolved_checks_text: incomplete.length ? incomplete.map(line).join('\n') : 'None.',
+  unapplied_correction_count: unapplied.length,
+  unapplied_corrections_text: unapplied.length ? unapplied.map((f) => line(f).replace(/^- /, '- ' + f.severity + ' | ')).join('\n') : 'None.',
   citation_blocker_count: citationBlockers.length,
   warning_count: findings.filter((f) => f.severity === 'MAJOR').length,
   minor_count: findings.filter((f) => f.severity === 'MINOR').length,

@@ -472,5 +472,7 @@ test('63221 recheck: the held plan is still blocked, now for its genuine defects
     'L605 UNCONDITIONAL PROFIT CLAIM WITH UNRESOLVED COSTS',
     'L175 PRICE COMPARISON WITHOUT A VERIFIED PRICE',
     'L154 COMPETITIVE GAP STATED AS A FINDING',
+    // Found by the superlative rule added after execution 63226: "The most common alternative for a person who is uncertain".
+    'L150 SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE',
   ]);
 });

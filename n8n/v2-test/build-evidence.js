@@ -237,6 +237,21 @@ const deterministic = (claim, entity, excerpt, page) => {
   return reasons;
 };
 
+// PAYMENT. Calling a service "paid", or saying a company charges or sells, asserts that money changes hands. The
+// passage quoted from the page has to show that: a price, a fee, a charge, an invoice, or a purchase step. A numeric
+// price is not required. "Clear pricing" and a description of the service do not show it. When the passage does not
+// show it, the claim is not thrown away with its other facts: the word "paid" is removed and the entry says so. A
+// claim whose whole point is the charge ("X charges clients for ...") cannot be kept that way and is excluded.
+const PAYMENT_ASSERTED = /\bpaid(?:-for)?\b|\bcharg(?:es|ed|ing)\b|\bcharge (?:for|clients|customers|a fee|fees)\b|\bfor a fee\b|\b(?:customers|clients|people|buyers|users|members) (?:pay|are paying|have paid)\b|\bsells?\b/i;
+const chargeShown = (excerpt) => {
+  const v = String(excerpt || '').replace(/\b(?:clear|transparent|simple|fair|honest|upfront|competitive|flexible|affordable|straightforward) pricing\b/gi, ' ').replace(/\b(?:no|without|zero|free of) (?:fees?|charges?|costs?)\b/gi, ' ');
+  return /(?:US\$|\$|€|£)\s?\d|\b\d[\d,.]*\s?(?:USD|EUR|GBP|dollars|euros|pounds)\b|\bfees?\b|\bcharg(?:e|es|ed|ing)\b|\bpriced? (?:at|from)\b|\bprices? (?:start|from|range)\b|\bstart(?:s|ing)? (?:at|from) \S*\d|\bbuy now\b|\badd to cart\b|\bcheckout\b|\border now\b|\bsubscriptions?\b|\binvoic\w+\b|\bbilled\b|\bpaid (?:plan|tier|membership|consultation|session)s?\b/i.test(v);
+};
+const withoutPaid = (claim) => {
+  const out = String(claim).replace(/\b(an?) paid(?:-for)? ([a-z])/gi, (m, art, ch) => (/[aeiou]/i.test(ch) ? (art[0] === 'A' ? 'An' : 'an') : (art[0] === 'A' ? 'A' : 'a')) + ' ' + ch).replace(/\bpaid(?:-for)? /gi, '');
+  return PAYMENT_ASSERTED.test(out) ? '' : out;
+};
+
 // A claim is a statistic when it states a count, a share or a market value about a population or market, as
 // opposed to a company describing its own offer. Statistics need a traceable origin, not just a page that repeats them.
 const isStatistic = (c) => /^M\d/.test(c.question || '') || figures(c.claim).some((f) => /[mbt%]$/.test(f.key));
@@ -262,7 +277,12 @@ const evaluate = (c, sid) => {
   if (off.length) return { ...rec, status: 'unverifiable', kind: 'model_checks', reasons: ['the verifier marked it supported but reported ' + off.map((k) => k + ' ' + x.checks[k].replace('_', ' ')).join(', ')] };
   if (x.credibility.rating === 'low') return { ...rec, status: 'not_credible', kind: 'credibility', reasons: ['the page states it, but the source is not credible evidence for it: ' + rec.credibility.basis] };
   if (isStatistic(c) && !x.credibility.first_party && !x.credibility.origin_stated) return { ...rec, status: 'not_credible', kind: 'credibility', reasons: ['the page states it, but gives no traceable origin for the figure: ' + rec.credibility.basis] };
-  return { ...rec, status: 'supported', kind: 'verified', reasons: [] };
+  let claim_kept = '';
+  if (PAYMENT_ASSERTED.test(c.claim) && !chargeShown(x.excerpt)) {
+    claim_kept = withoutPaid(c.claim);
+    if (!claim_kept) return { ...rec, status: 'unverifiable', kind: 'payment', reasons: ['the claim says the service is charged for or sold, and the passage quoted from the page shows no price, fee, charge, or purchase step. A description of a service, or wording such as "Clear pricing", does not show that it is paid for'] };
+  }
+  return { ...rec, status: 'supported', kind: 'verified', reasons: [], claim_kept };
 };
 
 // ---------- 3. Decide each claim. ----------
@@ -297,6 +317,12 @@ candidates.forEach((c) => {
       retrieved_at: page.retrieved_at,
     };
     if (c.entity) entry.entity = c.entity.name;
+    if (win.claim_kept) {
+      entry.claim = win.claim_kept;
+      entry.claim_as_researched = c.claim;
+      entry.payment_not_established = true;
+      entry.limits = 'The research tool called this service paid. The passage verified on the page shows no price, fee, or charge, so that word was removed. This entry does not support saying the service is paid, charged for, or sold.';
+    }
     if (c.corrects) { entry.derived_from = c.corrects; entry.attribution = 'extracted from the fetched page after research claim ' + c.corrects + ' was contradicted, then verified by a separate check'; }
     claims.push(entry);
     return;
@@ -387,6 +413,8 @@ const verification = {
   excluded_by_code_after_model_said_supported: excluded.filter((x) => /^deterministic/.test(x.kind)).length,
   excluded_for_punctuation_only: excluded.filter((x) => x.kind === 'deterministic_punctuation').length,
   excluded_for_company_identity: excluded.filter((x) => x.kind === 'identity').length,
+  excluded_for_payment_not_shown: excluded.filter((x) => x.kind === 'payment').length,
+  payment_wording_removed: claims.filter((c) => c.payment_not_established).map((c) => c.claim_id),
   company_identity_resolved_here: identityResolved,
   pages_requested: pages.length,
   pages_read: pages.filter((p) => p.outcome === 'ok').length,

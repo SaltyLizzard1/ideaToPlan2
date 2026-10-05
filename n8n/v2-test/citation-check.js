@@ -572,6 +572,18 @@ const stripDateNotes = (s) => String(s)
   .replace(/\bservice details may have changed\b/gi, ' ')
   .replace(/^\s*note:\s*/i, ' ');
 const claimSeen = new Set();
+// The company a profile-table row belongs to. | **Company** | | opens the block; every row under it is about that company.
+const profileOwner = {};
+{ let cur = null; lines.forEach((line, i) => { const t = line.trim(); if (!/^\|.*\|$/.test(t)) { cur = null; return; } if (/^\|?\s*:?-{2,}/.test(t)) return; const cells = t.replace(/^\||\|$/g, '').split('|').map((c) => c.trim()); if (cells.length === 2 && cells[1] === '' && cells[0]) { cur = entities.find((e) => spaced(cells[0]).includes(' ' + e.name_words + ' ')) || null; return; } if (cur) profileOwner[i + 1] = cur.name; }); }
+// In a company's own row, "companies" are usually its customers ("global companies and their employees"). The row
+// still makes a general claim when it speaks of competitors or providers, or of most, all, or other companies.
+const GENERAL_MANY = /\b(?:competitors|providers|rivals|incumbents|players)\b|\b(?:most|all|other|many|several|few|these|such|every|competing|rival|similar)\s+(?:[a-z-]+\s+){0,2}(?:companies|firms)\b/i;
+// Payment needs its own evidence: a price, a fee, a charge, an invoice, or a purchase step in the verified passage.
+// A numeric price is not required. "Clear pricing" is not evidence that anything is charged.
+const chargeIn = (v) => /(?:US\$|\$|€|£)\s?\d|\b\d[\d,.]*\s?(?:USD|EUR|GBP|dollars|euros|pounds)\b|\bfees?\b|\bcharg(?:e|es|ed|ing)\b|\bpriced? (?:at|from)\b|\bprices? (?:start|from|range)\b|\bstart(?:s|ing)? (?:at|from) \S*\d|\bbuy now\b|\badd to cart\b|\bcheckout\b|\border now\b|\bsubscriptions?\b|\binvoic\w+\b|\bbilled\b|\bpaid (?:plan|tier|membership|consultation|session)s?\b/i.test(String(v || '').replace(/\b(?:clear|transparent|simple|fair|honest|upfront|competitive|flexible|affordable|straightforward) pricing\b/gi, ' ').replace(/\b(?:no|without|zero|free of) (?:fees?|charges?|costs?)\b/gi, ' '));
+const paymentEvidence = (id) => priceEvidence(id) || (ledgerBySource[id] || []).some((c) => !c.payment_not_established && chargeIn(c.page_excerpt));
+// A payment statement with no source ID is about other providers when it says so, or stands in a row about them.
+const OTHERS_CONTEXT = /\b(?:alternatives?|substitutes?|competitive|competing|competition|existing (?:services|options|offers|providers)|other (?:services|options|offers))\b/i;
 lines.forEach((line, i) => {
   const t = line.trim();
   const L = i + 1;
@@ -666,10 +678,16 @@ lines.forEach((line, i) => {
         const strange = [...new Set((clause.match(/\$\s?\d[\d,]*(?:\.\d+)?/g) || []).filter((m) => !verifiedAmounts.has(m.replace(/[\s,$]/g, '').replace(/\.00$/, '')) && !allowed.has(normMoney(m))))];
         if (strange.length && !claimSeen.has(L + '|citedprice')) { claimSeen.add(L + '|citedprice'); add('BLOCKING', 'CITED PRICE NOT IN THE VERIFIED CLAIM', 'This text gives ' + strange.join(' and ') + ' and cites ' + citedHere.join(', ') + ', but the prices verified on ' + (citedHere.length === 1 ? 'that page' : 'those pages') + ' are ' + ([...verifiedAmounts].map((v) => '$' + v).join(', ') || 'none') + '. Give the price exactly as the ledger entry states it.', short(clause), L); }
       }
-      // 9. "Paid" stated about other providers with no evidence that anything is charged.
-      if (PAID_CLAIM.test(clause) && !hedged && (citedHere.length || ABOUT_OTHERS.test(clause))) {
-        const shown = citedHere.length ? citedHere.every(priceEvidence) : ledgerHasPrice;
-        if (!shown && !claimSeen.has(L + '|paid')) { claimSeen.add(L + '|paid'); add('BLOCKING', 'PAYMENT STATED WITHOUT EVIDENCE', 'This text says the services are paid for or charged for' + (citedHere.length ? ', citing ' + citedHere.join(', ') : '') + ', but ' + (citedHere.length ? 'no verified claim from ' + citedHere.filter((id) => !priceEvidence(id)).join(', ') + ' states a price or a charge' : 'the evidence ledger holds no price or charge at all') + '. A page that describes a service does not show that it is paid for. Describe what the providers offer, without "paid", or cite a verified price.', short(clause), L); }
+      // 9. "Paid" stated about other providers with no evidence that anything is charged. A source ID is not needed
+      //    for the statement to be a claim: "paid relocation services" in a list of the customer's alternatives is one.
+      const firstCell = /^\|.*\|$/.test(t) ? t.replace(/^\|/, '').split('|')[0] : '';
+      // "A substitute for a paid planning session" names this offer as the paid thing, not the other providers.
+      const paidIsOwn = /\b(?:substitutes?|alternatives?|replacements?) (?:for|to) (?:a |an |the |your |this )?paid\b|\binstead of (?:a |an |the |your |this )?paid\b|\b(?:your|this) paid\b/i.test(clause);
+      const aboutOthers = !paidIsOwn && (ABOUT_OTHERS.test(clause) || OTHERS_CONTEXT.test(clause) || OTHERS_CONTEXT.test(firstCell));
+      if (PAID_CLAIM.test(clause) && !hedged && (citedHere.length || aboutOthers)) {
+        const lineIds = [...new Set(t.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);
+        const shown = citedHere.length ? citedHere.every(paymentEvidence) : lineIds.some(paymentEvidence);
+        if (!shown && !claimSeen.has(L + '|paid')) { claimSeen.add(L + '|paid'); add('BLOCKING', 'PAYMENT STATED WITHOUT EVIDENCE', 'This text says the services are paid for or charged for' + (citedHere.length ? ', citing ' + citedHere.join(', ') + ', but no verified claim from ' + citedHere.filter((id) => !paymentEvidence(id)).join(', ') + ' shows a price, a fee, or a charge' : ', and cites nothing that shows a price, a fee, or a charge') + '. A page that describes a service does not show that it is paid for, and "Clear pricing" is not a price. Describe what the providers offer, without "paid", or cite a verified claim that shows the charge.', short(clause), L); }
       }
       // 10. "A market exists" stated as confirmed. Available offers are not demonstrated demand.
       if (MARKET_CLAIM.test(clause) && !hedged && !citedHere.some(paysEvidence) && !claimSeen.has(L + '|demand')) { claimSeen.add(L + '|demand'); add('BLOCKING', 'DEMAND STATED AS CONFIRMED', 'This text says a market exists or is confirmed. The evidence shows that offers are available; it does not show demand, buyers, or sales. Say that competing offers exist, and state demand as a hypothesis that requires validation.', short(clause), L); }
@@ -677,7 +695,9 @@ lines.forEach((line, i) => {
       if (MANY.test(clause) && !EXEMPLAR.test(clause) && citedHere.length) {
         const owners = [...new Set(citedHere.map((id) => entityOfSource[id]).filter(Boolean).map((e) => e.name))];
         const named = entities.some((e) => spaced(clause).includes(' ' + e.name_words + ' '));
-        if (owners.length === 1 && citedHere.every((id) => entityOfSource[id]) && !named && !claimSeen.has(L + '|many')) { claimSeen.add(L + '|many'); add('BLOCKING', 'ONE SOURCE CITED FOR A CLAIM ABOUT MANY', 'This text makes a statement about competitors in general and cites only ' + citedHere.join(', ') + ', the page of ' + owners[0] + '. One company\'s page supports a statement about that company only. Name the company and say what its page states, or remove the general claim.', short(clause), L); }
+        const labelCell = /^\|.*\|$/.test(t) ? t.replace(/^\|/, '').split('|')[0] : '';
+        const ownRow = owners.length === 1 && (profileOwner[L] === owners[0] || entities.some((e) => e.name === owners[0] && spaced(labelCell).includes(' ' + e.name_words + ' ')));
+        if (owners.length === 1 && citedHere.every((id) => entityOfSource[id]) && !named && !(ownRow && !GENERAL_MANY.test(clause)) && !claimSeen.has(L + '|many')) { claimSeen.add(L + '|many'); add('BLOCKING', 'ONE SOURCE CITED FOR A CLAIM ABOUT MANY', 'This text makes a statement about competitors in general and cites only ' + citedHere.join(', ') + ', the page of ' + owners[0] + '. One company\'s page supports a statement about that company only. Name the company and say what its page states, or remove the general claim.', short(clause), L); }
       }
     });
     // 4. A source date that is on or before the run date is not anomalous, and the plan must not say it is.
@@ -715,6 +735,9 @@ const ABOUT_COMPETITORS = /\b(?:competitors?|providers?|compan(?:y|ies)|rivals?|
 const GAP_CONTRAST = /\b(?:competitors?|providers?|compan(?:y|ies)|alternatives|firms?)\b[^.;]{0,140}?\b(?:focus(?:es|ed)?|position(?:s|ed)?|concentrat\w+|orient(?:ed)?|built|designed|geared|aimed)\b[^.;]{0,200}?\b(?:rather than|instead of|and not on|but not on|not on)\b/i;
 const gapAt = (v) => { const a = v.search(GAP_CLAIM); if (a >= 0) return a; const c = v.search(GAP_CONTRAST); if (c >= 0) return c; return ABOUT_COMPETITORS.test(v) ? v.search(GAP_BARE_NONE) : -1; };
 const GAP_LABEL = /\b(?:hypothes[ie]s|hypothesi[sz]ed|untested|unvalidated|not (?:an? )?established|does not (?:establish|show|confirm|mean)|requires? validation|worth testing|to be tested)\b/i;
+// "Not a confirmed gap in the market" denies the gap. The denial has to stand directly in front of the gap words:
+// "not only a gap in the market" and "a confirmed gap in the market" are still claims.
+const GAP_DENIED = /\b(?:not|no|never|nor|without|rather than)\s+(?:(?:an?|any|the|yet|necessarily|evidence of|proof of|a sign of|to be read as|to be taken as)\s+)*(?:(?:confirmed|established|proven|verified|demonstrated|real|actual|known|genuine|documented)\s+)*$/i;
 const gapSeen = new Set();
 lines.forEach((line, i) => {
   const t = line.trim();
@@ -726,7 +749,7 @@ lines.forEach((line, i) => {
     const cited = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);
     if (cited.some((id) => (ledgerBySource[id] || []).some((c) => GAP_CLAIM.test(String(c.claim || '') + ' ' + String(c.page_excerpt || ''))))) return;
     // A conditional counts only when it governs the claim, so it has to come before it in the sentence.
-    if (GAP_LABEL.test(seg) || GAP_CONDITIONAL.test(seg.slice(0, gapAt(seg)))) return;
+    if (GAP_LABEL.test(seg) || GAP_CONDITIONAL.test(seg.slice(0, gapAt(seg))) || GAP_DENIED.test(seg.slice(0, gapAt(seg)))) return;
     gapSeen.add(L);
     add('BLOCKING', 'COMPETITIVE GAP STATED AS A FINDING', 'This text states a competitive gap, an unmet need, or that no competitor does something, as a finding. No verified claim cited here states it, and this sentence does not say it is a hypothesis. A label in another sentence does not cover it, and "IdeaToPlan analysis" names the author without making the claim conditional. The pages reviewed show what those companies describe; they do not show that nobody serves this need. Reword this sentence as a hypothesis to test.', short(seg), L);
   });
@@ -751,7 +774,9 @@ sectionsOfPlan.forEach((s) => {
   const undated = used.filter(isUndatedSource);
   if (!undated.length) return;
   const notes = dateNotesIn(s);
-  const general = notes.filter((n) => NOTE_FOR_ALL.test(n.text));
+  // "The competitor sources cited in this section (S1, S4, S10, S15) are undated" names its sources. It is a note about
+  // those four, and it is not made wrong by a dated source elsewhere in the section. "All sources ... are undated" is general.
+  const general = notes.filter((n) => NOTE_FOR_ALL.test(n.text) && (!/\b[SW]\d+\b/.test(n.text) || /\b(?:all|every|none of)\b/i.test(n.text)));
   // A note that says every source is undated is wrong when this section cites one whose page shows a date.
   const dated = used.filter((id) => !isUndatedSource(id));
   if (general.length && dated.length) add('BLOCKING', 'SOURCE DATE NOTE IS WRONG', 'Section ' + s.no + ' says its sources are undated, and it cites ' + dated.map((id) => id + ' (' + srcById[id].published + ')').join(', ') + ', whose page shows a date. Correct the note so that it names the undated sources only.', short(general[0].text), general[0].line);
@@ -795,6 +820,72 @@ lines.forEach((line, i) => {
 // "The most comprehensive provider reviewed" ranks companies. The ledger holds what each page says about itself;
 // it does not compare them.
 const RANKED = /\b(?:most|least) (?:comprehensive|established|complete|credible|popular|advanced|experienced|trusted|expensive|affordable|capable|direct|relevant|extensive)\b[^.;]{0,50}?\b(?:providers?|competitors?|compan(?:y|ies)|firms?|options?|alternatives?|services?)\b|\bthe (?:best|largest|biggest|leading|top|cheapest|strongest|broadest|widest|closest)(?:[- ][a-z]+)? (?:providers?|competitors?|compan(?:y|ies)|firms?|options?|alternatives?)\b/i;
+// ---------- PROVIDER FOCUS AND STAGE ----------
+// The ledger entries list services in each company's own words. None of them says which stage of a customer's
+// decision a provider works at. "Services oriented toward logistics and execution after a relocation decision is
+// made" assigns providers a post-decision focus that no entry states. It is a factual claim about competitors, and
+// it is unsupported unless every source cited on the sentence states it, or the sentence says it is not established.
+const FOCUS_SUBJECT = /\b(?:competitors?|providers?|compan(?:y|ies)|firms?|alternatives|pages reviewed|relocation services|services|offers|consultanc(?:y|ies)|agenc(?:y|ies))\b/i;
+const FOCUS_VERB = /\b(?:focus\w*|orient\w*|position\w*|concentrat\w+|geared|aimed|designed|built|speciali[sz]\w+|cater\w*|target\w*|serv(?:e|es|ing)|begins?|starts?|work(?:s|ing)?|operat\w+|steps? in|comes? in)\b/i;
+const STAGE_POST = /\bafter (?:a |an |the |that |their )?(?:[a-z-]+ ){0,2}?decision\b|\bonce (?:a |the |that )?(?:[a-z-]+ ){0,2}?decision (?:is|has been|was) made\b|\bpost-?decision\b|\bdecision (?:is|has been|was) (?:already )?made\b|\b(?:have|has|had) already (?:decided|committed)\b|\balready decided to\b|\bafter (?:the |a )?commitment\b/i;
+const FOCUS_LABEL = /\b(?:hypothes[ie]s|hypothesi[sz]ed|untested|unvalidated|whether|not (?:an? )?(?:established|known|shown|stated)|(?:does|do|did) not (?:establish|show|state|say))\b/i;
+const OWN_OFFER = /\b(?:your|this business|this offer)\b/i;
+const sentencesOfLine = (t) => (/^\|.*\|$/.test(t) ? t.replace(/^\||\|$/g, '').split('|') : [t]).flatMap((c) => c.split(/(?<=[.!?])\s+/)).map((x) => x.trim()).filter(Boolean);
+const clausesOfSentence = (x) => x.split(/;\s+|,\s+(?:but|though|although|however|yet|while)\s+/);
+lines.forEach((line, i) => {
+  const t = line.trim();
+  if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || demandComputed.has(t)) return;
+  const hit = sentencesOfLine(t).find((seg) => {
+    const at = seg.search(STAGE_POST);
+    if (at < 0) return false;
+    const head = seg.slice(0, at);
+    // The subject is providers in general, or companies named in the sentence.
+    const aboutProviders = FOCUS_SUBJECT.test(head) || entities.some((e) => e.name_words && spaced(head).includes(' ' + e.name_words + ' '));
+    if (!aboutProviders || !FOCUS_VERB.test(head) || OWN_OFFER.test(head) || FOCUS_LABEL.test(seg)) return false;
+    const cited = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => (ledgerBySource[id] || []).length > 0);
+    return !(cited.length && cited.every((id) => ledgerBySource[id].some((c) => STAGE_POST.test(String(c.claim || '') + ' ' + String(c.page_excerpt || '')))));
+  });
+  if (hit) add('BLOCKING', 'PROVIDER FOCUS STATED WITHOUT EVIDENCE', 'This text says that providers focus on, or work at, the stage after a decision has been made. The verified entries list the services each page names. None of them states which stage a provider works at, or that it leaves the earlier stage out, so this is an unsupported statement of fact about competitors. Say what the pages list, with their source IDs, and say that whether any provider works before a decision is not established by these pages.', short(hit), i + 1);
+});
+
+// ---------- SURVEY FINDINGS KEEP THEIR SCOPE ----------
+// A survey finding is what was asked, of whom, and how many answered. "One survey finding confirms that logistical
+// friction is a real experience for travelers" turns a sample into a fact about a population. A sentence that says a
+// survey confirms, proves, or shows something has to carry the sample in that sentence, or deny the inference.
+const SURVEY_REF = /\b(?:surveys?|polls?|stud(?:y|ies)|index|respondents)\b/i;
+const SURVEY_CERTAIN = /\b(?:confirms?|confirmed|proves?|proved|proven|establish(?:es|ed)?|demonstrat(?:es|ed)|shows? that|showed that|makes? clear|verif(?:y|ies|ied))\b/i;
+// "It shows that a survey of expats was conducted" says what the entry is. It does not generalise the finding.
+const SURVEY_ITSELF = /\b(?:shows?|confirms?|establish(?:es)?) that (?:a |the |one |this )?(?:[a-z-]+ ){0,2}?(?:survey|study|poll)\b/i;
+const SAMPLE_KEPT = /\b(?:surveyed|respondents?|sampled?|polled|participants)\b|\bof (?:the )?\d[\d,]* \b/i;
+lines.forEach((line, i) => {
+  const t = line.trim();
+  if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || demandComputed.has(t)) return;
+  const hit = sentencesOfLine(t).flatMap(clausesOfSentence).find((clause) => SURVEY_REF.test(clause) && SURVEY_CERTAIN.test(clause) && !SAMPLE_KEPT.test(clause) && !SURVEY_ITSELF.test(clause) && !DENIES_OR_LABELS.test(clause));
+  if (hit) add('BLOCKING', 'SURVEY FINDING GENERALISED', 'This text says a survey or study confirms, proves, or shows something, without the sample it comes from. A survey finding is what was asked, of whom, and how many answered; it is not a fact about travelers, customers, or people in general, and it does not confirm anything about this customer. State the finding as the ledger entry gives it, with its question, its population, and its sample size, and say what it does not cover.', short(hit), i + 1);
+});
+
+// ---------- SUPERLATIVES NEED COMPARATIVE EVIDENCE ----------
+// "The most common substitute" compares one thing with all the others. That is a statement of fact about the market,
+// whatever it ranks: substitutes, channels, barriers, reasons. It needs a cited verified claim that makes the
+// comparison. Company rankings have their own check below. Figures of the plan's own model are not market claims.
+const SUPERLATIVE = /\b(?:most|least) (?:common|commonly used|popular|widely used|frequent|frequently used|prevalent|typical|usual|used|chosen|preferred|sought-after|in-demand)\b|\bthe (?:biggest|largest|fastest[- ]growing|dominant|number one|cheapest|commonest)\b (?:[a-z-]+ ){0,2}?(?:substitutes?|alternatives?|competitors?|providers?|channels?|platforms?|markets?|segments?|reasons?|barriers?|obstacles?|objections?|destinations?|choices?|options?|groups?|communit(?:y|ies))\b/i;
+const OWN_FIGURES = /\b(?:model|forecast|scenarios?|budget|cost lines?|expenses?|line items?|revenue streams?|your (?:plan|costs?|time|list|audience|calendar)|in this plan|of this plan)\b/i;
+// What the founder hears in their own conversations is theirs to rank: "the most common objection you heard".
+const OWN_DATA = /\byou (?:heard|hear|saw|see|get|got|receive|received|collect|collected|record|recorded|notice|noticed)\b|\byour (?:conversations|interviews|calls|notes|responses|replies)\b|\?\s*$/i;
+// A share of a sample ("two-thirds of 600") is not a comparison with the alternatives. The entry has to rank.
+const COMPARATIVE_EVIDENCE = /\b(?:most|majority|more than half|top|largest|biggest|leading|ranked|ranks)\b/i;
+lines.forEach((line, i) => {
+  const t = line.trim();
+  if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || demandComputed.has(t)) return;
+  const hit = sentencesOfLine(t).flatMap((seg) => clausesOfSentence(seg).map((clause) => ({ seg, clause }))).find(({ seg, clause }) => {
+    if (!SUPERLATIVE.test(clause) || RANKED.test(clause) || OWN_FIGURES.test(clause) || OWN_DATA.test(clause) || DENIES_OR_LABELS.test(clause)) return false;
+    const cited = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => (ledgerBySource[id] || []).length > 0);
+    return !cited.some((id) => ledgerBySource[id].some((c) => COMPARATIVE_EVIDENCE.test(String(c.claim || '') + ' ' + String(c.page_excerpt || ''))));
+  });
+  if (hit) add('BLOCKING', 'SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE', 'This text says that something is the most common, the most popular, the biggest, or the like. That compares it with every alternative, and no verified claim cited here makes that comparison. Say that it is one substitute, channel, barrier, or reason, and that how it compares with the others is not established, or cite a verified claim that states the comparison.', short(hit.clause), i + 1);
+});
+
+// ---------- COMPETITORS RANKED, CONTINUED ----------
 // A RANKING COVERS EVERYONE IT RANKS. "The most comprehensive provider reviewed" places one company above every
 // company reviewed, so it needs a stated criterion and a verified claim, cited in the sentence, for each of them.
 // Evidence for two companies supports a comparison between those two and nothing wider: "A lists more services than
@@ -924,7 +1015,7 @@ ${SEVERITY}
 CHECKS
 1. Unsupported claims: statements about the market, customers, competitors, prices, costs, benchmarks, trends, regulation, tax, or statistics with no source ID. In a Starter plan no research was done, so any such statement is unsupported.
 2. Citations: a source ID on a claim the EVIDENCE LEDGER does not link to that source; a claim stated more strongly or more broadly than the ledger; detail added that the ledger entry does not state; any source name, study, author, URL, or date not in SOURCES. One source ID at the end of a paragraph or table row covers the claims in it.
-3. Research interpretation: analysis presented as a finding. "None of the competitors reviewed does X" does not establish that X is underserved or that customers want X. A competitive gap, an unmet need, an underserved segment, a positioning opportunity, or a statement that no competitor does something is BLOCKING when it is presented as a finding, unless a ledger entry cited on that sentence states it. It is acceptable only when the sentence that makes the claim is itself clearly worded as a hypothesis to test. Judge each sentence alone: a hypothesis label in another sentence of the paragraph does not cover a sentence that reads as a finding. A contrast is the same claim: "all five competitors focus on executing a move rather than on the decision stage" asserts what the competitors do not do. The ledger entries list services in each company's own words; none states what a company focuses on or leaves out. Check such a sentence against every entry it covers and allow only what those entries state, with the scope said in the sentence ("the pages reviewed list ..."). A ranking of the companies reviewed ("the most comprehensive provider") is an unsupported comparison unless the sentence states what is being compared and cites a verified claim for every company the ranking covers. "The most comprehensive provider reviewed" covers every company reviewed: evidence for two of five supports a comparison between those two only, worded as that. Without the criterion and the full evidence, ask for the statement to be narrowed to what the evidence covers, or removed. "IdeaToPlan analysis" identifies who wrote the sentence; it is not evidence and it does not make a factual claim conditional, so a finding labelled only that way is still BLOCKING. Say how to reword it.
+3. Research interpretation: analysis presented as a finding. "None of the competitors reviewed does X" does not establish that X is underserved or that customers want X. A competitive gap, an unmet need, an underserved segment, a positioning opportunity, or a statement that no competitor does something is BLOCKING when it is presented as a finding, unless a ledger entry cited on that sentence states it. It is acceptable only when the sentence that makes the claim is itself clearly worded as a hypothesis to test. Judge each sentence alone: a hypothesis label in another sentence of the paragraph does not cover a sentence that reads as a finding. A contrast is the same claim: "all five competitors focus on executing a move rather than on the decision stage" asserts what the competitors do not do. The ledger entries list services in each company's own words; none states what a company focuses on or leaves out. Check such a sentence against every entry it covers and allow only what those entries state, with the scope said in the sentence ("the pages reviewed list ..."). A ranking of the companies reviewed ("the most comprehensive provider") is an unsupported comparison unless the sentence states what is being compared and cites a verified claim for every company the ranking covers. "The most comprehensive provider reviewed" covers every company reviewed: evidence for two of five supports a comparison between those two only, worded as that. Without the criterion and the full evidence, ask for the statement to be narrowed to what the evidence covers, or removed. "IdeaToPlan analysis" identifies who wrote the sentence; it is not evidence and it does not make a factual claim conditional, so a finding labelled only that way is still BLOCKING. Say how to reword it. Four more statements of fact that the ledger rarely supports, each BLOCKING when no ledger entry cited on the sentence states it: (a) a focus or stage assigned to providers ("services oriented toward logistics and execution after a relocation decision is made"): the entries list services and say nothing about the stage a provider works at; (b) "paid", "charges", or "sells" said of a provider, with or without a source ID, when no entry for that provider shows a price, a fee, or a charge ("Clear pricing" is not one, and an entry marked payment_not_established does not support it); (c) a survey finding stated without what was asked, of whom, and how many, or said to confirm, prove, or show something about travelers, customers, or people in general; (d) a superlative about the market ("the most common substitute", "the biggest barrier", "the most popular channel") with no entry that makes the comparison. CLASSIFY BY SUBSTANCE. A statement of fact about competitors, customers, or the market that no cited ledger entry states is an unsupported claim and is BLOCKING, however carefully it is phrased and wherever it stands, including a table cell or a list of alternatives. It is not a wording, style, or specificity finding, and it is never MINOR.
 4. Known and unknown: any statement that the founder lacks something (no audience, no website, no customers, starting from zero) that the FOUNDER CONTEXT does not state. A blank revenue answer described as "not provided" when the form defines it as pre-revenue. A recommendation that silently assumes an unknown fact instead of reasoning conditionally. Advice to create something the founder already has, or to repeat work the founder has already done. Internal labels such as UNKNOWN or NOT PROVIDED printed in the plan.
 5. Financial consistency: do not recompute the financial tables; code produced them. Check that every financial figure in the prose, the Executive Summary, and the callouts matches FINANCIAL FACTS exactly, and that no figure appears that is in neither FINANCIAL FACTS, the FOUNDER CONTEXT, nor the ledger. Flag any assumption described as verified, validated, typical, standard, realistic, or conservative. Flag a price from a different kind of service presented as evidence of what this offer should cost, rather than as a reference point for an untested assumption.
 6. Budget: the ceiling treated as a spending target. A cost shown as "Amount not yet established" that the plan gives a figure for, calls free, or leaves out where it discusses costs, profit, or viability. A recommendation that depends on paid advertising when the Paid acquisition line in FINANCIAL FACTS says the model contains no committed advertising cost, or a paid channel recommended as part of the strategy with no matching Budget item. The COST REVIEW printed in the plan as a list.
@@ -966,7 +1057,7 @@ const verifySystem = `You are verifying an automated revision of an IdeaToPlan b
 
 2. For each edit, look only at its After text for a new BLOCKING defect, or a clearly material MAJOR defect, that the edit itself introduced and that was not in its Before text: a new factual claim, figure, or source ID that the EVIDENCE LEDGER or FINANCIAL FACTS do not support; a new absolute, comparative, or predictive claim stated as fact; a founder fact stated wrongly; a broken sentence or table row. Give exactly one entry in "edit_checks" for every edit unit shown, with an explicit verdict. The verdict is NEW_DEFECT only when the After text contains such a defect; then give its severity, a quote, the problem, and the fix. The verdict is NO_NEW_DEFECT in every other case, including when you considered a concern and concluded that the edit is consistent with the ledger and the financial facts; then leave severity, quote, problem, and fix empty. Never give NEW_DEFECT with an explanation that concludes there is no defect: an entry whose verdict and explanation disagree is discarded and the edit is treated as not verified. Do not report style, repetition, actionability, stale sources, or anything that was already in the Before text. Never report an original finding as a new defect: if an edit did not fully fix its finding, say so in that finding's verdict. Edits that were not applied, required sections, source IDs, and financial figures are checked by code and are not your concern.
 
-3. PASSAGES LEFT UNCHANGED lists passages the reviser was asked to correct and returned as they were. Nothing was edited there. For each one, read the passage and decide whether the finding's root problem is in that passage as it stands: "present" is true when it is, false when the passage does not contain the problem (for example it is already worded as a labelled hypothesis). Do not assume the passage is acceptable because it was left alone, and do not assume it is defective because it was listed. Each passage is shown with its section and with any note about source dates that stands in that section. Read the passage in that context: when the finding is that a source is undated and not flagged, a note in the same section that accurately covers the passage's sources answers it, and the problem is not present in that passage. A note in a different section does not count, and a note that does not cover the passage's sources does not count. Give one answer for every unit and finding id listed.
+3. PASSAGES LEFT UNCHANGED lists passages the reviser was asked to correct that stand as they were: the reviser returned them unchanged, gave no edit, or gave a replacement that code refused. Nothing was edited there. For each one, read the passage and decide whether the finding's root problem is in that passage as it stands: "present" is true when it is, false when the passage does not contain the problem (for example it is already worded as a labelled hypothesis). Do not assume the passage is acceptable because it was left alone, and do not assume it is defective because it was listed. Each passage is shown with its section and with any note about source dates that stands in that section. Read the passage in that context: when the finding is that a source is undated and not flagged, a note in the same section that accurately covers the passage's sources answers it, and the problem is not present in that passage. A note in a different section does not count, and a note that does not cover the passage's sources does not count. Give one answer for every unit and finding id listed.
 
 ${SEVERITY}
 
@@ -1024,7 +1115,7 @@ if (attempt) {
     '', (fin.financial_model.split('SCENARIO TABLE')[0] || '').trim(),
     '', 'EVIDENCE LEDGER', ledger || 'None. No research was done for this plan.',
     '', 'FINDINGS AND THEIR EDITS (give one verdict per id)',
-    pairs.length ? pairs.map((f) => 'id ' + f.id + ' | ' + f.severity + ' | ' + f.check + '\n   Root problem: ' + f.problem + (f.fix ? '\n   Requested fix: ' + f.fix : '') + editLog.filter((e) => (e.issues || []).includes(f.id)).map((e) => '\n   Edit ' + e.unit + (e.issues.length > 1 ? ' (one replacement that also serves ' + e.issues.filter((x) => x !== f.id).join(', ') + ')' : '') + '\n     Before: ' + e.before + '\n     After: ' + (e.after || '(passage removed)')).join('')).join('\n') : 'None. Return empty lists.',
+    pairs.length ? pairs.map((f) => 'id ' + f.id + ' | ' + f.severity + ' | ' + f.check + '\n   Root problem: ' + f.problem + (f.fix ? '\n   Requested fix: ' + f.fix : '') + editLog.filter((e) => (e.issues || []).includes(f.id)).map((e) => '\n   Edit ' + e.unit + (e.issues.length > 1 ? ' (one replacement that also serves ' + e.issues.filter((x) => x !== f.id).join(', ') + ')' : '') + '\n     Before: ' + e.before + '\n     After: ' + (e.after || '(passage removed)') + (e.section_note ? '\n     Note placed above this table by the same edit: ' + e.section_note : '')).join('')).join('\n') : 'None. Return empty lists.',
     '', 'PASSAGES LEFT UNCHANGED (say for each unit and finding id whether the root problem is present in the passage)',
     (rev.unchanged_units || []).some((u) => (u.issues || []).some((id) => byFinding[id] && byFinding[id].source === 'QA review')) ? (rev.unchanged_units || []).flatMap((u) => (u.issues || []).filter((id) => byFinding[id] && byFinding[id].source === 'QA review').map((id) => 'unit ' + u.unit + ' | id ' + id + ' | ' + byFinding[id].severity + ' | ' + byFinding[id].check + '\n   Root problem: ' + byFinding[id].problem + '\n   Section: ' + (sectionAt(u.line || u.start) ? sectionAt(u.line || u.start).no + '. ' + sectionAt(u.line || u.start).title : 'not found') + '\n   Notes about source dates in that section: ' + (sectionAt(u.line || u.start) && dateNotesIn(sectionAt(u.line || u.start)).length ? dateNotesIn(sectionAt(u.line || u.start)).map((n) => '[L' + n.line + '] ' + n.text.slice(0, 260)).join(' | ') : 'none') + '\n   Passage, unchanged: ' + u.text)).join('\n') : 'None.',
   ].join('\n');

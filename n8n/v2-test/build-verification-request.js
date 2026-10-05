@@ -40,6 +40,7 @@ const system = [
   '5. "excerpt" must be copied exactly from the page text, character for character, and must contain every number the claim states. Keep it under 400 characters. To join two separate passages, put " ... " between them. If the verdict is "unverifiable", give the closest passage or an empty string.',
   '6. A claim that only says something was not found or is not stated is "unverifiable".',
   '7. Only when the verdict is "contradicted": add "corrections", a list of up to 3 replacement claims that say what the page states instead. Write one claim for each separate offer or fact; never merge two offers or two prices into one claim or a range. Each replacement has "claim", a complete sentence that starts with the same company or publisher name and gives the amount with its currency, what it buys, its duration, and every qualifier exactly as the page shows them, and "excerpt", copied exactly from the page text. These are proposals. They are checked again separately and are not accepted on your word. For every other verdict, "corrections" is an empty list.',
+  '8. Payment. When a claim calls a service paid, or says a company charges, sells, or takes a fee, set "payment_shown" to true only if the page text shows a price, a fee, a charge, or a purchase step for that service. A numeric price is not required. "Clear pricing", "affordable", "book a meeting", or a description of the service do not show it. When it is true, the excerpt must include the passage that shows it; join it to the rest with " ... ". When the page does not show it, set "payment_shown" to false and judge the rest of the claim as usual: code then removes the word and keeps the other facts. For a claim that says nothing about payment, "payment_shown" is null.',
   '',
   'Then judge credibility separately from support. A page can state a figure faithfully and still be weak evidence for it.',
   '- "first_party": true when the page belongs to the entity the claim is about and the claim is about that entity\'s own offer, price, or description of itself.',
@@ -52,7 +53,7 @@ const system = [
   runDate.line,
   '',
   'Return one JSON object and nothing else, in this shape:',
-  '{"source_id":"S1","injection_suspected":false,"publisher":"","date_shown":"","claims":[{"claim_id":"E1","verdict":"supported","excerpt":"","reasoning":"","checks":{"entity":"match","amount":"not_applicable","currency":"not_applicable","scope":"match","qualifier":"not_applicable","period":"not_applicable","population":"not_applicable","geography":"not_applicable","date":"not_applicable"},"credibility":{"rating":"high","first_party":true,"origin_stated":true,"basis":""},"corrections":[]}]}',
+  '{"source_id":"S1","injection_suspected":false,"publisher":"","date_shown":"","claims":[{"claim_id":"E1","verdict":"supported","excerpt":"","reasoning":"","checks":{"entity":"match","amount":"not_applicable","currency":"not_applicable","scope":"match","qualifier":"not_applicable","period":"not_applicable","population":"not_applicable","geography":"not_applicable","date":"not_applicable"},"credibility":{"rating":"high","first_party":true,"origin_stated":true,"basis":""},"payment_shown":null,"corrections":[]}]}',
   'Include every claim_id you were given, once.',
 ].join('\n');
 
@@ -107,7 +108,7 @@ pages.filter((p) => p.outcome === 'ok').forEach((p) => {
     '</page_text>',
     '',
     'CLAIMS TO CHECK AGAINST THIS PAGE',
-    JSON.stringify(claims.map((c) => ({ claim_id: c.claim_id, claim: c.claim, source_type_reported_by_research_tool: c.source_type })), null, 1),
+    JSON.stringify(claims.map((c) => ({ claim_id: c.claim_id, claim: c.claim, source_type_reported_by_research_tool: c.source_type, ...(c.asserts_payment ? { asserts_payment: true } : {}) })), null, 1),
   ].join('\n');
   items.push({ json: {
     source_id: p.source_id,

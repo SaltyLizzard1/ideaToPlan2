@@ -87,7 +87,8 @@ lines.push('STATUS: ' + status + (status === 'HOLD' ? ' - do not send. Unresolve
 if (rev) {
   lines.push('First review: ' + rev.before_counts.blocking + ' blocking, ' + rev.before_counts.major + ' major, ' + rev.before_counts.minor + ' minor.');
   if (rev.stats) lines.push('Blocking and major root findings: ' + rev.stats.root_findings + ', covering ' + rev.stats.occurrences + ' occurrences. Edit units: ' + rev.stats.units + ' (' + rev.stats.consolidated_units + ' combine overlapping findings or adjacent lines).');
-  lines.push('Automated revision: ' + rev.requested_count + ' edit units, ' + rev.applied_count + ' applied, ' + (rev.requested_count - rev.applied_count) + ' not applied.' + ((rev.unlocated || []).length ? ' Separately, ' + rev.unlocated.length + ' finding(s) had no editable location.' : '') + (rev.revision_error ? ' ' + rev.revision_error : ''));
+  const refusedUnits = rev.rejected_units || [];
+  lines.push('Automated revision: ' + rev.requested_count + ' edit units, ' + rev.applied_count + ' applied, ' + (rev.requested_count - rev.applied_count) + ' not applied' + (refusedUnits.length ? ' (' + refusedUnits.length + ' replacement' + (refusedUnits.length === 1 ? '' : 's') + ' refused by code; the findings on ' + (refusedUnits.length === 1 ? 'that passage' : 'those passages') + ' are not corrected and stay open)' : '') + '.' + ((rev.unlocated || []).length ? ' Separately, ' + rev.unlocated.length + ' finding(s) had no editable location.' : '') + (rev.revision_error ? ' ' + rev.revision_error : ''));
 } else {
   lines.push('Automated revision: ' + ((res.unlocated || []).length ? 'not run, because no finding could be located for editing.' : 'not needed.'));
   (res.unlocated || []).forEach((x) => lines.push('- ' + x));
@@ -108,10 +109,17 @@ if (rev) {
   ver.forEach((v) => lines.push(v.id + ' | ' + (v.occurrences > 1 ? v.occurrences + ' occurrences | ' : '') + v.status.replace('_', ' ') + ' | ' + v.severity + ' | ' + v.check + (v.note ? ' | ' + v.note : '')));
   const nd = res.new_defects || [];
   lines.push('', 'NEW DEFECTS INTRODUCED BY THE REVISION (' + nd.length + ')');
-  if (!nd.length) lines.push('None.');
+  if (!nd.length) lines.push('None.' + ((rev.rejected_units || []).length ? ' This covers the ' + rev.applied_count + ' edits that were applied. It says nothing about the ' + rev.rejected_units.length + ' replacement' + (rev.rejected_units.length === 1 ? '' : 's') + ' that code refused; see REQUIRED CORRECTIONS NOT APPLIED.' : ''));
   nd.forEach((f) => lines.push(f.id + ' | ' + f.severity + ' | ' + f.check + (f.unit ? ' | introduced by edit ' + f.unit : '') + ' | ' + f.problem));
   const maybe = res.possible_repeats || [];
   if (maybe.length) { lines.push('', 'SENTENCES THAT MAY REPEAT A CORRECTED CLAIM (' + maybe.length + '). These are not findings. Read each one.'); maybe.forEach((d) => lines.push('- L' + d.line + ' | edit ' + d.unit + ' corrected ' + d.issues.join(', ') + ' | ' + d.found)); }
+  const open = findings.filter((f) => f.correction_not_applied === true);
+  if ((rev.rejected_units || []).length || open.length) {
+    lines.push('', 'REQUIRED CORRECTIONS NOT APPLIED (' + open.length + ' finding' + (open.length === 1 ? '' : 's') + ' on ' + (rev.rejected_units || []).length + ' passage' + ((rev.rejected_units || []).length === 1 ? '' : 's') + '). Each finding is open with its original severity.');
+    (rev.rejected_units || []).forEach((u) => lines.push('- ' + u.unit + ' at L' + u.line + ': ' + u.why));
+    open.forEach((f) => lines.push('- ' + f.id + ' | ' + f.severity + ' | ' + f.check + (f.line ? ' | L' + f.line : '')));
+    if (!open.length) lines.push('- The automated checks no longer report a finding on these passages.');
+  }
   if (rev.unresolved.length) { lines.push('', 'EDIT UNITS NOT APPLIED (' + rev.unresolved.length + ')'); rev.unresolved.forEach((x) => lines.push('- ' + x)); }
   if ((rev.unlocated || []).length) { lines.push('', 'FINDINGS WITH NO EDITABLE LOCATION (' + rev.unlocated.length + ')'); rev.unlocated.forEach((x) => lines.push('- ' + x)); }
   if ((rev.stray || []).length) { lines.push('', 'REVISER OUTPUT IGNORED (' + rev.stray.length + ')'); rev.stray.forEach((x) => lines.push('- ' + x)); }

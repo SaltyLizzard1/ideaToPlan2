@@ -118,11 +118,13 @@ if (!attempt) {
 The problems have already been grouped into EDIT UNITS. Each unit is one passage of the plan (one line, or a few adjacent lines), shown with its current text and every finding that affects it.
 
 Output one JSON object and nothing else, with no code fence:
-{"edits":[{"unit":"U1","action":"replace" or "delete","new_text":"the complete corrected passage"}]}
+{"edits":[{"unit":"U1","action":"replace" or "delete","new_text":"the complete corrected passage","section_note":""}]}
 
 HOW EDITS WORK
 - Return exactly one edit for each unit. The edit replaces the unit's whole current text with "new_text".
-- "new_text" is the entire corrected passage: keep everything that was not wrong, in the same voice and format. For a table row, return the whole row with the same number of cells. For a unit of several lines, keep the line breaks.
+- "new_text" is the entire corrected passage: keep everything that was not wrong, in the same voice and format. For a unit of several lines, keep the line breaks.
+- A table row is replaced by one table row. When the unit's current text is a table row, "new_text" is that one row, with the same number of cells, and nothing else: no sentence above it, below it, or beside it, and no second row. A replacement that breaks this is refused by code and the finding stays open.
+- "section_note" is only for a note that sources are undated, and only when the unit is a table row. Put the note there, as one sentence or two, and code places it above the table. Leave it empty in every other case.
 - One replacement must resolve every finding listed for the unit.
 - Use "delete" to remove the passage when nothing in it is worth keeping. Never delete a table row that the table needs.
 - If a unit's text does not contain the problem described, still return an edit with action "replace" and the text unchanged.
@@ -133,13 +135,16 @@ HOW TO FIX
 - Mismatched citation: use the source ID the EVIDENCE LEDGER gives for that exact claim, or remove the claim.
 - A verified source is not a verified claim. Keep a source ID only on what one ledger entry states. Put a conclusion in IdeaToPlan's own voice with no source ID.
 - Prevalence: a few pages that describe their own offers are examples. Remove "widely available", "common", "numerous", and the like unless a ledger entry says so; name the examples with their source IDs and say that how widely they are used is not established.
-- Undated sources: when a finding says a source is undated and not flagged, add one sentence at its first use in that section saying which sources are undated and that the descriptions may have changed. A note in another section does not cover this one. If the unit's own section already carries such a note for these sources, return the text unchanged.
+- Undated sources: when a finding says a source is undated and not flagged, add one sentence at its first use in that section saying which sources are undated and that the descriptions may have changed. Name only sources that are undated: never write "all sources in this section" when the section also cites a dated one. When the unit is a table row, the sentence goes in "section_note", never in the row and never next to it. A note in another section does not cover this one. If the unit's own section already carries such a note for these sources, return the text unchanged.
+- Provider focus and stage: the ledger entries list services. Remove any statement that providers focus on logistics or execution, are oriented toward what happens after a decision is made, or leave the planning stage out. Say what the pages list, with their source IDs. Whether a provider works before a decision is a question the pages do not answer.
+- Survey findings: keep what the survey asked, of whom, and how many ("nearly two-thirds of 600 surveyed travelers said ..."). Remove "confirms", "proves", "shows that" when the sentence turns the finding into a fact about travelers, customers, or people in general, and say what the finding does not cover.
+- Superlatives: "the most common substitute", "the biggest barrier", "the most popular channel" compare one thing with all the others. Without a ledger entry that makes that comparison, write that it is one substitute, barrier, or channel, and remove the superlative.
 - Rankings: "the most comprehensive provider reviewed" ranks every company reviewed. It needs the criterion in the sentence and a source ID for each of those companies. With evidence for two, write a comparison between those two only ("A's page lists more services than B's [S1] [S2]"). Otherwise remove the ranking and say what that company's page lists.
 - Supply is not demand: providers describing services, and resources being available, show what is offered. Remove any statement that this suggests, indicates, confirms, or is consistent with people seeking, wanting, or paying for such help. A hedge does not make it supported. Say which offers exist and word customer behaviour as a hypothesis to test.
 - Samples: a survey's number of respondents is the size of its sample. Remove any statement that a community, a population, or a market is large, active, or growing, or that demand exists, when it rests on a sample size. Keep only what the ledger entry states.
 - Demand: competitors existing is not evidence of buyers, sales, or willingness to pay. Reword any such statement as a hypothesis that requires validation.
 - Price: the offer's own price is a planning assumption with no source ID. Remove a source ID from any sentence that ties the price to pages that state no price, and keep those pages only on the service descriptions they support. Never write that the price is market-validated. A competitor price keeps its amount, currency, what it buys, and its length, and is never called equivalent to this offer.
-- Payment and market: do not write that providers are paid or charge unless a ledger entry states a price for them. A market existing means offers are available, not that demand is shown. One company's page supports statements about that company only.
+- Payment and market: do not write that providers are paid, charge, or sell unless a ledger entry for them states a price, a fee, or a charge. This holds with no source ID too ("paid relocation services" in a list of alternatives). Remove the word and describe what they offer. A market existing means offers are available, not that demand is shown. One company's page supports statements about that company only.
 - Competitive gaps: a gap, an unmet need, an underserved segment, a positioning opportunity, or a statement that no competitor does something is a hypothesis unless a ledger entry states it. Word the sentence that makes the claim as a hypothesis to test, in that sentence. A label in another sentence does not cover it, and writing "IdeaToPlan analysis" is not enough: it names the author and does not make the claim conditional.
 - Price comparisons: with no verified price in the ledger, remove any comparison with what other services charge, including one that gives no number (a reference point, a general range, a benchmark, a going rate), and say that the price is an untested planning assumption.
 - Price evidence: a ledger price is one page's own words. Keep it as that: what the page states, with its source ID. Never write that it shows what a market, a category, established firms, or customers pay, that it leaves room for this offer, or that the page charges it itself unless the ledger entry says so. Fix every sentence in the passage that does this, not only the one quoted.
@@ -201,6 +206,9 @@ if (verOk && Array.isArray(qa.unchanged)) qa.unchanged.forEach((u) => { if (u &&
 const autoNow = (cc.det_issues || []).map(fromAuto);
 // An automated finding that is still reported keeps the ID it had in the first review.
 autoNow.forEach((n) => { const o = first.find((f) => f.source === 'Automated check' && f.check === n.check && (f.problem === n.problem || (f.quote && f.quote === n.quote))); if (o) n.id = o.id; });
+// An automated finding that is still reported on a passage whose replacement was refused is a required correction
+// that was not made. It is marked, so the report cannot read as though the revision dealt with it.
+autoNow.forEach((n) => { const u = (rev.unchanged_units || []).find((x) => x.kind === 'rejected' && (x.issues || []).includes(n.id)); if (u) { n.correction_not_applied = true; n.not_applied_units = [u.unit]; n.problem = n.problem + ' (REQUIRED CORRECTION NOT APPLIED: the replacement for ' + u.unit + ' at L' + u.line + ' was refused by code: ' + u.why + ')'; } });
 const verification = [];
 const findings = autoNow.slice();
 first.forEach((f) => {
@@ -212,14 +220,17 @@ first.forEach((f) => {
     return;
   }
   const mine = editsFor(f.id);
-  if (f.severity === 'MINOR') { if (!mine.length) findings.push(f); return; }
+  if (f.severity === 'MINOR') { if (!mine.length || unchanged.some((u) => u.kind === 'rejected' && (u.issues || []).includes(f.id))) findings.push(f); return; }
   // An original finding keeps its ID. Code decides the verdict when nothing was edited; QA decides it when something was.
   const occ = f.occurrences || [];
   const edited = (o) => o.located && mine.some((e) => o.located >= e.start && o.located <= e.end);
   // An occurrence the reviser left unchanged is neither fixed nor cleared by that. The verification pass read the
   // passage and said whether the root problem is in it. Only "not present" clears it; no answer leaves it open.
   const leftAlone = (o) => o.located ? unchanged.find((u) => (u.issues || []).includes(f.id) && o.located >= u.start && o.located <= u.end) : null;
-  const judged = (o) => { const u = leftAlone(o); return u ? presence[u.unit + '|' + f.id] : null; };
+  // A replacement that code refused is a correction that was required and not made. The verifier's reading of the
+  // passage does not close it: the finding stays open, with its original severity, until the passage is corrected.
+  const judged = (o) => { const u = leftAlone(o); return u && u.kind !== 'rejected' ? presence[u.unit + '|' + f.id] : null; };
+  const refused = unchanged.filter((u) => u.kind === 'rejected' && (u.issues || []).includes(f.id));
   const editedOcc = occ.filter(edited).length;
   const clearedOcc = occ.filter((o) => !edited(o) && judged(o) && judged(o).present === false).length;
   const stillThere = occ.filter((o) => !edited(o) && judged(o) && judged(o).present === true);
@@ -234,8 +245,12 @@ first.forEach((f) => {
   else { status = 'NOT_VERIFIED'; note = 'An edit was applied but QA gave no verdict on it.'; }
   if (mine.length && status === 'FIXED' && editedOcc + clearedOcc < occ.length) { status = 'PARTLY_FIXED'; note = editedOcc + ' of ' + occ.length + ' occurrences were edited' + (clearedOcc ? ' and ' + clearedOcc + ' left unchanged did not contain the problem' : '') + '. ' + (stillThere.length ? 'The problem is still at L' + stillThere.map((o) => o.located).join(', L') + '. ' : 'The rest were not verified. ') + note; }
   else if (mine.length && status === 'FIXED' && clearedOcc) note = note + ' ' + clearedOcc + ' passage' + (clearedOcc === 1 ? '' : 's') + ' left unchanged did not contain the problem.';
-  verification.push({ id: f.id, severity: f.severity, source: f.source, check: f.check, occurrences: occ.length, status, note });
-  if (status !== 'FIXED') findings.push({ ...f, status, problem: f.problem + ' (After revision: ' + status.replace('_', ' ').toLowerCase() + '. ' + note + ')' });
+  if (refused.length) {
+    if (status === 'FIXED') status = 'PARTLY_FIXED';
+    note = 'REQUIRED CORRECTION NOT APPLIED: the replacement for ' + refused.map((u) => u.unit + ' at L' + u.line).join(', ') + ' was refused by code (' + refused.map((u) => u.why).join(' ') + '), so that passage is unchanged and this finding stands with its original severity. ' + note;
+  }
+  verification.push({ id: f.id, severity: f.severity, source: f.source, check: f.check, occurrences: occ.length, status, note, ...(refused.length ? { correction_not_applied: true } : {}) });
+  if (status !== 'FIXED') findings.push({ ...f, status, ...(refused.length ? { correction_not_applied: true, not_applied_units: refused.map((u) => u.unit) } : {}), problem: f.problem + ' (After revision: ' + status.replace('_', ' ').toLowerCase() + '. ' + note + ')' });
 });
 // A new defect is only something the revision added. If a finding on the same edit unit is still open, the problem belongs to that finding.
 const openIds = new Set(verification.filter((x) => x.status !== 'FIXED').map((x) => x.id));
@@ -372,6 +387,8 @@ return {
   verification,
   new_defects,
   unresolved_checks,
+  // Findings whose correction was refused by code. They are open, each with the severity it had in the first review.
+  unapplied_corrections: findings.filter((f) => f.correction_not_applied === true).map((f) => ({ id: f.id, severity: f.severity, check: f.check, line: f.line || null, units: f.not_applied_units || [] })),
   same_claim_elsewhere,
   possible_repeats,
   qa_summary: qa ? s(qa.summary) : '',
