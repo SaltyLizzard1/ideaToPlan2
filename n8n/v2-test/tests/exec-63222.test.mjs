@@ -231,9 +231,12 @@ test('price evidence: the reviewer and the reviser are given the same rule', asy
 
 test('elsewhere: the inference removed at line 511 is found again at line 40', async () => {
   const r = await secondPass(clean());
-  const dup = r.out.findings.filter((f) => f.check === 'SAME CLAIM STILL PRESENT ELSEWHERE');
+  const all = r.out.findings.filter((f) => f.check === 'SAME CLAIM STILL PRESENT ELSEWHERE');
+  // Two confirmed repeats: line 40 (below), and line 297, which still says "from established firms" after QA-016 removed it at line 51.
+  assert.deepEqual(all.map((f) => f.line).sort((a, b) => a - b), [40, 297]);
+  assert.equal(all.find((f) => f.line === 297).severity, r.rev.first_findings.find((f) => f.id === 'QA-016').severity);
+  const dup = all.filter((f) => f.line === 40);
   assert.equal(dup.length, 1);
-  assert.equal(dup[0].line, 40);
   // QA-003 and QA-008 were blocking where they were found, so the surviving sentence is blocking too.
   assert.deepEqual(['QA-003', 'QA-008'].map((id) => r.rev.first_findings.find((f) => f.id === id).severity), ['BLOCKING', 'BLOCKING']);
   assert.equal(dup[0].severity, 'BLOCKING');
@@ -253,7 +256,7 @@ test('elsewhere: a claim removed by an edit and repeated in another section is r
   const cc = await check(rev.text, { rev });
   const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': cc, 'Apply Revisions': rev, 'Build Evidence': EV }, { choices: [{ message: { content: JSON.stringify(clean()) } }] });
   const dup = out.findings.filter((f) => f.check === 'SAME CLAIM STILL PRESENT ELSEWHERE');
-  assert.deepEqual(dup.map((f) => f.line), [40, rev.text.replace(/\n+$/, '').split('\n').length]);
+  assert.deepEqual(dup.map((f) => f.line).sort((a, b) => a - b), [40, 297, rev.text.replace(/\n+$/, '').split('\n').length]);
 });
 
 // ---------------- 5. Profit wording, and the duplicated computed sentence ----------------
@@ -438,21 +441,30 @@ test('gate: a check that did not complete holds the plan, and is counted apart f
   assert.equal(review.unresolved_check_count, 0);
 });
 
-test('elsewhere: an uncertain match is a warning, and a certain match keeps the severity of the finding it repeats', async () => {
+test('elsewhere: an uncertain match is listed apart and is not a finding; a confirmed repeat keeps its severity', async () => {
   const rev = clone(fx('Apply Revisions'));
   const e = rev.edit_log.find((x) => x.unit === 'U25');
   e.before = e.before + ' Referral partnerships with immigration lawyers will supply most early customers for this consulting business within the first quarter.';
-  // About half of the removed statement's words, in a sentence that may or may not say the same thing.
-  rev.text = rev.text + '\n\nImmigration lawyers sometimes refer early customers to a consulting business, though rarely within a single quarter of trading.\n';
+  // Most of the removed statement's words, in a sentence that may or may not say the same thing.
+  rev.text = rev.text + '\n\nReferral partnerships with immigration lawyers might supply some early customers for a consulting business within a year.\n';
   const cc = await check(rev.text, { rev });
   const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': cc, 'Apply Revisions': rev, 'Build Evidence': EV }, { choices: [{ message: { content: JSON.stringify(clean()) } }] });
   const last = rev.text.replace(/\n+$/, '').split('\n').length;
-  const maybe = out.findings.find((f) => f.line === last && /SAME CLAIM/.test(f.check));
-  assert.equal(maybe.check, 'POSSIBLY THE SAME CLAIM ELSEWHERE');
-  assert.equal(maybe.severity, 'MAJOR');
+  assert.ok(out.possible_repeats.some((d) => d.line === last), 'the uncertain sentence is listed for a person to read');
+  assert.ok(!out.findings.some((f) => f.line === last), 'and it is not a finding of any severity');
+  assert.ok(!out.findings.some((f) => /POSSIBLY/.test(f.check)));
   const sure = out.findings.find((f) => f.check === 'SAME CLAIM STILL PRESENT ELSEWHERE');
   assert.equal(sure.line, 40);
   assert.equal(sure.severity, 'BLOCKING');
+});
+
+test('elsewhere: a sentence that shares only the part that was kept is not a repeat', async () => {
+  // The edit kept "a vendor page states ... typically range from $2,000 to $8,000" and removed the inference.
+  // Other lines that state the range, without the inference, share many words and are not reported.
+  const r = await secondPass(clean());
+  const lines = r.out.same_claim_elsewhere.map((d) => d.line).concat(r.out.possible_repeats.map((d) => d.line));
+  assert.ok(!lines.includes(51) && !lines.includes(127));
+  assert.match(lineOf(51), /typically range from \$2,000 to \$8,000 \[S24\]/);
 });
 
 test('63222 recheck: confirmed defects, unresolved checks and ordinary findings are separate', async () => {
@@ -468,18 +480,21 @@ test('63222 recheck: confirmed defects, unresolved checks and ordinary findings 
     'L127 PRICE EVIDENCE STRETCHED BEYOND ITS SOURCE',
     'L297 PRICE EVIDENCE STRETCHED BEYOND ITS SOURCE',
     'L511 PRICE EVIDENCE STRETCHED BEYOND ITS SOURCE',
+    // "none was identified that explicitly positions around the earlier, pre-decision stage": a finding in its own
+    // sentence, with the hypothesis only in the sentence after it.
+    'L113 COMPETITIVE GAP STATED AS A FINDING',
     'L40 SAME CLAIM STILL PRESENT ELSEWHERE',
   ]);
   assert.equal(f.filter((x) => x.unresolved).length, 3);
-  // Ordinary findings with a clear result: the financial review note, and sentences that may repeat a corrected claim.
-  const major = f.filter((x) => x.severity === 'MAJOR');
-  assert.deepEqual([...new Set(major.map((x) => x.check))], ['FINANCIAL MODEL', 'POSSIBLY THE SAME CLAIM ELSEWHERE']);
-  assert.deepEqual(major.filter((x) => /POSSIBLY/.test(x.check)).map((x) => x.line), [297, 14, 39, 463, 499, 511, 469]);
+  // Ordinary findings with a clear result. Word overlap alone no longer produces one.
+  // The repeat at line 297 keeps the MAJOR severity of QA-016; the same line is blocked by the price check above.
+  assert.deepEqual(f.filter((x) => x.severity === 'MAJOR').map((x) => x.check + ' L' + x.line), ['FINANCIAL MODEL Lnull', 'SAME CLAIM STILL PRESENT ELSEWHERE L297']);
+  assert.deepEqual(r.out.possible_repeats, []);
   // In the run, the gate held on these two. Neither is a finding now.
   assert.ok(!f.some((x) => /CITATION NOT TIED|Citation on wrong claim/.test(x.check)));
   const g = await gate(f);
   assert.equal(g.blocked, true);
-  assert.equal(g.confirmed_blocker_count, 9);
+  assert.equal(g.confirmed_blocker_count, 10);
   assert.equal(g.unresolved_check_count, 3);
-  assert.equal(g.warning_count, 8);
+  assert.equal(g.warning_count, 2);
 });

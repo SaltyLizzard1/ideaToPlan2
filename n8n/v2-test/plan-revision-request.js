@@ -129,6 +129,7 @@ HOW TO FIX
 - Unsupported or overstated statement: either weaken it to exactly what the available evidence supports, or recast it as an IdeaToPlan recommendation with its reason ("IdeaToPlan recommends X because Y") or as a hypothesis to test, or delete it. Never write a new factual claim, statistic, trend, prediction, or "research suggests" statement to replace the one that was flagged. If in doubt, delete.
 - Mismatched citation: use the source ID the EVIDENCE LEDGER gives for that exact claim, or remove the claim.
 - A verified source is not a verified claim. Keep a source ID only on what one ledger entry states. Put a conclusion in IdeaToPlan's own voice with no source ID.
+- Samples: a survey's number of respondents is the size of its sample. Remove any statement that a community, a population, or a market is large, active, or growing, or that demand exists, when it rests on a sample size. Keep only what the ledger entry states.
 - Demand: competitors existing is not evidence of buyers, sales, or willingness to pay. Reword any such statement as a hypothesis that requires validation.
 - Price: the offer's own price is a planning assumption with no source ID. Remove a source ID from any sentence that ties the price to pages that state no price, and keep those pages only on the service descriptions they support. Never write that the price is market-validated. A competitor price keeps its amount, currency, what it buys, and its length, and is never called equivalent to this offer.
 - Payment and market: do not write that providers are paid or charge unless a ledger entry states a price for them. A market existing means offers are available, not that demand is shown. One company's page supports statements about that company only.
@@ -284,25 +285,38 @@ log.forEach((e) => {
   const ids = (e.issues || []).filter((id) => first.some((f) => f.id === id && f.source === 'QA review' && f.severity !== 'MINOR'));
   if (!ids.length) return;
   const kept = sentencesOf(e.after);
+  const correctedWords = new Set(contentOf(e.after));
   const span = String(e.after || '').split('\n').length;
-  sentencesOf(e.before).filter((b) => contentOf(b).length >= 8 && !kept.some((k) => shares(b, k) >= 0.7)).forEach((removed) => {
+  // A removed disclaimer ("it is not evidence of ...", "this is untested") is not an unsupported claim, and a sentence
+  // elsewhere that denies or qualifies is not a repeat of one. Only an assertion can be repeated as a defect.
+  const DISCLAIMS = /\b(?:not|no|never|cannot|without|unvalidated|untested|unverified|unknown|hypothes[ie]s)\b/i;
+  sentencesOf(e.before).filter((b) => contentOf(b).length >= 8 && !DISCLAIMS.test(b) && !kept.some((k) => shares(b, k) >= 0.7)).forEach((removed) => {
     revisedLines.forEach((l, i) => {
       const n = i + 1;
       if ((e.line && n >= e.line && n < e.line + span) || !l.trim() || l.trim().startsWith('#') || computedText.has(l.trim())) return;
       // A sentence that repeats most of the removed statement is the same claim. One that shares about half of it may be: that is a warning.
-      const scored = sentencesOf(l).map((x) => ({ x, share: shares(removed, x) })).sort((p, q) => q.share - p.share)[0];
-      if (!scored || scored.share < 0.5) return;
-      // One report per line: a certain match replaces an uncertain one.
+      // Shared words do not make a sentence defective. What was wrong is what the edit took out: the words of the
+      // removed statement that are not in the corrected text. A sentence elsewhere repeats the defect only when it
+      // still carries those words, in a passage that also shares the statement as a whole. A sentence that shares
+      // only the part that was kept is not a repeat at all.
+      const gone = contentOf(removed).filter((w) => !correctedWords.has(w));
+      if (gone.length < 3) return;
+      const lineShare = shares(removed, l);
+      if (lineShare < 0.6) return;
+      const scored = sentencesOf(l).filter((x) => !DISCLAIMS.test(x)).map((x) => { const there = new Set(contentOf(x)); return { x, carries: gone.filter((w) => there.has(w)).length / gone.length }; }).sort((p, q) => q.carries - p.carries)[0];
+      if (!scored || scored.carries < 0.5) return;
+      const confirmed = lineShare >= 0.7 && scored.carries >= 0.6;
       const prior = same_claim_elsewhere.findIndex((x) => x.line === n);
-      if (prior >= 0) { if (same_claim_elsewhere[prior].certain || scored.share < 0.7) return; same_claim_elsewhere.splice(prior, 1); }
+      if (prior >= 0) { if (same_claim_elsewhere[prior].certain || !confirmed) return; same_claim_elsewhere.splice(prior, 1); }
       const worst = ids.map((id) => first.find((f) => f.id === id).severity).sort((p, q) => RANK_OF[p] - RANK_OF[q])[0];
-      same_claim_elsewhere.push({ line: n, unit: e.unit, issues: ids, certain: scored.share >= 0.7, severity: scored.share >= 0.7 ? worst : 'MAJOR', removed: removed.slice(0, 240), found: scored.x.slice(0, 240) });
+      same_claim_elsewhere.push({ line: n, unit: e.unit, issues: ids, certain: confirmed, severity: confirmed ? worst : null, removed: removed.slice(0, 240), found: scored.x.slice(0, 240) });
     });
   });
 });
-// The surviving sentence carries the severity of the finding it repeats: a claim judged blocking at one line is blocking
-// at every line. Only an uncertain match is reduced to a warning.
-same_claim_elsewhere.forEach((d, i) => findings.push({ id: 'DUP-' + String(i + 1).padStart(3, '0'), severity: d.severity, source: 'Revision check', check: d.certain ? 'SAME CLAIM STILL PRESENT ELSEWHERE' : 'POSSIBLY THE SAME CLAIM ELSEWHERE', section: '', line: d.line, quote: d.found, occurrences: [{ line: d.line, section: '', quote: d.found }], unit: d.unit, problem: 'Edit ' + d.unit + ' corrected ' + d.issues.join(', ') + ' by removing or rewording this statement: "' + d.removed + '". ' + (d.certain ? 'A sentence that makes the same statement is still at L' + d.line + ', which was not edited. Correcting one place does not correct the other, and the finding applies here with the same severity.' : 'A sentence at L' + d.line + ', which was not edited, shares part of that statement and may make the same claim. Read it.'), fix: '' }));
+// A confirmed repeat is a finding, with the severity of the finding it repeats: a claim judged blocking at one line is
+// blocking at every line. An uncertain match is not a finding of any severity. It is listed apart, for a person to read.
+const possible_repeats = same_claim_elsewhere.filter((d) => !d.certain).map((d) => ({ line: d.line, unit: d.unit, issues: d.issues, removed: d.removed, found: d.found }));
+same_claim_elsewhere.filter((d) => d.certain).forEach((d, i) => findings.push({ id: 'DUP-' + String(i + 1).padStart(3, '0'), severity: d.severity, source: 'Revision check', check: 'SAME CLAIM STILL PRESENT ELSEWHERE', section: '', line: d.line, quote: d.found, occurrences: [{ line: d.line, section: '', quote: d.found }], unit: d.unit, problem: 'Edit ' + d.unit + ' corrected ' + d.issues.join(', ') + ' by removing or rewording this statement: "' + d.removed + '". A sentence that makes the same statement, including the part that was removed, is still at L' + d.line + ', which was not edited. Correcting one place does not correct the other, and the finding applies here with the same severity.', fix: '' }));
 order(findings);
 if (!verOk) findings.unshift({ id: 'AUTO-VER', severity: 'BLOCKING', source: 'Automated check', check: 'VERIFICATION DID NOT RUN', section: '', line: null, quote: '', occurrences: [], problem: 'The verification pass did not return a readable result, so the revision has not been checked. Check the Final QA node in this execution.', fix: 'Review the plan by hand.' });
 order(findings);
@@ -318,6 +332,7 @@ return {
   new_defects,
   unresolved_checks,
   same_claim_elsewhere,
+  possible_repeats,
   qa_summary: qa ? s(qa.summary) : '',
   revise_payload: '',
 };

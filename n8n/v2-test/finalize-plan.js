@@ -110,6 +110,8 @@ if (rev) {
   lines.push('', 'NEW DEFECTS INTRODUCED BY THE REVISION (' + nd.length + ')');
   if (!nd.length) lines.push('None.');
   nd.forEach((f) => lines.push(f.id + ' | ' + f.severity + ' | ' + f.check + (f.unit ? ' | introduced by edit ' + f.unit : '') + ' | ' + f.problem));
+  const maybe = res.possible_repeats || [];
+  if (maybe.length) { lines.push('', 'SENTENCES THAT MAY REPEAT A CORRECTED CLAIM (' + maybe.length + '). These are not findings. Read each one.'); maybe.forEach((d) => lines.push('- L' + d.line + ' | edit ' + d.unit + ' corrected ' + d.issues.join(', ') + ' | ' + d.found)); }
   if (rev.unresolved.length) { lines.push('', 'EDIT UNITS NOT APPLIED (' + rev.unresolved.length + ')'); rev.unresolved.forEach((x) => lines.push('- ' + x)); }
   if ((rev.unlocated || []).length) { lines.push('', 'FINDINGS WITH NO EDITABLE LOCATION (' + rev.unlocated.length + ')'); rev.unlocated.forEach((x) => lines.push('- ' + x)); }
   if ((rev.stray || []).length) { lines.push('', 'REVISER OUTPUT IGNORED (' + rev.stray.length + ')'); rev.stray.forEach((x) => lines.push('- ' + x)); }

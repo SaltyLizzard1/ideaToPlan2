@@ -223,8 +223,27 @@ derived.forEach((x) => statsIn(x.figure).forEach((tok) => ownStats.add(tok)));
 // Sources whose figures need a qualifier every time: undated, or a vendor blog, list article, or forum.
 const weakKind = /vendor blog|listicle|directory|community|forum/i;
 const weakSource = (id) => { const x = srcById[id]; if (!x || x.kind !== 'research') return ''; if (/^not provided|date not shown/i.test(String(x.published || ''))) return 'undated'; const c = evClaims.find((k) => (k.source_ids || []).includes(id) && weakKind.test(k.source_type || '')); return c ? c.source_type : ''; };
-const qualified = /directional|unverified|not (?:been )?independently|undated|no publication date|absence of a publication date|treat (?:this|these|it|them)|vendor blog|one source estimates|estimates? (?:the|that)|according to/i;
+const qualified = /directional|unverified|not (?:been )?independently|undated|no publication date|absence of a publication date|treat (?:this|these|it|them)|vendor blog|one source estimates|estimates? (?:the|that)|according to|(?:website|page|site) (?:states|says|lists)|states (?:that )?it charges|as of the date retrieved|may not reflect current/i;
 const segmentsOf = (t) => /^\|.*\|$/.test(t) ? [t] : t.split(/(?<=[.!?;])\s+/);
+// SHORT NAMES. A plan often shortens a company's name: "Kismet Travels" for "Kismet Travels & Tours". A short name is
+// accepted only when it is the leading words of the verified name, with a generic ending or the part after "&"
+// dropped, has at least two words, and belongs to one company only: if another company's name starts with the same
+// words, the short name is not used for either. It is matched with its capital letters, as a name, never as a
+// substring, so "expat financial planners" is not a mention of "Expat Financial Solutions".
+const GENERIC_ENDING = /^(?:tours?|travels?|relocations?|group|consulting|consultants?|solutions|services|inc|llc|ltd|co|company|international|global|worldwide|partners|associates|advisors|advisers)$/i;
+const JOINER = /^(?:&|and)$/i;
+const shortNamesOf = (e) => {
+  const tk = String(e.name || '').split(/\s+/).filter(Boolean);
+  const out = [];
+  const amp = tk.findIndex((w) => JOINER.test(w));
+  if (amp >= 2) out.push(tk.slice(0, amp).join(' '));
+  let end = tk.length;
+  while (end > 2 && GENERIC_ENDING.test(tk[end - 1].replace(/[.,]/g, ''))) { end--; while (end > 2 && JOINER.test(tk[end - 1])) end--; out.push(tk.slice(0, end).join(' ')); }
+  return [...new Set(out)].filter((s) => s.split(' ').length >= 2 && s !== tk.join(' '));
+};
+const shortNames = {};
+entities.forEach((e) => shortNamesOf(e).forEach((s) => { (shortNames[s] = shortNames[s] || []).push(e); }));
+const aliasesOf = (e) => Object.keys(shortNames).filter((s) => shortNames[s].length === 1 && shortNames[s][0] === e && !entities.some((o) => o !== e && (String(o.name || '') + ' ').startsWith(s + ' ')));
 let rowEntity = null;
 let sectionNo = 0;
 lines.forEach((line, i) => {
@@ -254,6 +273,11 @@ lines.forEach((line, i) => {
       const re = new RegExp('(?:^|[^a-z0-9])(' + e.name_words.split(' ').map((w) => w === 'and' ? '(?:and|&)' : w).join("(?:['’]s)?[^a-z0-9]+") + ')(?![a-z0-9])', 'gi');
       let m;
       while ((m = re.exec(text)) !== null) { const start = m.index + m[0].length - m[1].length; found.push({ e, start, end: start + m[1].length }); re.lastIndex = start + 1; }
+      aliasesOf(e).forEach((alias) => {
+        const ar = new RegExp('(?:^|[^A-Za-z0-9])(' + alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+') + ')(?![A-Za-z0-9])', 'g');
+        let a;
+        while ((a = ar.exec(text)) !== null) { const start = a.index + a[0].length - a[1].length; found.push({ e, start, end: start + a[1].length }); ar.lastIndex = start + 1; }
+      });
     });
     // "Move One" inside "Move One Relocations" is one mention, the longer one.
     return found.filter((x) => !found.some((y) => y !== x && y.start <= x.start && y.end >= x.end && (y.end - y.start) > (x.end - x.start))).sort((p, q) => p.start - q.start);
@@ -276,7 +300,10 @@ lines.forEach((line, i) => {
         about = [before[k].e];
         while (k > 0 && /^[\s,]*(?:and|or|&)?[\s,]*$/i.test(clause.slice(before[k - 1].end, before[k].start))) { k--; about.push(before[k].e); }
       } else {
-        const later = [...new Set(mentions.map((x) => x.e))];
+        // Companies named after the citation count only when they have no citation of their own
+        // ("... [S2], according to X"). A company followed by its own source is bound to that source, not to this one.
+        const after = mentions.filter((x) => x.start >= run.index + run[0].length);
+        const later = [...new Set(after.filter((x, n) => !/\b[SW]\d+\b/.test(clause.slice(x.end, n + 1 < after.length ? after[n + 1].start : clause.length))).map((x) => x.e))];
         about = later.length ? later : rowContext;
       }
       if (!about.length) continue;
@@ -311,7 +338,9 @@ lines.forEach((line, i) => {
     const yr = seg.match(/\b(?:dated|published in|as of)\s+((?:19|20)\d{2})\b/i);
     if (yr && /\b(source|entry|page|report|listing)\b/i.test(seg) && !cited.some((id) => String(srcById[id].published || '').includes(yr[1]))) add('BLOCKING', 'SOURCE DATE NOTE ON THE WRONG SOURCE', 'The text says its source is dated ' + yr[1] + ', but ' + cited.map((id) => id + ' is recorded as published ' + srcById[id].published).join('; ') + '.', short(seg), L);
     // 4. Warning, not a blocker: a figure from a weak source stated with no qualifier. Repeating it does not make it established.
-    if (!qualified.test(seg) && statsIn(seg).some((tok) => !ownStats.has(tok))) cited.forEach((id) => {
+    // The qualifier may sit in another clause of the same sentence ("...[S5]; the page carries no publication date").
+    const wholeSentence = t.split(/(?<=[.!?])\s+/).find((x) => x.includes(seg.trim().slice(0, 60))) || seg;
+    if (!qualified.test(seg) && !qualified.test(wholeSentence) && statsIn(seg).some((tok) => !ownStats.has(tok))) cited.forEach((id) => {
       const why = weakSource(id);
       if (why && statsIn(seg).some((tok) => statOwners[tok] && statOwners[tok].has(id))) add('MAJOR', 'UNVERIFIED EVIDENCE STATED WITHOUT QUALIFICATION', id + ' is ' + (why === 'undated' ? 'an undated source' : 'a ' + why) + '. Its figure is stated here as fact' + (sectionNo === 1 ? ', in the Executive Summary' : '') + '. Say whose estimate it is and that it has not been verified, every time it appears.', short(seg), L);
     });
@@ -413,7 +442,8 @@ lines.forEach((line, i) => {
       if (exclusionSeen.has(key)) return;
       exclusionSeen.add(key);
       if (cited.length) add('BLOCKING', 'EXCLUDED CLAIM USED AS EVIDENCE', 'This text describes ' + e.name + ' and cites ' + cited.join(', ') + ', but no claim about ' + e.name + ' could be verified on a source page. Every research claim about it was excluded.', short(seg), L);
-      else add('MAJOR', 'UNVERIFIED COMPANY DESCRIBED', 'This text describes ' + e.name + ', but no claim about it could be verified on a source page. Remove it or say plainly that nothing about it was verified.', short(seg), L);
+      // A sentence that only says the company could not be verified is the plain statement this check asks for.
+      else if (!(/\b(?:could not|cannot|can not|was not|were not|not) (?:be )?(?:independently )?verified\b|\bnot used as evidence\b|\bno verified (?:evidence|claims?|information)\b|\bnothing (?:about (?:it|them) )?(?:was|could be) verified\b/i.test(seg) && !/\b(?:offers?|provides?|charges?|serves?|sells?|speciali[sz]\w+|focus\w*|prices?)\b/i.test(seg))) add('MAJOR', 'UNVERIFIED COMPANY DESCRIBED', 'This text describes ' + e.name + ', but no claim about it could be verified on a source page. Remove it or say plainly that nothing about it was verified.', short(seg), L);
     });
   });
 });
@@ -452,14 +482,25 @@ const PRICE_UNTESTED = /\b(?:untested|unvalidated|not (?:yet )?(?:been )?(?:test
 // WHAT A VERIFIED PRICE ESTABLISHES. A ledger entry states one page's words about a price. It does not establish that
 // the market, a category, established firms, or customers pay that price, that there is room for this offer, or what
 // this offer should cost. It establishes that the page charges that price itself only when the page says so.
-const isPriceClaim = (c) => MONEY_IN.test(String(c.claim || '') + ' ' + String(c.page_excerpt || '')) && /\b(?:price[ds]?|pricing|costs?|fees?|charg\w*|packages?|rates?|subscriptions?|per (?:session|hour|month|call|transferee|person|client))\b/i.test(String(c.claim || '')) && !/\b(?:earn\w*|incomes?|salar(?:y|ies)|making more than|net worth)\b/i.test(String(c.claim || ''));
+const isPriceClaim = (c) => MONEY_IN.test(String(c.claim || '') + ' ' + String(c.page_excerpt || '')) && /\b(?:price[ds]?|pricing|costs?|fees?|charg\w*|packages?|rates?|subscriptions?|rang(?:e|es|ed|ing) from|per (?:session|hour|month|call|transferee|person|client))\b/i.test(String(c.claim || '')) && !/\b(?:earn\w*|incomes?|salar(?:y|ies)|making more than|net worth)\b/i.test(String(c.claim || ''));
 const ledgerPriceEntries = evClaims.filter(isPriceClaim);
 const ledgerPriceAmounts = new Set(ledgerPriceEntries.flatMap((c) => (String(c.claim || '') + ' ' + String(c.page_excerpt || '')).match(/\$\s?\d[\d,]*(?:\.\d+)?/g) || []).map((m) => m.replace(/[\s,$]/g, '').replace(/\.00$/, '')));
 const PRICE_TOPIC = /\b(?:adjacent|comparable|competitor|competing|market|category|vendor|provider)\b[^.;]{0,40}\bpric(?:e|es|ing)\b|\bpric(?:e|ing) (?:data|evidence|points?)\b|\bpricing data\b|\breference point\b/i;
 const PRICE_INFER = /\b(?:suggest|indicat|show|support|confirm|demonstrat|prov|establish|validat|impl|signal|reflect)\w*\b[^.;]{0,160}?\b(?:categor(?:y|ies)|market|industry|sector|segment|customers?|buyers?|clients?|people|willingness|room|price points?|pricing power|headroom|demand|premium)\b/i;
 const PRICE_WHO = /\b(?:established|leading|major|reputable|top|well-known|experienced) (?:firms?|providers?|compan(?:y|ies)|competitors?|players?|consultanc(?:y|ies)|consultants?)\b/i;
-const PRICE_OWN = /\b(?:its|their) own\b[^.;]{0,60}\b(?:packages?|prices?|pricing|offers?|fees?|rates?|services?)\b|\b(?:provider|vendor|firm|company|consultant|competitor)(?:'s|’s) (?:own |stated |published |listed )*(?:pricing|prices?|packages?|rates?|fees?)\b/i;
-const FIRST_PERSON_PRICE = /\b(?:our|we)\b[^.]{0,80}(?:\$\s?\d|\bprice|\bpricing|\bpackages?\b|\bfees?\b|\bcost)/i;
+const PRICE_OWN = /\b(?:its|their) own\b[^.;]{0,60}\b(?:packages?|prices?|pricing|fees?|rates?)\b|\b(?:provider|vendor|firm|company|consultant|competitor)(?:'s|’s) (?:own |stated |published |listed )*(?:pricing|prices?|packages?|rates?|fees?)\b/i;
+// WHOSE PRICE IT IS. A verified price is a company's own price when three things hold: the ledger entry is about
+// that company, the page it was verified on is that company's own site, and the claim describes that company's own
+// offer. The domain alone is not enough: a page on a company's site that reports what others charge, a partner's
+// price, or a "typical range" does not state that company's price.
+const NOT_ITS_OWN = /\btypical(?:ly)?\b|\busual(?:ly)?\b|\bgeneral(?:ly)?\b|\baverages?\b|\bindustry\b|\bmarket\b|\bpartners?\b|\bthird[- ]part(?:y|ies)\b|\bother (?:providers?|compan(?:y|ies)|firms?|consultants?|planners?)\b|\bcompetitors?\b/i;
+const ownerOfPrice = (c) => {
+  if (!isPriceClaim(c) || !c.entity) return null;
+  const e = entities.find((x) => x.name === c.entity);
+  if (!e || !e.site || !(c.source_ids || []).some((id) => srcById[id] && srcById[id].site === e.site)) return null;
+  if (!spaced(c.claim).startsWith(' ' + e.name_words + ' ')) return null;
+  return NOT_ITS_OWN.test(String(c.claim || '') + ' ' + String(c.page_excerpt || '')) ? null : e;
+};
 // "Paid" needs evidence of charging. A page that describes a service does not show that the service is charged for.
 const PAID_CLAIM = /\bpaid (?:relocation|lifestyle|consulting|coaching|guidance|planning|services?|help|support|sessions?|offers?|offerings?|programs?|advice|providers?)\b|\bcharg(?:e|es|ing) (?:for|clients|customers|a fee|fees)\b|\b(?:customers|clients|people|buyers) (?:pay|are paying|have paid|paid) for\b/i;
 const ABOUT_OTHERS = /\b(?:competitors?|providers?|compan(?:y|ies)|firms?|players?|rivals?|incumbents?|market|category|industry|sector|space|research)\b/i;
@@ -548,15 +589,23 @@ lines.forEach((line, i) => {
       if (PRICE_REFERENCE.test(clause) && PRICE_COMPARATOR.test(clause) && !PRICE_DENIED.test(clause) && PRICE_CONTEXT.test(t) && !citedHere.some(priceEvidence) && !claimSeen.has(L + '|priceref')) { claimSeen.add(L + '|priceref'); add('BLOCKING', 'PRICE COMPARISON WITHOUT A VERIFIED PRICE', 'This text compares the price with what other services charge (a reference point, a range, a benchmark, or a going rate) and cites no verified price. ' + (ledgerHasPrice ? 'Cite the ledger entry that states the price, with its amount and what it buys, or remove the comparison.' : 'The evidence ledger holds no verified price at all, so there is nothing to compare with. Remove the comparison and say that the price is an untested planning assumption.'), short(clause), L); }
       // 7c. A verified price stretched beyond what its page establishes. Applies wherever the sentence rests on a
       //     ledger price: by citing it, by repeating its amounts, or by referring to "the pricing data".
-      const priceSources = citedHere.filter((id) => (ledgerBySource[id] || []).some(isPriceClaim));
+      let priceSources = citedHere.filter((id) => (ledgerBySource[id] || []).some(isPriceClaim));
+      // "This is that company's own price" often sits in a clause after the citation. It is judged against the price
+      // sources cited on the line.
+      if (!priceSources.length && PRICE_OWN.test(clause)) priceSources = [...new Set(t.match(/\b[SW]\d+\b/g) || [])].filter((id) => (ledgerBySource[id] || []).some(isPriceClaim));
       const onPrice = priceSources.length > 0 || PRICE_TOPIC.test(clause) || (ledgerPriceAmounts.size > 0 && (clause.match(/\$\s?\d[\d,]*(?:\.\d+)?/g) || []).filter((m) => ledgerPriceAmounts.has(m.replace(/[\s,$]/g, '').replace(/\.00$/, ''))).length >= 2);
       if (onPrice && ledgerPriceEntries.length && !claimSeen.has(L + '|pricestretch')) {
-        const backing = (priceSources.length ? priceSources.flatMap((id) => ledgerBySource[id].filter(isPriceClaim)) : ledgerPriceEntries).map((c) => String(c.claim || '') + ' ' + String(c.page_excerpt || '')).join(' ');
+        const backingEntries = priceSources.length ? priceSources.flatMap((id) => ledgerBySource[id].filter(isPriceClaim)) : ledgerPriceEntries;
+        const backing = backingEntries.map((c) => String(c.claim || '') + ' ' + String(c.page_excerpt || '')).join(' ');
+        // The line may say "its own price" about a company whose own price the ledger does establish.
+        const amountsIn = (v) => (String(v || '').match(/\$\s?\d[\d,]*(?:\.\d+)?/g) || []).map((m) => m.replace(/[\s,$]/g, '').replace(/\.00$/, ''));
+        const lineAmounts = amountsIn(t);
+        const ownEstablished = backingEntries.some((c) => { const e = ownerOfPrice(c); return !!e && amountsIn(String(c.claim || '') + ' ' + String(c.page_excerpt || '')).some((a) => lineAmounts.includes(a)) && (spaced(t).includes(' ' + e.name_words + ' ') || aliasesOf(e).some((s) => t.includes(s))); });
         const why = [];
         if (PRICE_INFER.test(clause) && !PRICE_DENIED.test(clause)) why.push('it draws a conclusion about the market, the category, customers, or the room for this offer');
         const who = clause.match(PRICE_WHO);
         if (who && !backing.toLowerCase().includes(who[0].toLowerCase().split(' ')[0])) why.push('it says the price is charged by "' + who[0] + '", which the verified claim does not state');
-        if (PRICE_OWN.test(clause) && !FIRST_PERSON_PRICE.test(backing)) why.push('it presents the figure as that provider\'s own pricing or packages, and the verified passage does not say whose prices they are');
+        if (PRICE_OWN.test(clause) && !ownEstablished) why.push('it presents the figure as that provider\'s own pricing or packages, and the ledger does not establish that: the entry is not a claim about that company\'s own offer verified on its own site');
         if (why.length) { claimSeen.add(L + '|pricestretch'); add('BLOCKING', 'PRICE EVIDENCE STRETCHED BEYOND ITS SOURCE', 'This text rests on a verified price (' + ledgerPriceEntries.map((c) => c.claim_id + ' on ' + (c.source_ids || []).join(', ')).join('; ') + ') and goes beyond it: ' + why.join('; ') + '. The entry establishes only what that one page states. Say what the page states, with its source ID and whose page it is as the ledger gives it, and stop there. It is not evidence of market prices, of who charges them, of willingness to pay, or of a price for this offer.', short(clause), L); }
       }
       // 7d. A scenario or forecast result presented as validating the price. The result is arithmetic on the assumed price.
@@ -608,8 +657,13 @@ if (!ledgerHasPrice && !lines.some((l) => cellsAndSentences(l.trim()).some((x) =
 // it. Otherwise the sentence that makes the claim must itself say it is a hypothesis, or be conditional on a test.
 // A label in another sentence of the paragraph does not cover it. "IdeaToPlan analysis" says who wrote the sentence;
 // it is not evidence and it does not make a claim conditional. Reviewing a few pages cannot show that nobody serves a need.
-const GAP_CLAIM = /\b(?:gap in the market|market gap|positioning gap|competitive gap|unmet (?:need|demand)|under-?served|untapped|white ?space|unaddressed|unoccupied|no (?:one|competitor|provider|company|service|other (?:competitor|provider|company|service)) (?:currently |yet |explicitly |directly )?(?:offers|serves|does|addresses|provides|focuses|positions|targets|covers)|none (?:of [^.;|]{0,60}?)?(?:currently |yet |explicitly |directly )?(?:offers?|serves?|addresses|provides?|focus(?:es)?|positions?|targets?|covers?)\b|(?:competitors|providers|companies) (?:do not|don't|fail to) (?:offer|serve|address|provide|cover|target)|(?:unique|distinct|clear|real|meaningful|key|strong|potential) (?:positioning )?(?:differentiator|advantage|distinction|opening|opportunity)|sets? (?:it|the business|this offer) apart)\b/i;
+const GAP_CLAIM = /\b(?:gap in the market|market gap|positioning gap|competitive gap|unmet (?:need|demand)|under-?served|untapped|white ?space|unaddressed|unoccupied|no (?:one|competitor|provider|company|service|other (?:competitor|provider|company|service)) (?:currently |yet |explicitly |directly )?(?:offers|serves|does|addresses|provides|focuses|positions|targets|covers)|none of (?:the |these |those |its |their )?(?:[a-z-]+ ){0,3}?(?:competitors?|providers?|compan(?:y|ies)|pages?|alternatives|firms?|services|sources?|rivals?|players?|them)(?: (?:reviewed|identified|listed|found|examined)(?: (?:for|in) this plan)?)?,? (?:(?:currently|yet|explicitly|directly|appears? to|was identified that|were identified that) )*(?:offers?|serves?|addresses|provides?|focus(?:es)?|positions?|targets?|covers?)\b|(?:competitors|providers|companies) (?:do not|don't|fail to) (?:offer|serve|address|provide|cover|target)|(?:unique|distinct|clear|real|meaningful|key|strong|potential) (?:positioning )?(?:differentiator|advantage|distinction|opening|opportunity)|sets? (?:it|the business|this offer) apart)\b/i;
 const GAP_CONDITIONAL = /\b(?:if|whether|could|may|might)\b/i;
+// "None offers ..." with no "of the competitors" is a competitor claim only in a sentence that is about competitors.
+// "None of these is modeled here" and "none covers the first sale" are statements about the model.
+const GAP_BARE_NONE = /\bnone,? (?:(?:currently|yet|explicitly|directly|appears? to|was identified that|were identified that) )*(?:offers?|serves?|addresses|provides?|focus(?:es)?|positions?|targets?|covers?)\b/i;
+const ABOUT_COMPETITORS = /\b(?:competitors?|providers?|compan(?:y|ies)|rivals?|alternatives|pages reviewed|sources reviewed|firms?)\b/i;
+const gapAt = (v) => { const a = v.search(GAP_CLAIM); if (a >= 0) return a; return ABOUT_COMPETITORS.test(v) ? v.search(GAP_BARE_NONE) : -1; };
 const GAP_LABEL = /\b(?:hypothes[ie]s|hypothesi[sz]ed|untested|unvalidated|not (?:an? )?established|does not (?:establish|show|confirm|mean)|requires? validation|worth testing|to be tested)\b/i;
 const gapSeen = new Set();
 lines.forEach((line, i) => {
@@ -618,13 +672,35 @@ lines.forEach((line, i) => {
   if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || gapSeen.has(L)) return;
   // Whole sentences: a clause after a semicolon belongs to the sentence it is in.
   (/^\|.*\|$/.test(t) ? t.replace(/^\||\|$/g, '').split('|') : [t]).flatMap((c) => c.split(/(?<=[.!?])\s+/)).map((x) => x.trim()).filter(Boolean).forEach((seg) => {
-    if (!GAP_CLAIM.test(seg) || gapSeen.has(L)) return;
+    if (gapAt(seg) < 0 || gapSeen.has(L)) return;
     const cited = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);
     if (cited.some((id) => (ledgerBySource[id] || []).some((c) => GAP_CLAIM.test(String(c.claim || '') + ' ' + String(c.page_excerpt || ''))))) return;
     // A conditional counts only when it governs the claim, so it has to come before it in the sentence.
-    if (GAP_LABEL.test(seg) || GAP_CONDITIONAL.test(seg.slice(0, seg.search(GAP_CLAIM)))) return;
+    if (GAP_LABEL.test(seg) || GAP_CONDITIONAL.test(seg.slice(0, gapAt(seg)))) return;
     gapSeen.add(L);
     add('BLOCKING', 'COMPETITIVE GAP STATED AS A FINDING', 'This text states a competitive gap, an unmet need, or that no competitor does something, as a finding. No verified claim cited here states it, and this sentence does not say it is a hypothesis. A label in another sentence does not cover it, and "IdeaToPlan analysis" names the author without making the claim conditional. The pages reviewed show what those companies describe; they do not show that nobody serves this need. Reword this sentence as a hypothesis to test.', short(seg), L);
+  });
+});
+
+// ---------- POPULATION, COMMUNITY AND DEMAND ----------
+// The number of people a survey asked is the size of its sample. It does not show that a population, a community,
+// or a market is large, active, or growing, and it is not evidence of demand for this offer. A sentence that asserts
+// such a thing needs a verified claim that states it, cited on that sentence, or has to be worded as a hypothesis.
+const SIZE_CLAIM = /\b(?:large|sizeable|sizable|substantial|significant|growing|thriving|active|strong|robust|huge|vast|big|broad)\b(?:,? (?:and )?(?:large|sizeable|sizable|active|growing|engaged))?(?: [a-z-]+){0,5}? (?:communit(?:y|ies)|populations?|markets?|audiences?|customer base|segments?|demand|interest|cohorts?|followings?)\b/i;
+const SIZE_ASSERTED = /\b(?:existence of|there (?:is|are)|shows?|suggests?|indicat\w+|demonstrat\w+|confirms?|reflects?|points? to|evidence of|represents?|reveals?)\b/i;
+const SIZE_HEDGE = /\b(?:no|not|never|without|whether|unknown|unvalidated|untested|hypothes[ie]s|assum\w*|cannot|if)\b/i;
+const sizeComputed = new Set([fin.scenario_block, fin.forecast_block, fin.budget_block, fin.loan_block].join('\n').split('\n').map((l) => l.trim()).filter((l) => l.length > 8));
+lines.forEach((line, i) => {
+  const t = line.trim();
+  const L = i + 1;
+  if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || sizeComputed.has(t)) return;
+  let seen = false;
+  cellsAndSentences(t).flatMap((x) => x.split(/,\s+(?:but|though|although|however|yet|while)\b/i)).forEach((seg) => {
+    if (seen || !SIZE_CLAIM.test(seg) || !SIZE_ASSERTED.test(seg) || SIZE_HEDGE.test(seg)) return;
+    const cited = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);
+    if (cited.some((id) => (ledgerBySource[id] || []).some((c) => SIZE_CLAIM.test(String(c.claim || '') + ' ' + String(c.page_excerpt || ''))))) return;
+    seen = true;
+    add('BLOCKING', 'POPULATION OR DEMAND STATED WITHOUT EVIDENCE', 'This text states that a community, a population, a market, or demand is large, active, or growing' + (cited.length ? ' and cites ' + cited.join(', ') + ', whose verified claim does not say so' : ', with no verified claim that says so') + '. A survey\'s number of respondents is the size of its sample: it does not show how many such people exist or that they want this offer. State only what the ledger entry says, or word this as a hypothesis to test.', short(seg), L);
   });
 });
 
@@ -699,7 +775,7 @@ CHECKS
 20. Source quality: W sources are pages found by web search. A search listing is not evidence. A W ID is usable only through a ledger entry verified on that page, exactly like an S ID; a W ID with no ledger entry is BLOCKING. A market figure or trend resting on a source whose kind or domain shows a vendor blog, list article, or directory. A material claim whose ledger entry is itself vague about what the source states. You cannot open the source pages, so do not report "could not confirm the page" as a finding. Judge only the sources the plan cites. A source that was retrieved but is never cited is not part of the delivered plan and is not printed in its Sources section: never report it, and never report a claim as possibly resting on it.
 21. Attribution: for every cited claim, find the EVIDENCE LEDGER entry it rests on. A verified source is not a verified claim: the ledger lists what was verified on each page, and nothing else about that page or company is sourced. A sentence may carry a source ID only for what one ledger entry's claim and page_excerpt state. A conclusion drawn from an entry (demand, buyers, market size, a trend, a gap) must be worded as IdeaToPlan's inference and must not read as if the source said it; when it reads as sourced, it is BLOCKING. The source ID must be one of that entry's source_ids, and any company the sentence names must be the company that entry is about. A source ID that exists in SOURCES but belongs to a different company, or to a ledger entry that says something else, is BLOCKING: a real ID on the wrong claim is as serious as an invented one. A price must keep its currency, what it buys, and whether it is a fixed price, a starting price, or a range, exactly as the ledger entry states. A statistic must keep the population, geography, and year the ledger entry states. A note about a source's age must sit on the source it describes: check it against that source's published value in SOURCES. A figure from a source that is undated, a vendor blog, or a list article must be worded as that source's estimate every time it appears, including in the Executive Summary and the Viability Assessment; repeating a figure does not make it established. Every ledger entry was checked by code against the text of the page in its source_ids, and its page_excerpt is the passage that supports it: those source_ids are the correct ones.
 22. Excluded claims: the user message lists EXCLUDED CLAIMS. Each was reported by the research tool and then failed verification against its source page: the page contradicted it, did not state it, could not be read, or is not credible evidence for it. None of them is evidence. Any plan statement that presents an excluded claim, its figures, or a conclusion drawn from it as fact or as sourced is BLOCKING, with or without a source ID, and in any wording. A company listed there with no verified claim must not be profiled, priced, or compared. A figure the plan uses as its own planning assumption is acceptable only when the sentence labels it as an assumption, gives no source ID, and attributes it to no company or study. A plan statement that goes beyond what a ledger entry's claim and page_excerpt say, for example turning a starting price into a fixed price or a range, or a monthly cost into a service price, is BLOCKING.
-23. Demand: the existence of competitors shows that competing offers exist. A market existing means offers are available; it is not demonstrated demand. It does not show buyers, sales, or willingness to pay. A statement that demand, buyers, paying customers, a customer base, or willingness to pay exists or is confirmed, proven, or established needs a ledger entry that reports customers paying, spending, survey, or search-behavior evidence, cited on that sentence. Without one it is BLOCKING, including when it is softened with suggests or indicates. The acceptable wording is a hypothesis that requires validation.
+23. Demand: the existence of competitors shows that competing offers exist. A market existing means offers are available; it is not demonstrated demand. It does not show buyers, sales, or willingness to pay. A statement that demand, buyers, paying customers, a customer base, or willingness to pay exists or is confirmed, proven, or established needs a ledger entry that reports customers paying, spending, survey, or search-behavior evidence, cited on that sentence. Without one it is BLOCKING, including when it is softened with suggests or indicates. The acceptable wording is a hypothesis that requires validation. A survey's number of respondents is the size of its sample and nothing more. "A survey asked about 7,800 expats" does not establish that a population, a community, or a market is large, active, or growing, that the underlying behavior is common, or that there is demand for this offer. A sentence that draws any of those from a sample size, with or without a source ID, is BLOCKING.
 24. Prices and payment. The offer's own price is a planning assumption unless the founder reports sales at it; it must be labeled as an assumption and carry no source ID. A page that states no price cannot support, inform, or benchmark a price, and a sentence that ties the price to such pages is BLOCKING. A competitor price in the ledger is the price of that competitor's own offer: the sentence must keep its amount, currency, what it buys, its length, and any qualifier exactly as the ledger entry and its page_excerpt state them, must keep separate offers separate, and must not call it equivalent to this offer or say it validates this offer's price. Saying that providers are paid, charge, or sell needs a ledger entry that states a price or a charge for those providers; a service description alone does not show it. Any statement that this offer's price is validated by the market is BLOCKING. A comparison with what other services charge that gives no number (a reference point, a general range, a benchmark, a going rate, comparable or adjacent services) still claims pricing evidence: without a verified price cited on that sentence it is BLOCKING. When the ledger holds no verified price, the plan must say that its price is an untested planning assumption, and must not suggest that any comparison informs it. What a verified price establishes: one page's own words, and nothing wider. A page that reports a typical range does not establish that the page's owner charges it, that established firms charge it, that a market or category supports it, that customers will pay it, or that there is room for this offer. A sentence that draws any of those from a ledger price, in any wording and with or without a source ID, is BLOCKING. The acceptable form states what the page says, with its source ID, and says what it is not evidence of. A positive scenario or forecast result is arithmetic on the assumed price: a sentence that says a result validates, confirms, or supports the price is BLOCKING. The price itself is decided once: any other value given as this offer's price is BLOCKING.
 25. Who a source speaks for. One company's page supports statements about that company only. A statement about competitors, providers, or the market in general that cites one company's page, or adds detail the page does not state (for example audiences, track records, or reputation), is BLOCKING.
 26. Meaning, not keywords. The user message lists LINES THAT MAKE COMMERCIAL CLAIMS. Read each one for what it asserts. Decide whether it claims demand, buyers, sales, payment, a market, or a validated price, in any wording, and whether a ledger entry cited on that line states it. Report every line that asserts more than its evidence, under the check it breaks. A line that only says offers exist, or that labels demand or price as an assumption or hypothesis, is acceptable.

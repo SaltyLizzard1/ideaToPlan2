@@ -1,0 +1,74 @@
+[
+ {
+  "find": "let rowEntity = null;\nlet sectionNo = 0;",
+  "replace": "// SHORT NAMES. A plan often shortens a company's name: \"Kismet Travels\" for \"Kismet Travels & Tours\". A short name is\n// accepted only when it is the leading words of the verified name, with a generic ending or the part after \"&\"\n// dropped, has at least two words, and belongs to one company only: if another company's name starts with the same\n// words, the short name is not used for either. It is matched with its capital letters, as a name, never as a\n// substring, so \"expat financial planners\" is not a mention of \"Expat Financial Solutions\".\nconst GENERIC_ENDING = /^(?:tours?|travels?|relocations?|group|consulting|consultants?|solutions|services|inc|llc|ltd|co|company|international|global|worldwide|partners|associates|advisors|advisers)$/i;\nconst JOINER = /^(?:&|and)$/i;\nconst shortNamesOf = (e) => {\n  const tk = String(e.name || '').split(/\\s+/).filter(Boolean);\n  const out = [];\n  const amp = tk.findIndex((w) => JOINER.test(w));\n  if (amp >= 2) out.push(tk.slice(0, amp).join(' '));\n  let end = tk.length;\n  while (end > 2 && GENERIC_ENDING.test(tk[end - 1].replace(/[.,]/g, ''))) { end--; while (end > 2 && JOINER.test(tk[end - 1])) end--; out.push(tk.slice(0, end).join(' ')); }\n  return [...new Set(out)].filter((s) => s.split(' ').length >= 2 && s !== tk.join(' '));\n};\nconst shortNames = {};\nentities.forEach((e) => shortNamesOf(e).forEach((s) => { (shortNames[s] = shortNames[s] || []).push(e); }));\nconst aliasesOf = (e) => Object.keys(shortNames).filter((s) => shortNames[s].length === 1 && shortNames[s][0] === e && !entities.some((o) => o !== e && (String(o.name || '') + ' ').startsWith(s + ' ')));\nlet rowEntity = null;\nlet sectionNo = 0;"
+ },
+ {
+  "find": "      while ((m = re.exec(text)) !== null) { const start = m.index + m[0].length - m[1].length; found.push({ e, start, end: start + m[1].length }); re.lastIndex = start + 1; }\n",
+  "replace": "      while ((m = re.exec(text)) !== null) { const start = m.index + m[0].length - m[1].length; found.push({ e, start, end: start + m[1].length }); re.lastIndex = start + 1; }\n      aliasesOf(e).forEach((alias) => {\n        const ar = new RegExp('(?:^|[^A-Za-z0-9])(' + alias.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&').replace(/\\s+/g, '\\\\s+') + ')(?![A-Za-z0-9])', 'g');\n        let a;\n        while ((a = ar.exec(text)) !== null) { const start = a.index + a[0].length - a[1].length; found.push({ e, start, end: start + a[1].length }); ar.lastIndex = start + 1; }\n      });\n"
+ },
+ {
+  "find": "        const later = [...new Set(mentions.map((x) => x.e))];\n",
+  "replace": "        // Companies named after the citation count only when they have no citation of their own\n        // (\"... [S2], according to X\"). A company followed by its own source is bound to that source, not to this one.\n        const after = mentions.filter((x) => x.start >= run.index + run[0].length);\n        const later = [...new Set(after.filter((x, n) => !/\\b[SW]\\d+\\b/.test(clause.slice(x.end, n + 1 < after.length ? after[n + 1].start : clause.length))).map((x) => x.e))];\n"
+ },
+ {
+  "find": "const FIRST_PERSON_PRICE = /\\b(?:our|we)\\b[^.]{0,80}(?:\\$\\s?\\d|\\bprice|\\bpricing|\\bpackages?\\b|\\bfees?\\b|\\bcost)/i;",
+  "replace": "// WHOSE PRICE IT IS. A verified price is a company's own price when three things hold: the ledger entry is about\n// that company, the page it was verified on is that company's own site, and the claim describes that company's own\n// offer. The domain alone is not enough: a page on a company's site that reports what others charge, a partner's\n// price, or a \"typical range\" does not state that company's price.\nconst NOT_ITS_OWN = /\\btypical(?:ly)?\\b|\\busual(?:ly)?\\b|\\bgeneral(?:ly)?\\b|\\baverages?\\b|\\bindustry\\b|\\bmarket\\b|\\bpartners?\\b|\\bthird[- ]part(?:y|ies)\\b|\\bother (?:providers?|compan(?:y|ies)|firms?|consultants?|planners?)\\b|\\bcompetitors?\\b/i;\nconst ownerOfPrice = (c) => {\n  if (!isPriceClaim(c) || !c.entity) return null;\n  const e = entities.find((x) => x.name === c.entity);\n  if (!e || !e.site || !(c.source_ids || []).some((id) => srcById[id] && srcById[id].site === e.site)) return null;\n  if (!spaced(c.claim).startsWith(' ' + e.name_words + ' ')) return null;\n  return NOT_ITS_OWN.test(String(c.claim || '') + ' ' + String(c.page_excerpt || '')) ? null : e;\n};"
+ },
+ {
+  "find": "        const backing = (priceSources.length ? priceSources.flatMap((id) => ledgerBySource[id].filter(isPriceClaim)) : ledgerPriceEntries).map((c) => String(c.claim || '') + ' ' + String(c.page_excerpt || '')).join(' ');",
+  "replace": "        const backingEntries = priceSources.length ? priceSources.flatMap((id) => ledgerBySource[id].filter(isPriceClaim)) : ledgerPriceEntries;\n        const backing = backingEntries.map((c) => String(c.claim || '') + ' ' + String(c.page_excerpt || '')).join(' ');\n        // The line may say \"its own price\" about a company whose own price the ledger does establish.\n        const amountsIn = (v) => (String(v || '').match(/\\$\\s?\\d[\\d,]*(?:\\.\\d+)?/g) || []).map((m) => m.replace(/[\\s,$]/g, '').replace(/\\.00$/, ''));\n        const lineAmounts = amountsIn(t);\n        const ownEstablished = backingEntries.some((c) => { const e = ownerOfPrice(c); return !!e && amountsIn(String(c.claim || '') + ' ' + String(c.page_excerpt || '')).some((a) => lineAmounts.includes(a)) && (spaced(t).includes(' ' + e.name_words + ' ') || aliasesOf(e).some((s) => t.includes(s))); });"
+ },
+ {
+  "find": "        if (PRICE_OWN.test(clause) && !FIRST_PERSON_PRICE.test(backing)) why.push('it presents the figure as that provider\\'s own pricing or packages, and the verified passage does not say whose prices they are');",
+  "replace": "        if (PRICE_OWN.test(clause) && !ownEstablished) why.push('it presents the figure as that provider\\'s own pricing or packages, and the ledger does not establish that: the entry is not a claim about that company\\'s own offer verified on its own site');"
+ },
+ {
+  "find": "|none (?:of [^.;|]{0,60}?)?(?:currently |yet |explicitly |directly )?(?:offers?|serves?|addresses|provides?|focus(?:es)?|positions?|targets?|covers?)\\b|",
+  "replace": "|none of (?:the |these |those |its |their )?(?:[a-z-]+ ){0,3}?(?:competitors?|providers?|compan(?:y|ies)|pages?|alternatives|firms?|services|sources?|rivals?|players?|them)(?: (?:reviewed|identified|listed|found|examined)(?: (?:for|in) this plan)?)?,? (?:(?:currently|yet|explicitly|directly|appears? to|was identified that|were identified that) )*(?:offers?|serves?|addresses|provides?|focus(?:es)?|positions?|targets?|covers?)\\b|"
+ },
+ {
+  "find": "      else add('MAJOR', 'UNVERIFIED COMPANY DESCRIBED', 'This text describes ' + e.name + ', but no claim about it could be verified on a source page. Remove it or say plainly that nothing about it was verified.', short(seg), L);",
+  "replace": "      // A sentence that only says the company could not be verified is the plain statement this check asks for.\n      else if (!(/\\b(?:could not|cannot|can not|was not|were not|not) (?:be )?(?:independently )?verified\\b|\\bnot used as evidence\\b|\\bno verified (?:evidence|claims?|information)\\b|\\bnothing (?:about (?:it|them) )?(?:was|could be) verified\\b/i.test(seg) && !/\\b(?:offers?|provides?|charges?|serves?|sells?|speciali[sz]\\w+|focus\\w*|prices?)\\b/i.test(seg))) add('MAJOR', 'UNVERIFIED COMPANY DESCRIBED', 'This text describes ' + e.name + ', but no claim about it could be verified on a source page. Remove it or say plainly that nothing about it was verified.', short(seg), L);"
+ },
+ {
+  "find": "const qualified = /directional|unverified|not (?:been )?independently|undated|no publication date|absence of a publication date|treat (?:this|these|it|them)|vendor blog|one source estimates|estimates? (?:the|that)|according to/i;",
+  "replace": "const qualified = /directional|unverified|not (?:been )?independently|undated|no publication date|absence of a publication date|treat (?:this|these|it|them)|vendor blog|one source estimates|estimates? (?:the|that)|according to|(?:website|page|site) (?:states|says|lists)|states (?:that )?it charges|as of the date retrieved|may not reflect current/i;"
+ },
+ {
+  "find": "    if (!qualified.test(seg) && statsIn(seg).some((tok) => !ownStats.has(tok))) cited.forEach((id) => {",
+  "replace": "    // The qualifier may sit in another clause of the same sentence (\"...[S5]; the page carries no publication date\").\n    const wholeSentence = t.split(/(?<=[.!?])\\s+/).find((x) => x.includes(seg.trim().slice(0, 60))) || seg;\n    if (!qualified.test(seg) && !qualified.test(wholeSentence) && statsIn(seg).some((tok) => !ownStats.has(tok))) cited.forEach((id) => {"
+ },
+ {
+  "find": "if (integrity && Array.isArray(integrity.calls)) integrity.calls.forEach(",
+  "replace": "// ---------- POPULATION, COMMUNITY AND DEMAND ----------\n// The number of people a survey asked is the size of its sample. It does not show that a population, a community,\n// or a market is large, active, or growing, and it is not evidence of demand for this offer. A sentence that asserts\n// such a thing needs a verified claim that states it, cited on that sentence, or has to be worded as a hypothesis.\nconst SIZE_CLAIM = /\\b(?:large|sizeable|sizable|substantial|significant|growing|thriving|active|strong|robust|huge|vast|big|broad)\\b(?:,? (?:and )?(?:large|sizeable|sizable|active|growing|engaged))?(?: [a-z-]+){0,5}? (?:communit(?:y|ies)|populations?|markets?|audiences?|customer base|segments?|demand|interest|cohorts?|followings?)\\b/i;\nconst SIZE_ASSERTED = /\\b(?:existence of|there (?:is|are)|shows?|suggests?|indicat\\w+|demonstrat\\w+|confirms?|reflects?|points? to|evidence of|represents?|reveals?)\\b/i;\nconst SIZE_HEDGE = /\\b(?:no|not|never|without|whether|unknown|unvalidated|untested|hypothes[ie]s|assum\\w*|cannot|if)\\b/i;\nconst sizeComputed = new Set([fin.scenario_block, fin.forecast_block, fin.budget_block, fin.loan_block].join('\\n').split('\\n').map((l) => l.trim()).filter((l) => l.length > 8));\nlines.forEach((line, i) => {\n  const t = line.trim();\n  const L = i + 1;\n  if (!t || t.startsWith('#') || /^\\|?\\s*:?-{2,}/.test(t) || sizeComputed.has(t)) return;\n  let seen = false;\n  cellsAndSentences(t).flatMap((x) => x.split(/,\\s+(?:but|though|although|however|yet|while)\\b/i)).forEach((seg) => {\n    if (seen || !SIZE_CLAIM.test(seg) || !SIZE_ASSERTED.test(seg) || SIZE_HEDGE.test(seg)) return;\n    const cited = [...new Set(seg.match(/\\b[SW]\\d+\\b/g) || [])].filter((id) => srcById[id]);\n    if (cited.some((id) => (ledgerBySource[id] || []).some((c) => SIZE_CLAIM.test(String(c.claim || '') + ' ' + String(c.page_excerpt || ''))))) return;\n    seen = true;\n    add('BLOCKING', 'POPULATION OR DEMAND STATED WITHOUT EVIDENCE', 'This text states that a community, a population, a market, or demand is large, active, or growing' + (cited.length ? ' and cites ' + cited.join(', ') + ', whose verified claim does not say so' : ', with no verified claim that says so') + '. A survey\\'s number of respondents is the size of its sample: it does not show how many such people exist or that they want this offer. State only what the ledger entry says, or word this as a hypothesis to test.', short(seg), L);\n  });\n});\n\nif (integrity && Array.isArray(integrity.calls)) integrity.calls.forEach("
+ },
+ {
+  "find": "Without one it is BLOCKING, including when it is softened with suggests or indicates. The acceptable wording is a hypothesis that requires validation.",
+  "replace": "Without one it is BLOCKING, including when it is softened with suggests or indicates. The acceptable wording is a hypothesis that requires validation. A survey's number of respondents is the size of its sample and nothing more. \"A survey asked about 7,800 expats\" does not establish that a population, a community, or a market is large, active, or growing, that the underlying behavior is common, or that there is demand for this offer. A sentence that draws any of those from a sample size, with or without a source ID, is BLOCKING."
+ },
+ {
+  "find": "const GAP_CONDITIONAL = /\\b(?:if|whether|could|may|might)\\b/i;",
+  "replace": "const GAP_CONDITIONAL = /\\b(?:if|whether|could|may|might)\\b/i;\n// \"None offers ...\" with no \"of the competitors\" is a competitor claim only in a sentence that is about competitors.\n// \"None of these is modeled here\" and \"none covers the first sale\" are statements about the model.\nconst GAP_BARE_NONE = /\\bnone,? (?:(?:currently|yet|explicitly|directly|appears? to|was identified that|were identified that) )*(?:offers?|serves?|addresses|provides?|focus(?:es)?|positions?|targets?|covers?)\\b/i;\nconst ABOUT_COMPETITORS = /\\b(?:competitors?|providers?|compan(?:y|ies)|rivals?|alternatives|pages reviewed|sources reviewed|firms?)\\b/i;\nconst gapAt = (v) => { const a = v.search(GAP_CLAIM); if (a >= 0) return a; return ABOUT_COMPETITORS.test(v) ? v.search(GAP_BARE_NONE) : -1; };"
+ },
+ {
+  "find": "    if (!GAP_CLAIM.test(seg) || gapSeen.has(L)) return;",
+  "replace": "    if (gapAt(seg) < 0 || gapSeen.has(L)) return;"
+ },
+ {
+  "find": "    if (GAP_LABEL.test(seg) || GAP_CONDITIONAL.test(seg.slice(0, seg.search(GAP_CLAIM)))) return;",
+  "replace": "    if (GAP_LABEL.test(seg) || GAP_CONDITIONAL.test(seg.slice(0, gapAt(seg)))) return;"
+ },
+ {
+  "find": "      const priceSources = citedHere.filter((id) => (ledgerBySource[id] || []).some(isPriceClaim));",
+  "replace": "      let priceSources = citedHere.filter((id) => (ledgerBySource[id] || []).some(isPriceClaim));\n      // \"This is that company's own price\" often sits in a clause after the citation. It is judged against the price\n      // sources cited on the line.\n      if (!priceSources.length && PRICE_OWN.test(clause)) priceSources = [...new Set(t.match(/\\b[SW]\\d+\\b/g) || [])].filter((id) => (ledgerBySource[id] || []).some(isPriceClaim));"
+ },
+ {
+  "find": "const PRICE_OWN = /\\b(?:its|their) own\\b[^.;]{0,60}\\b(?:packages?|prices?|pricing|offers?|fees?|rates?|services?)\\b|",
+  "replace": "const PRICE_OWN = /\\b(?:its|their) own\\b[^.;]{0,60}\\b(?:packages?|prices?|pricing|fees?|rates?)\\b|"
+ },
+ {
+  "find": "|subscriptions?|per (?:session|hour|month|call|transferee|person|client))\\b/i.test(String(c.claim || ''))",
+  "replace": "|subscriptions?|rang(?:e|es|ed|ing) from|per (?:session|hour|month|call|transferee|person|client))\\b/i.test(String(c.claim || ''))"
+ }
+]
