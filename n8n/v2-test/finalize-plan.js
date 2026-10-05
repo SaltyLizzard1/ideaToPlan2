@@ -141,6 +141,10 @@ if (rev) {
     cr.open.slice(0, 40).forEach((o) => lines.push('- ' + o.id + ' L' + o.line + ': ' + o.why));
     if (cr.open.length > 40) lines.push('- and ' + (cr.open.length - 40) + ' more: ' + cr.open.slice(40).map((o) => o.id + ' L' + o.line).join(', '));
     (cr.failed_batches || []).forEach((b) => lines.push('- REQUEST ' + b.batch + ' of ' + cr.batches + ': ' + b.why + ' (' + b.claims + ' claims).'));
+    (cr.rejected_responses || []).forEach((x) => lines.push('- RESPONSE NOT USED' + (x.batch ? ' (it named batch ' + x.batch + ')' : '') + ': ' + x.why + '.'));
+    if ((cr.not_sent || []).length) lines.push('Not sent for review in this run: ' + cr.not_sent.length + ' claims.');
+    const oj = cr.on_judgment || {};
+    if (Object.keys(oj).length) lines.push('Settled on the reviewer\'s judgment alone, with nothing for code to check (' + Object.keys(oj).map((k) => oj[k] + ' ' + k).join(', ') + '). A well-formed and wrong answer passes here.');
     if ((cr.duplicates || []).length) lines.push('Answered twice with the same verdict, counted once: ' + cr.duplicates.join(', ') + '.');
     if ((cr.stray || []).length) lines.push('Verdicts given for a claim that was not in the request, ignored: ' + cr.stray.map((x) => x.id + ' (in request ' + x.batch + ')').join(', ') + '.');
     (cr.judged || []).forEach((j) => lines.push('- DECIDED BY THE CLAIM REVIEW L' + j.line + ': ' + j.check + ' -> ' + j.verdict + '. Code could not judge the meaning and asked.'));

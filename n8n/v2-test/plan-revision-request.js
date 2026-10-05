@@ -571,7 +571,7 @@ if (attempt && claimContract) {
       if (unclassified.length) parts.push(unclassified.length + ' lines of the plan produced no claim and have no stated reason for it: L' + unclassified.join(', L'));
       findings.push(claimOpen('CLAIM REVIEW IS INCOMPLETE', parts.join('. ') + '. These are required checks that did not complete. They are not confirmed defects and not a clean result.', open.length ? open[0].line : (unclassified[0] || null)));
     }
-    claim_review = { claims: cr.claims, batches: cr.batches, settled: cr.settled, settled_by_class: cr.settled_by_class || {}, defects: cr.defects || [], open, missing: cr.missing || [], duplicates: cr.duplicates || [], contradictory: cr.contradictory || [], stray: cr.stray || [], failed_batches: cr.failed_batches || [], unclassified_lines: unclassified, coverage: cr.coverage || {}, usage: cr.usage || null, judged };
+    claim_review = { claims: cr.claims, batches: cr.batches, settled: cr.settled, settled_by_class: cr.settled_by_class || {}, defects: cr.defects || [], open, missing: cr.missing || [], duplicates: cr.duplicates || [], contradictory: cr.contradictory || [], stray: cr.stray || [], failed_batches: cr.failed_batches || [], rejected_responses: cr.rejected_responses || [], not_sent: cr.not_sent || [], on_judgment: cr.on_judgment || {}, review: cr.review || '', unclassified_lines: unclassified, coverage: cr.coverage || {}, usage: cr.usage || null, judged };
   }
 }
 order(findings);

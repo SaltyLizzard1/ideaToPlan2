@@ -9,6 +9,10 @@
 //   cannot find, a number or date that is not in the entry text. This is an incomplete check, never a finding and
 //   never a pass. Any open claim holds the plan.
 //
+// WHAT THIS CANNOT DO. A well-formed and wrong judgment can still pass. When the reviewer calls a sentence advice, or
+// says it asserts nothing and gives a plausible reason, or answers "yes" on all seven aspects and quotes real words of
+// the entry, code has nothing to check it against. Those are counted (on_judgment) and reported, not verified.
+//
 // WHAT CODE CHECKS, AND WHAT IT DOES NOT. Code checks that entries exist, that quoted words are where the answer says
 // they are, that entries are about the claim's company and from a source the sentence cites, and that numbers and dates
 // are in the entry text. It does not compare the wording of a claim with the wording of an entry: whether a paraphrase
@@ -31,45 +35,80 @@ sources.forEach((x) => { if (x && x.id) srcById[x.id] = x; });
 
 const s = (v) => (v === undefined || v === null) ? '' : String(v).trim();
 const flat = (v) => String(v || '').replace(/\*\*|__|`/g, '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim().toLowerCase();
+const bare = (v) => String(v || '').replace(/\*\*|__|`/g, '').replace(/\[[SW]\d+\]/g, ' ').replace(/\s+/g, ' ').trim();
 const letters = (v) => flat(v).replace(/\[[sw]\d+\]/g, '').replace(/[^a-z0-9]/g, '');
 const numsIn = (v) => [...new Set((String(v || '').replace(/\[[SW]\d+\]/g, ' ').replace(/\bL\d+\b/g, ' ').replace(/^\s*\d+[.)]\s+/, '').match(/\d[\d,]*(?:\.\d+)?/g) || []).map((x) => x.replace(/,/g, '').replace(/\.0+$/, '')))];
 const intake = flat(ctx.founder_context);
 // Figures that are the plan's own: the intake and the computed financial model. They need no ledger entry.
 const ownNumbers = new Set(numsIn([ctx.founder_context, fin.scenario_block, fin.forecast_block, fin.budget_block, fin.loan_block, JSON.stringify(fin.allowed_money || '')].join(' ')));
-const LABEL = /\bhypothes|\bassum|\bnot (?:yet )?(?:been )?(?:established|known|verified|confirmed|shown|stated|captured|validated)\b|\bwhether\b|\buntested\b|\bunvalidated\b|\bto (?:be )?test(?:ed)?\b|\bIdeaToPlan(?:'s)? (?:reads?|recommends?|hypothesis|assumes?|inference|reading|notes|suggests)\b|\b(?:may|might|could|would|if)\b|\bscenario\b|\bmodel(?:s|ed)?\b|\bforecast\b|\bprojection\b|\bplanning (?:assumption|threshold|figure)\b|\btest criterion\b|\bproposed\b|\bestimate[ds]?\b/i;
+// A LABEL SAYS THE STATEMENT IS NOT A FACT. These words label the sentence they are in.
+const LABEL = /\bhypothes|\bassum|\bnot (?:yet )?(?:been )?(?:established|known|verified|confirmed|shown|stated|captured|validated)\b|\bwhether\b|\buntested\b|\bunvalidated\b|\bto (?:be )?test(?:ed)?\b|\bIdeaToPlan(?:'s)? (?:reads?|recommends?|hypothesis|assumes?|inference|reading|notes|suggests)\b|\bscenario\b|\bmodel(?:s|ed)?\b|\bforecast\b|\bprojection\b|\bplanning (?:assumption|threshold|figure)\b|\btest criterion\b|\bproposed\b|\bestimate[ds]?\b/i;
+// A MODAL LABELS ONLY THE CLAUSE IT GOVERNS. "A positioning could win customers from the three established paid
+// providers" is a hypothesis about the positioning, and it still states as fact that there are three providers, that
+// they are established, and that they charge. With no other label, a modal covers the sentence only when the sentence
+// states nothing code can see beside it: no source, no company, no figure from outside the plan, no "the ... services".
+const MODAL = /\b(?:may|might|could|would|if)\b/i;
+const THIRD_PARTY = /\b(?:the|these|those|their|existing|other|competing|both)\s+(?:[a-z-]+\s+){0,3}(?:services?|providers?|competitors?|companies|firms?|platforms?|alternatives|substitutes|tools?|agencies|consultants|coaches|customers|travelers|travellers|market)\b/i;
+// A GENERAL STATEMENT ABOUT PEOPLE OR CHANNELS IS A STATEMENT ABOUT THE WORLD. It is not advice and it is not nothing.
+const GENERAL = /\b(?:people|customers?|professionals?|clients?|adults|buyers|prospects|travelers|travellers|expats?|nomads)\b[^.;]{0,90}\b(?:often|usually|typically|tend to|generally|commonly|rarely|are (?:more |less |un)?likely|seek out|prefer|want|expect|struggle)\b|\b(?:Facebook|Reddit|LinkedIn|YouTube|Instagram|forums?|communities|groups)\b[^.;]{0,80}\b(?:are|is|have|has|offer|provide|reach|attract)\b|\b(?:most|the majority of|many|few)\s+(?:[a-z-]+\s+){0,2}(?:people|customers|professionals|clients|adults|buyers|travelers|travellers|expats?|nomads|providers|competitors)\b/i;
+// An instruction, a condition, or a labelled sentence may mention people or channels without asserting anything
+// general about them ("Identify three communities where your customer is likely to be", "If ten messages produce no
+// conversation, stop"). The refusal below is for the plain statement.
+const DIRECTIVE = /^(?:[^:.]{2,40}:\s*)?(?:if|when|once|until|you (?:need|should|must|can|will|have)|do not|don't|identify|write|ask|track|test|use|avoid|confirm|check|review|start|begin|reach|deliver|post|share|send|book|record|measure|decide|revisit|add|choose|run|talk|contact|prepare|draft|publish|synthesize|rewrite|validate|offer|set|keep|treat|plan|build|focus|wait|participat\w*|answer\w*)\b/i;
+const ADVICE = /\b(?:should|recommends?|consider|need(?:s)? to|must|do not|don't|start|begin|ask|write|identify|track|test|use|avoid|offer|set|reach|deliver|confirm|check|review|keep|treat|plan|build|focus|wait|post|share|send|book|record|measure|decide|revisit|add|raise|lower|choose|run|talk|contact|prepare|draft|publish|synthesize|rewrite|validate)\b|\byou(?:r)?\b/i;
+const NONE_KINDS = { question: (x) => /\?/.test(x), label: (x) => x.replace(/\[[SW]\d+\]/g, ' ').trim().split(/\s+/).length <= 8, criterion: (x) => /\d/.test(x) || /\b(?:test|criterion|threshold|target|pass|fail|metric|measure|done when|complete)\b/i.test(x), reference: (x) => /\b(?:see|section|above|below|following|table|listed|earlier|later)\b/i.test(x), other: () => true };
 const NOT_A_LABEL = /^(?:our read|our view|we think|in our view)[:,.]?$/i;
 const ASPECTS = ['subject', 'meaning', 'qualifiers', 'numbers', 'dates', 'population', 'scope'];
 const CLASSES = ['FOUNDER', 'EXTERNAL', 'ASSUMPTION', 'RECOMMENDATION', 'NONE'];
 
-// ---------- 1. read every batch ----------
-const usage = { requests: batchItems.length, answered: 0, prompt_tokens: 0, completion_tokens: 0, cost: 0, cost_known: true, model: map.model || '' };
+// ---------- 1. read every response ----------
+// A RESPONSE IS MATCHED BY WHAT IT SAYS, NEVER BY WHERE IT ARRIVED. It has to give back the review token of this run
+// and the number of a batch of this run, and then only its verdicts for claim IDs of that batch count. The position of
+// a response among the others means nothing: a failed request, a missing item, or a different order moves positions
+// and changes no result. A response with another token was made for another text or another ledger and settles
+// nothing. A batch that no accepted response names is unreviewed.
+const expected = s(map.review);
+const usage = { requests: batchItems.length, responses: responses.length, answered: 0, prompt_tokens: 0, completion_tokens: 0, cost: 0, cost_known: true, model: map.model || '' };
 const failed = [];          // batches with no usable answer
-const answersFor = {};      // claim id -> the answers given for it, inside its own batch
-const stray = [];           // answers for an ID that is not in the batch that gave them
+const rejected = [];        // responses that could not be used, each with the reason
+const answersFor = {};      // claim id -> the verdicts given for it by responses that named its batch
+const stray = [];           // verdicts for a claim ID that is not in the batch the response named
 const batchOf = {};
-batchItems.forEach((b) => (b.ids || []).forEach((id) => { batchOf[id] = b.batch; }));
-batchItems.forEach((b, k) => {
-  const r = responses[k];
-  const why = (text) => failed.push({ batch: b.batch, claims: (b.ids || []).length, why: text });
-  if (!r || r.error) return why('the request failed' + (r && r.error ? ': ' + s(r.error.message || r.error).slice(0, 160) : ': no response'));
-  if (r.usage) { usage.prompt_tokens += Number(r.usage.prompt_tokens) || 0; usage.completion_tokens += Number(r.usage.completion_tokens) || 0; if (typeof r.usage.cost === 'number') usage.cost += r.usage.cost; else usage.cost_known = false; } else usage.cost_known = false;
-  const choice = (r.choices || [])[0] || {};
+const idsOf = {};
+batchItems.forEach((b) => { idsOf[b.batch] = b.ids || []; (b.ids || []).forEach((id) => { batchOf[id] = b.batch; }); });
+const accepted = {};        // batch number -> how many responses were accepted for it
+const cutOff = {};
+responses.forEach((r, pos) => {
+  if (r && r.usage) { usage.prompt_tokens += Number(r.usage.prompt_tokens) || 0; usage.completion_tokens += Number(r.usage.completion_tokens) || 0; if (typeof r.usage.cost === 'number') usage.cost += r.usage.cost; else usage.cost_known = false; }
+  if (!r || r.error || !Array.isArray(r.choices)) { rejected.push({ arrived: pos + 1, batch: null, why: r && r.not_sent ? 'the request was not sent: ' + s(r.why) : 'the request failed' + (r && r.error ? ': ' + s(r.error.message || r.error.description || (typeof r.error === 'string' ? r.error : JSON.stringify(r.error))).slice(0, 160) : ': it returned no answer') }); return; }
+  if (!r.usage) usage.cost_known = false;
+  const choice = r.choices[0] || {};
   const raw = s(choice.message && choice.message.content);
+  const cut = choice.finish_reason === 'length';
   let o = null;
   try { o = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch (e) {}
-  if (!o || typeof o !== 'object') return why(choice.finish_reason === 'length' ? 'the answer was cut off at the output limit and cannot be read' : 'the answer is not readable JSON');
+  // A cut-off answer may not parse. The token and the batch come first in it, so they can still be read.
+  const said = o && typeof o === 'object' ? { review: s(o.review), batch: Number(o.batch) } : { review: s((raw.match(/"review"\s*:\s*"([^"]+)"/) || [])[1]), batch: Number((raw.match(/"batch"\s*:\s*(\d+)/) || [])[1]) };
+  if (!said.review) { rejected.push({ arrived: pos + 1, batch: said.batch || null, why: 'the answer does not give the review token' + (o ? '' : ' and is not readable JSON') }); return; }
+  if (said.review !== expected) { rejected.push({ arrived: pos + 1, batch: said.batch || null, stale: true, why: 'the answer carries the review token ' + said.review + ', and this run is ' + expected + ': it was made for another text, another ledger, or another pass' }); return; }
+  if (!idsOf[said.batch]) { rejected.push({ arrived: pos + 1, batch: said.batch || null, why: 'the answer names batch ' + (said.batch || 'none') + ', which is not a batch of this run' }); return; }
+  if (!o || typeof o !== 'object') { cutOff[said.batch] = cut ? 'the answer was cut off at the output limit and cannot be read' : 'the answer is not readable JSON'; rejected.push({ arrived: pos + 1, batch: said.batch, why: cutOff[said.batch] }); return; }
   usage.answered++;
+  accepted[said.batch] = (accepted[said.batch] || 0) + 1;
   const list = [];
   (Array.isArray(o.claims) ? o.claims : []).forEach((a) => { if (a && s(a.id)) list.push(a); });
-  (Array.isArray(o.recommendation) ? o.recommendation : []).forEach((id) => { if (s(id)) list.push({ id: s(id), class: 'RECOMMENDATION' }); });
-  (Array.isArray(o.none) ? o.none : []).forEach((id) => { if (s(id)) list.push({ id: s(id), class: 'NONE' }); });
+  (Array.isArray(o.recommendation) ? o.recommendation : []).forEach((x) => { const id = s(x && typeof x === 'object' ? x.id : x); if (id) list.push({ ...(x && typeof x === 'object' ? x : {}), id, class: 'RECOMMENDATION' }); });
+  (Array.isArray(o.none) ? o.none : []).forEach((x) => { const id = s(x && typeof x === 'object' ? x.id : x); if (id) list.push({ ...(x && typeof x === 'object' ? x : {}), id, class: 'NONE' }); });
   list.forEach((a) => {
     const id = s(a.id);
-    if (!(b.ids || []).includes(id)) { stray.push({ id, batch: b.batch, belongs_to: batchOf[id] || null }); return; }
+    if (!idsOf[said.batch].includes(id)) { stray.push({ id, batch: said.batch, belongs_to: batchOf[id] || null }); return; }
     (answersFor[id] = answersFor[id] || []).push(a);
   });
-  if (choice.finish_reason === 'length') failed.push({ batch: b.batch, claims: (b.ids || []).filter((id) => !answersFor[id]).length, why: 'the answer was cut off at the output limit; the claims it did not reach have no verdict', partial: true });
+  if (cut) failed.push({ batch: said.batch, claims: idsOf[said.batch].filter((id) => !answersFor[id]).length, why: 'the answer was cut off at the output limit; the claims it did not reach have no verdict', partial: true });
 });
+batchItems.forEach((b) => { if (!accepted[b.batch]) failed.push({ batch: b.batch, claims: (b.ids || []).length, why: cutOff[b.batch] || 'no usable answer came back for this batch' + (rejected.some((x) => !x.batch) ? ' (' + rejected.filter((x) => !x.batch).length + ' response(s) could not be matched to any batch)' : '') }); });
+failed.sort((a, b) => a.batch - b.batch);
+const repeated = Object.keys(accepted).filter((k) => accepted[k] > 1).map(Number);
 
 // ---------- 2. judge one answer ----------
 // Returns { status: 'settled' | 'defect' | 'open', cls, check, why, links }.
@@ -79,21 +118,45 @@ const judge = (c, a, text) => {
   const defect = (check, why, links) => ({ status: 'defect', cls, check, why, links: links || {} });
   if (!CLASSES.includes(cls)) return open('the class is not FOUNDER, EXTERNAL, ASSUMPTION, RECOMMENDATION, or NONE');
   const own = [...new Set((text.match(/\[[SW]\d+\]/g) || []).map((x) => x.slice(1, -1)))];
+  const whole = text === c.text;
   if (cls === 'RECOMMENDATION' || cls === 'NONE') {
     // A sentence that cites a source, sits in a company's profile, or names a company says something about the world.
     // Classing it as advice or as nothing would take it out of the review, so that answer is not accepted.
     if (own.length) return open('it is classed ' + cls + ' and the sentence cites ' + own.join(', ') + ': a cited sentence states something');
     if (c.company) return open('it is classed ' + cls + ' and it is in the profile of ' + c.company + ': a sentence in a company profile states something or is a labelled assumption');
     if ((c.names || []).length) return open('it is classed ' + cls + ' and it names ' + c.names.join(', ') + ': a sentence about a company states something or is a labelled assumption');
-    return { status: 'settled', cls, links: {} };
+    const g = LABEL.test(text) || MODAL.test(text) || DIRECTIVE.test(bare(text)) ? null : text.match(GENERAL);
+    if (g) return open('it is classed ' + cls + ' and it generalises about people, customers, or channels ("' + g[0].slice(0, 70) + '"): that is a statement about the world');
+    if (cls === 'RECOMMENDATION') {
+      if (!ADVICE.test(text)) return open('it is classed RECOMMENDATION and nothing in it advises or instructs the founder');
+      return { status: 'settled', cls, links: {}, on_judgment: 'recommendation' };
+    }
+    // "No assertion" needs a reason tied to the passage, and the kind it gives has to fit the words.
+    const kind = s(a.kind).toLowerCase(), reason = s(a.reason);
+    if (!NONE_KINDS[kind]) return open('it is classed NONE and gives no kind (question, label, criterion, reference, other)');
+    if (reason.length < 12) return open('it is classed NONE and gives no reason tied to the passage');
+    if (!NONE_KINDS[kind](bare(text))) return open('it is classed NONE as a ' + kind + ', and the words are not one' + (kind === 'question' ? ': there is no question in them' : kind === 'label' ? ': they are a full sentence' : ''));
+    return { status: 'settled', cls, links: { kind, reason }, ...(kind === 'other' ? { on_judgment: 'no assertion, on the reason given' } : {}) };
   }
   if (cls === 'ASSUMPTION') {
     const label = s(a.label);
-    if (!LABEL.test(text)) return defect('ASSUMPTION NOT LABELLED IN THE TEXT', 'The review classed this sentence as an assumption or hypothesis. The sentence carries no hypothesis, assumption, or not-established wording of its own' + (label ? ' (the review pointed to "' + label.slice(0, 80) + '")' : '') + '. A label in a neighbouring sentence does not cover it.', { label });
+    if (!LABEL.test(text) && !MODAL.test(text)) return defect('ASSUMPTION NOT LABELLED IN THE TEXT', 'The review classed this sentence as an assumption or hypothesis. The sentence carries no hypothesis, assumption, or not-established wording of its own' + (label ? ' (the review pointed to "' + label.slice(0, 80) + '")' : '') + '. A label in a neighbouring sentence does not cover it.', { label });
     if (!label) return open('it is classed ASSUMPTION and the answer does not quote the labelling words');
     if (!flat(text).includes(flat(label))) return open('it is classed ASSUMPTION and the label it quotes is not in the sentence');
     if (NOT_A_LABEL.test(label.trim())) return defect('ASSUMPTION NOT LABELLED IN THE TEXT', 'The review gave "' + label + '" as the label. That names the author; it does not say the statement is a hypothesis or an assumption.', { label });
-    return { status: 'settled', cls, links: { label } };
+    if (LABEL.test(text)) return { status: 'settled', cls, links: { label } };
+    // Only a modal. It covers its own clause, so anything else the sentence states has to be split off and judged.
+    const beside = [];
+    if (own.length) beside.push('cites ' + own.join(', '));
+    if (whole && c.company) beside.push('is in the profile of ' + c.company);
+    const named = whole ? (c.names || []) : (c.names || []).filter((nm) => flat(text).includes(nm.toLowerCase()));
+    if (named.length) beside.push('names ' + named.join(', '));
+    const tp = text.match(THIRD_PARTY);
+    if (tp) beside.push('refers to "' + tp[0] + '"');
+    const figures = numsIn(text).filter((x) => !ownNumbers.has(x));
+    if (figures.length) beside.push('carries the figure ' + figures.join(', '));
+    if (beside.length) return open('its only label is "' + (text.match(MODAL) || [''])[0] + '", which covers the clause it governs and nothing else, and the sentence ' + beside.join(', ') + ': the hypothesis has to be split from what is stated inside it');
+    return { status: 'settled', cls, links: { label }, on_judgment: 'assumption labelled by a modal alone' };
   }
   const supported = a.supported === true || s(a.supported).toLowerCase() === 'true';
   const unsupported = a.supported === false || s(a.supported).toLowerCase() === 'false';
@@ -148,11 +211,12 @@ const signature = (a) => (Array.isArray(a.split) ? 'SPLIT:' + a.split.map((p) =>
 const records = [];
 const duplicates = [], contradictory = [];
 const failedWhy = {};
-failed.forEach((f) => { failedWhy[f.batch] = f.why; });
+failed.forEach((f) => { if (!f.partial) failedWhy[f.batch] = f.why; });
 (map.claims || []).forEach((c) => {
   const rec = { id: c.id, line: c.line, cell: c.cell, part: c.part, section: c.section, heading: c.heading, company: c.company, row: c.row, text: c.text, cites: c.cites, batch: batchOf[c.id] || null };
   const got = answersFor[c.id] || [];
-  if (!got.length) { records.push({ ...rec, status: 'open', missing: true, why: failedWhy[rec.batch] ? 'no verdict: batch ' + rec.batch + ', ' + failedWhy[rec.batch] : 'no verdict was given' }); return; }
+  if (!rec.batch) { records.push({ ...rec, status: 'open', missing: true, not_sent: true, why: 'not sent for review in this run' }); return; }
+  if (!got.length) { const wrong = stray.find((x) => x.id === c.id); records.push({ ...rec, status: 'open', missing: true, why: failedWhy[rec.batch] ? 'no verdict: batch ' + rec.batch + ', ' + failedWhy[rec.batch] : wrong ? 'no verdict in its own batch: one was given in the answer for batch ' + wrong.batch + ', where this claim was not asked' : 'no verdict was given' }); return; }
   if (got.length > 1) {
     if (new Set(got.map(signature)).size > 1) { contradictory.push(c.id); records.push({ ...rec, status: 'open', why: got.length + ' verdicts were given and they disagree (' + got.map(signature).join(' and ') + ')' }); return; }
     duplicates.push(c.id);
@@ -185,10 +249,16 @@ const claim_review = {
   defects: records.filter((r) => r.status === 'defect').map((r) => ({ id: r.id, line: r.line, cell: r.cell, company: r.company, text: r.text, check: r.check, why: r.why, parts: r.parts ? r.parts.filter((p) => p.status === 'defect').map((p) => ({ id: p.id, text: p.text, check: p.check, why: p.why })) : undefined, evidence: r.links && r.links.evidence })),
   open: records.filter((r) => r.status === 'open').map((r) => ({ id: r.id, line: r.line, cell: r.cell, text: r.text.slice(0, 160), why: r.why, missing: r.missing === true })),
   missing: records.filter((r) => r.missing).map((r) => r.id),
+  not_sent: records.filter((r) => r.not_sent).map((r) => r.id),
   duplicates,
   contradictory,
   stray,
   failed_batches: failed,
+  rejected_responses: rejected,
+  repeated_batches: repeated,
+  review: expected,
+  // Settled with nothing for code to check: the reviewer's judgment alone. A well-formed and wrong answer passes here.
+  on_judgment: records.flatMap((r) => (r.parts ? r.parts : [r])).filter((x) => x.status === 'settled' && x.on_judgment).reduce((m, x) => { m[x.on_judgment] = (m[x.on_judgment] || 0) + 1; return m; }, {}),
   coverage: cov,
   // Lines of the plan that produced no claim and have no stated reason for it. Each is an incomplete check.
   unclassified_lines: cov.unclassified || [],

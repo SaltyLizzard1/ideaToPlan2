@@ -40,14 +40,19 @@ const bare = (t) => stripMd(t).replace(/\[[SW]\d+\]/g, ' ').replace(/^\s*(?:[-*â
 const norm = (t) => bare(t).toLowerCase();
 const spaced = (t) => ' ' + String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
 // A fragment is substantive when it could assert something: it has letters, and it is more than a single bare word.
-const substantive = (t) => {
+const substantive = (t, rowLabel) => {
   const b = bare(t);
   if (!/[A-Za-z]/.test(b)) return false;
-  if (b.split(/\s+/).length < 2 && !/\d/.test(b)) return false;
-  return !/^(?:no source|none|n\/a|not applicable|tbd)\.?$/i.test(b);
+  if (/^(?:no source|none|n\/a|not applicable|tbd)\.?$/i.test(b)) return false;
+  // One bare word asserts nothing by itself. Beside a row label it does: "Confidence | Low" rates something.
+  return b.split(/\s+/).length >= 2 || /\d/.test(b) || !!rowLabel;
 };
 // "**Competitive Interpretation.**" names what follows. It is context for the sentences after it, not a claim.
-const isLeadIn = (t) => /^\*\*[^*]{1,70}\*\*[.:]?$/.test(t.trim());
+const isLeadIn = (t) => /^\*\*[^*]{1,90}\*\*[.:]?$/.test(t.trim());
+// A bold line standing alone is a heading when, without its "Action 2:" or "Days 1-14:" number, it is six words or
+// fewer and carries no figure. Longer than that, it says something ("Identify 20 people who match your target profile").
+const HEAD_NO = /^(?:action|channel|rule|step|phase|part|days?|weeks?|months?)\s+[\d-]+\s*:\s*/i;
+const isHeading = (t) => { const inner = bare(t).replace(HEAD_NO, ''); return inner.split(/\s+/).filter(Boolean).length <= 6 && !/\d/.test(inner); };
 const ABBR = /(?:^|[\s(])(?:e\.g|i\.e|vs|etc|approx|est|inc|ltd|co|corp|mr|mrs|ms|dr|st|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|u\.s|u\.k)\.$/i;
 const words = (t) => bare(t).split(/\s+/).filter(Boolean).length;
 // Sentences of a passage, then clauses at semicolons. A citation that follows the full stop belongs to the sentence
@@ -108,8 +113,8 @@ lines.forEach((line, i) => {
   let lead = '';
   let made = 0;
   pieces.forEach((p) => {
-    if (isLeadIn(p.text)) { lead = bare(p.text); return; }
-    if (!substantive(p.text)) return;
+    if (isLeadIn(p.text) && (pieces.length > 1 || isHeading(p.text))) { lead = bare(p.text); return; }
+    if (!substantive(p.text, p.row)) return;
     const own = citesIn(p.text);
     const base = 'K' + ('0000000' + fnv(norm(section) + '|' + norm(p.text)).toString(36)).slice(-7);
     seen[base] = (seen[base] || 0) + 1;
@@ -124,17 +129,29 @@ lines.forEach((line, i) => {
     });
   });
   if (made) coverage.lines_with_claims++;
-  else if (pieces.length && pieces.every((p) => isLeadIn(p.text) || !substantive(p.text))) coverage.label_only.push(n);
+  else if (pieces.length && pieces.every((p) => isLeadIn(p.text) || !substantive(p.text, p.row))) coverage.label_only.push(n);
   else if (!pieces.length && isRow(t)) coverage.label_only.push(n);
   else coverage.unclassified.push(n);
 });
 coverage.claims = claims.length;
 
+// THE REVIEW TOKEN names this plan text, this evidence, and this pass. Every request carries it and every answer has to
+// give it back. An answer made for an earlier text or an earlier ledger carries another token and settles nothing here.
+const review = 'R' + fnv(String(rev.text || '') + '|' + String(typeof ev.research_ledger === 'string' ? ev.research_ledger : JSON.stringify(ev.research_ledger || '')) + '|' + attempt).toString(36);
+
+// A RUN MAY SEND ONLY SOME CLAIMS. When a node named "Claim Selection" returns ids, only those claims are sent. The
+// rest stay in the map and are reported as not sent, which is an incomplete check. No such node is in the workflow:
+// it exists for a bounded test.
+let only = null;
+try { const sel = $('Claim Selection').first().json; if (sel && Array.isArray(sel.ids) && sel.ids.length) only = new Set(sel.ids.map(String)); } catch (e) {}
+const toSend = only ? claims.filter((c) => only.has(c.id)) : claims;
+const notSent = only ? claims.filter((c) => !only.has(c.id)).map((c) => c.id) : [];
+
 // ---------- the batches ----------
 const batches = [];
 let cur = [];
-claims.forEach((c, k) => {
-  const prev = claims[k - 1];
+toSend.forEach((c, k) => {
+  const prev = toSend[k - 1];
   if (cur.length >= BATCH_MAX || (cur.length >= BATCH_SOFT && prev && prev.section !== c.section)) { batches.push(cur); cur = []; }
   cur.push(c);
 });
@@ -150,14 +167,14 @@ const byId = {};
 ledger.forEach((c) => { byId[c.claim_id] = c; });
 
 const system = [
-  'You check a business plan one claim at a time. Each claim is one sentence, or one sentence of a table cell, with its place in the plan. You classify every claim and link it to what supports it. You do not rewrite anything.',
+  'You check a business plan one claim at a time. Each claim is one sentence, or one sentence of a table cell, with its place in the plan. You classify every claim and link it to what supports it. You do not rewrite anything, and you are not told what the right answer is for any claim.',
   '',
   'CLASSES. Give each claim exactly one.',
-  'FOUNDER: it states something about the founder, the audience they have, or the offer, as fact. "supported": true only when the FOUNDER CONTEXT says it; copy the exact words of the FOUNDER CONTEXT into "intake_quote". A detail the FOUNDER CONTEXT does not state ("an audience that does not yet exist", "the offer involves financial advice") is "supported": false, with what is missing in "missing".',
-  'EXTERNAL: it states something about a company, a competitor, customers in general, a market, a survey, a channel, or anything else outside the founder and this plan, as fact. "supported": true only when a ledger entry supports it; see SUPPORT below. With no such entry it is "supported": false, with what no entry states in "missing". A citation on the sentence does not make it supported.',
-  'ASSUMPTION: a proposed assumption, a hypothesis, an inference of IdeaToPlan, something stated as not established, or a figure or scenario of this plan\'s own financial model. It must be labelled as such in the sentence itself: copy the labelling words of the sentence into "label". A label in a neighbouring sentence does not count. "Our read:" is not a label; it names the author.',
+  'FOUNDER: it states something about the founder, the audience they have, or the offer, as fact. "supported": true only when the FOUNDER CONTEXT says it; copy the exact words of the FOUNDER CONTEXT into "intake_quote". A detail the FOUNDER CONTEXT does not state is "supported": false, with what is missing in "missing". The intake being silent about something is not the same as the intake saying there is none.',
+  'EXTERNAL: it states something about a company, a competitor, customers or people in general, a market, a survey, a channel, or anything else outside the founder and this plan, as fact. "supported": true only when a ledger entry supports it; see SUPPORT below. With no such entry it is "supported": false, with what no entry states in "missing". A citation on the sentence does not make it supported, and a sentence with no citation can still be an EXTERNAL claim.',
+  'ASSUMPTION: a proposed assumption, a hypothesis, an inference of IdeaToPlan, something stated as not established, or a figure or scenario of this plan\'s own financial model. It must be labelled as such in the sentence itself: copy the labelling words of the sentence into "label". A label in a neighbouring sentence does not count. Words that only say whose opinion it is are not a label. "May", "might", "could", "would", and "if" label only the clause they govern: a fact stated inside such a sentence is still a fact, and the sentence has to be split.',
   'RECOMMENDATION: advice or an instruction to the founder that asserts no fact.',
-  'NONE: no factual assertion: a question, a test criterion, a heading-like phrase, a connective.',
+  'NONE: no factual assertion. Give the kind and a reason tied to the words of the claim. Kinds: "question" (it asks something), "label" (a heading-like phrase or a rating word with no claim in it), "criterion" (a test, a threshold, or a done-when condition), "reference" (it points to another part of the plan), "other".',
   '',
   'SUPPORT for an EXTERNAL claim. Name the entries in "entries". Copy into "entry_quote" the exact words of the entry (its claim or its words on the page) that carry the support. Then answer seven aspects, each "yes", "no", or "na" (the claim has no such element):',
   'subject: the entry is about the same company, people, or thing as the claim.',
@@ -165,16 +182,16 @@ const system = [
   'qualifiers: the claim keeps the limits the entry carries ("says it", "lists", "may", "some").',
   'numbers: every number in the claim is the entry\'s number.',
   'dates: every date in the claim is in the entry or its source record.',
-  'population: the claim is about the same group, sample, and sample size as the entry (a survey of 600 travelers is not "travelers", and not the founder\'s customers).',
-  'scope: the claim does not rank, compare, or generalise beyond the entry ("the most", "unlike the others", "established", "focused on").',
+  'population: the claim is about the same group, sample, and sample size as the entry (what 300 surveyed shoppers said is not a fact about shoppers, and not about this founder\'s customers).',
+  'scope: the claim does not rank, compare, characterise, or generalise beyond the entry (who a company is for, what stage it serves, how established it is, what it does better or worse than others).',
   '"supported": true requires subject and meaning "yes" and no aspect "no". If any aspect is "no", set "supported": false and say which words go beyond the entry in "missing". An entry from the cited source that does not say this is not support.',
   '',
-  'SPLIT. When one sentence joins a supported fact to an unsupported assertion, or a labelled hypothesis to a fact stated inside it ("a positioning could distinguish QYLAT from the logistics-focused paid services" is a hypothesis that also states as fact that those services are paid and logistics-focused), do not give it one class. Return "split": two or more parts, each with "text" copied exactly from the sentence and its own class and fields. Together the parts must cover the sentence.',
+  'SPLIT. When one sentence joins a supported fact to an unsupported assertion, or a hypothesis to a fact stated inside it, do not give it one class. Return "split": two or more parts, each with "text" copied exactly from the sentence and its own class and fields. Together the parts must cover the sentence. A part that is the hypothesis keeps the modal or the label; a part that is the fact is judged as a fact.',
   '',
-  'RULES. Judge a company-profile row against the entries about that company. What substitutes or free content cannot give a customer is EXTERNAL and needs an entry, or a label in that sentence. A sentence that reports the customer\'s own doubt ("they do not know whether it is realistic") asserts nothing about feasibility. Do not use RECOMMENDATION or NONE for a sentence that states a fact.',
+  'RULES. Judge a sentence in a company profile against the entries about that company. What other options do or do not give a customer is EXTERNAL. A sentence that reports what a customer wonders or fears asserts nothing about whether it is so. A general statement about how people behave, where they gather, or what they want is EXTERNAL even when it reads as common sense. Do not use RECOMMENDATION or NONE for a sentence that states a fact.',
   '',
-  'Answer every claim ID in this request exactly once, and no other ID. Return ONLY JSON:',
-  '{"batch":1,"claims":[{"id":"K0000001","class":"EXTERNAL","supported":true,"entries":["E3"],"entry_quote":"19 Years in business","aspects":{"subject":"yes","meaning":"yes","qualifiers":"na","numbers":"yes","dates":"na","population":"na","scope":"na"}},{"id":"K0000002","class":"EXTERNAL","supported":false,"missing":"no entry says which customers the firm serves"},{"id":"K0000003","class":"FOUNDER","supported":true,"intake_quote":"exact words of the founder context"},{"id":"K0000004","class":"ASSUMPTION","label":"This is a hypothesis to test"},{"id":"K0000005","split":[{"text":"exact words","class":"ASSUMPTION","label":"could"},{"text":"exact words","class":"EXTERNAL","supported":false,"missing":"no entry says the services are paid"}]}],"recommendation":["K0000006"],"none":["K0000007"]}',
+  'Give back the review token and the batch number exactly as they are given to you. Answer every claim ID in this request exactly once, and no other ID. Return ONLY JSON, with "review" and "batch" first:',
+  '{"review":"<token>","batch":<number>,"claims":[{"id":"<id>","class":"EXTERNAL","supported":true,"entries":["<entry id>"],"entry_quote":"<words copied from the entry>","aspects":{"subject":"yes","meaning":"yes","qualifiers":"na","numbers":"yes","dates":"na","population":"na","scope":"na"}},{"id":"<id>","class":"EXTERNAL","supported":false,"missing":"<what no entry states>"},{"id":"<id>","class":"FOUNDER","supported":true,"intake_quote":"<words copied from the founder context>"},{"id":"<id>","class":"ASSUMPTION","label":"<labelling words copied from the claim>"},{"id":"<id>","split":[{"text":"<exact words>","class":"ASSUMPTION","label":"<label>"},{"text":"<exact words>","class":"EXTERNAL","supported":false,"missing":"<what no entry states>"}]}],"recommendation":["<id>"],"none":[{"id":"<id>","kind":"question","reason":"<why these words assert nothing>"}]}',
 ].join('\n');
 
 const describe = (c) => {
@@ -193,7 +210,8 @@ const payloadOf = (list, k) => JSON.stringify({
       runDate,
       '', String(ctx.founder_context || 'FOUNDER CONTEXT: none captured.'),
       '', 'LEDGER (every verified entry; the only external evidence there is)', ledger.map(entryText).join('\n') || 'None.',
-      '', 'CLAIMS: batch ' + (k + 1) + ' of ' + batches.length + ', ' + list.length + ' claims. Answer each ID once.',
+      '', 'REVIEW TOKEN: ' + review + '   BATCH: ' + (k + 1),
+      'CLAIMS: batch ' + (k + 1) + ' of ' + batches.length + ', ' + list.length + ' claims. Answer each ID once.',
       list.map(describe).join('\n\n'),
     ].join('\n') },
   ],
@@ -202,10 +220,11 @@ const payloadOf = (list, k) => JSON.stringify({
 if (!batches.length) return [{ json: { ...qaIn, claim_skip: true, claim_review: { empty: true, coverage, claims: 0 } } }];
 return batches.map((list, k) => ({ json: {
   claim_skip: false,
+  review,
   batch: k + 1,
   of: batches.length,
   ids: list.map((c) => c.id),
   payload: payloadOf(list, k),
   // The map and the verifier's answer ride on the first item only. Combine Claim Review reads them from there.
-  ...(k === 0 ? { claim_map: { claims, coverage, model: MODEL }, qa_response: qaIn } : {}),
+  ...(k === 0 ? { claim_map: { review, claims, not_sent: notSent, coverage, model: MODEL }, qa_response: qaIn } : {}),
 } }));
