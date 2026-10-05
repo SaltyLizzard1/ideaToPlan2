@@ -795,19 +795,38 @@ lines.forEach((line, i) => {
 // "The most comprehensive provider reviewed" ranks companies. The ledger holds what each page says about itself;
 // it does not compare them.
 const RANKED = /\b(?:most|least) (?:comprehensive|established|complete|credible|popular|advanced|experienced|trusted|expensive|affordable|capable|direct|relevant|extensive)\b[^.;]{0,50}?\b(?:providers?|competitors?|compan(?:y|ies)|firms?|options?|alternatives?|services?)\b|\bthe (?:best|largest|biggest|leading|top|cheapest|strongest|broadest|widest|closest)(?:[- ][a-z]+)? (?:providers?|competitors?|compan(?:y|ies)|firms?|options?|alternatives?)\b/i;
-// A ranking is supported when the sentence says what is being compared and cites verified claims for the companies
-// compared (at least two), or when a verified claim cited on the sentence states the ranking itself.
+// A RANKING COVERS EVERYONE IT RANKS. "The most comprehensive provider reviewed" places one company above every
+// company reviewed, so it needs a stated criterion and a verified claim, cited in the sentence, for each of them.
+// Evidence for two companies supports a comparison between those two and nothing wider: "A lists more services than
+// B". A superlative is limited to fewer companies only when the sentence says so ("of the two", "between A and B").
+// A verified claim that states the ranking itself, cited on the sentence, also supports it.
 const RANK_CRITERION = /\b(?:by|in|on|counting|comparing) (?:the )?(?:number|range|breadth|count|list|variety|length) of\b|\bin terms of\b|\bmeasured by\b|\bjudged by\b|\bon the basis of\b/i;
+const COMPARED = /\bmore (?:comprehensive|established|complete|credible|popular|advanced|experienced|trusted|expensive|affordable|capable|direct|relevant|extensive)\b[^.;]{0,80}?\bthan\b/i;
+const LIMITED_SCOPE = /\bof the (?:two|three|four)\b|\bof these (?:two|three|four)\b|\bbetween\b[^.;]{0,120}?\band\b/i;
+// The companies reviewed: those with a verified claim under a competitor question.
+const reviewedCompanies = entities.filter((e) => evClaims.some((c) => c.entity === e.name && /^C\d/.test(c.question || '')));
 lines.forEach((line, i) => {
   const t = line.trim();
   if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || demandComputed.has(t)) return;
+  let detail = '';
   const hit = (/^\|.*\|$/.test(t) ? t.replace(/^\||\|$/g, '').split('|') : [t]).flatMap((c) => c.split(/(?<=[.!?])\s+/)).find((seg) => {
-    if (!RANKED.test(seg) || DENIES_OR_LABELS.test(seg)) return false;
-    const backed = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => (ledgerBySource[id] || []).length > 0);
-    const stated = backed.some((id) => ledgerBySource[id].some((c) => RANKED.test(String(c.claim || '') + ' ' + String(c.page_excerpt || ''))));
-    return !(stated || (RANK_CRITERION.test(seg) && backed.length >= 2));
+    const superlative = RANKED.test(seg);
+    if ((!superlative && !COMPARED.test(seg)) || DENIES_OR_LABELS.test(seg)) return false;
+    const cited = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => (ledgerBySource[id] || []).length > 0);
+    if (cited.some((id) => ledgerBySource[id].some((c) => RANKED.test(String(c.claim || '') + ' ' + String(c.page_excerpt || ''))))) return false;
+    const named = reviewedCompanies.filter((e) => spaced(seg).includes(' ' + e.name_words + ' ') || aliasesOf(e).some((s) => seg.includes(s)));
+    // Who is being ranked: everyone reviewed, unless this is a comparison between named companies.
+    const scope = (superlative && !LIMITED_SCOPE.test(seg)) ? reviewedCompanies : named;
+    const without = scope.filter((e) => !cited.some((id) => (e.source_ids || []).includes(id)));
+    const problems = [];
+    if (!RANK_CRITERION.test(seg)) problems.push('it does not say what is being compared');
+    if (scope.length < 2) problems.push('it does not name the companies being compared');
+    else if (without.length) problems.push('it cites no verified claim for ' + without.map((e) => e.name).join(', ') + (superlative && scope === reviewedCompanies ? ', and a ranking of the ' + scope.length + ' companies reviewed needs evidence for every one of them' : ''));
+    if (!problems.length) return false;
+    detail = problems.join('; ');
+    return true;
   });
-  if (hit) add('MAJOR', 'COMPETITOR RANKED WITHOUT EVIDENCE', 'This text ranks a company against the others reviewed. A ranking needs two things in the sentence: what is being compared (for example the number of services each page lists), and source IDs with verified claims for the companies compared. The verified entries describe each company in its own words and do not compare them. Give the criterion and the evidence, word the ranking as a hypothesis, or remove it.', short(hit), i + 1);
+  if (hit) add('MAJOR', 'COMPETITOR RANKED WITHOUT EVIDENCE', 'This text ranks or compares companies, and ' + detail + '. A ranking needs a stated criterion (for example the number of services each page lists) and a source ID with a verified claim for every company it covers. Evidence for two companies supports a comparison between those two only. Give the criterion and the evidence for all of them, narrow the statement to the companies the evidence covers, word it as a hypothesis, or remove it.', short(hit), i + 1);
 });
 
 // ---------- PREVALENCE ----------
@@ -905,7 +924,7 @@ ${SEVERITY}
 CHECKS
 1. Unsupported claims: statements about the market, customers, competitors, prices, costs, benchmarks, trends, regulation, tax, or statistics with no source ID. In a Starter plan no research was done, so any such statement is unsupported.
 2. Citations: a source ID on a claim the EVIDENCE LEDGER does not link to that source; a claim stated more strongly or more broadly than the ledger; detail added that the ledger entry does not state; any source name, study, author, URL, or date not in SOURCES. One source ID at the end of a paragraph or table row covers the claims in it.
-3. Research interpretation: analysis presented as a finding. "None of the competitors reviewed does X" does not establish that X is underserved or that customers want X. A competitive gap, an unmet need, an underserved segment, a positioning opportunity, or a statement that no competitor does something is BLOCKING when it is presented as a finding, unless a ledger entry cited on that sentence states it. It is acceptable only when the sentence that makes the claim is itself clearly worded as a hypothesis to test. Judge each sentence alone: a hypothesis label in another sentence of the paragraph does not cover a sentence that reads as a finding. A contrast is the same claim: "all five competitors focus on executing a move rather than on the decision stage" asserts what the competitors do not do. The ledger entries list services in each company's own words; none states what a company focuses on or leaves out. Check such a sentence against every entry it covers and allow only what those entries state, with the scope said in the sentence ("the pages reviewed list ..."). A ranking of the companies reviewed ("the most comprehensive provider") is an unsupported comparison unless the sentence states what is being compared and cites verified claims for the companies compared; without both, ask for the criterion and the evidence, or for the ranking to be removed. "IdeaToPlan analysis" identifies who wrote the sentence; it is not evidence and it does not make a factual claim conditional, so a finding labelled only that way is still BLOCKING. Say how to reword it.
+3. Research interpretation: analysis presented as a finding. "None of the competitors reviewed does X" does not establish that X is underserved or that customers want X. A competitive gap, an unmet need, an underserved segment, a positioning opportunity, or a statement that no competitor does something is BLOCKING when it is presented as a finding, unless a ledger entry cited on that sentence states it. It is acceptable only when the sentence that makes the claim is itself clearly worded as a hypothesis to test. Judge each sentence alone: a hypothesis label in another sentence of the paragraph does not cover a sentence that reads as a finding. A contrast is the same claim: "all five competitors focus on executing a move rather than on the decision stage" asserts what the competitors do not do. The ledger entries list services in each company's own words; none states what a company focuses on or leaves out. Check such a sentence against every entry it covers and allow only what those entries state, with the scope said in the sentence ("the pages reviewed list ..."). A ranking of the companies reviewed ("the most comprehensive provider") is an unsupported comparison unless the sentence states what is being compared and cites a verified claim for every company the ranking covers. "The most comprehensive provider reviewed" covers every company reviewed: evidence for two of five supports a comparison between those two only, worded as that. Without the criterion and the full evidence, ask for the statement to be narrowed to what the evidence covers, or removed. "IdeaToPlan analysis" identifies who wrote the sentence; it is not evidence and it does not make a factual claim conditional, so a finding labelled only that way is still BLOCKING. Say how to reword it.
 4. Known and unknown: any statement that the founder lacks something (no audience, no website, no customers, starting from zero) that the FOUNDER CONTEXT does not state. A blank revenue answer described as "not provided" when the form defines it as pre-revenue. A recommendation that silently assumes an unknown fact instead of reasoning conditionally. Advice to create something the founder already has, or to repeat work the founder has already done. Internal labels such as UNKNOWN or NOT PROVIDED printed in the plan.
 5. Financial consistency: do not recompute the financial tables; code produced them. Check that every financial figure in the prose, the Executive Summary, and the callouts matches FINANCIAL FACTS exactly, and that no figure appears that is in neither FINANCIAL FACTS, the FOUNDER CONTEXT, nor the ledger. Flag any assumption described as verified, validated, typical, standard, realistic, or conservative. Flag a price from a different kind of service presented as evidence of what this offer should cost, rather than as a reference point for an untested assumption.
 6. Budget: the ceiling treated as a spending target. A cost shown as "Amount not yet established" that the plan gives a figure for, calls free, or leaves out where it discusses costs, profit, or viability. A recommendation that depends on paid advertising when the Paid acquisition line in FINANCIAL FACTS says the model contains no committed advertising cost, or a paid channel recommended as part of the strategy with no matching Budget item. The COST REVIEW printed in the plan as a list.

@@ -275,7 +275,7 @@ test('line 157: the comparison and the ranking are not supported, and are now re
   assert.match(lineOf(157), /Intermark Relocation is the most comprehensive provider reviewed/);
   const out = await check();
   assert.deepEqual(at(out, 157), [GAP, 'MAJOR COMPETITOR RANKED WITHOUT EVIDENCE']);
-  assert.match(out.det_issues.find((i) => i.line === 157 && /RANKED/.test(i.type)).detail, /what is being compared .* and source IDs with verified claims for the companies compared/);
+  assert.match(out.det_issues.find((i) => i.line === 157 && /RANKED/.test(i.type)).detail, /it does not say what is being compared; it cites no verified claim for Mosline Travel Consultancy Firm, Start Abroad, Traveling with Kristin, LA Relocation Group, International Relocation Partner, Intermark Relocation/);
 });
 
 test('line 157: what the reviewed evidence supports, with its scope, passes', async () => {
@@ -289,20 +289,50 @@ test('line 157: what the reviewed evidence supports, with its scope, passes', as
 
 const RANKED = 'MAJOR COMPETITOR RANKED WITHOUT EVIDENCE';
 
+test('ranking: six companies were reviewed in this run, five direct and one indirect', () => {
+  const reviewed = JSON.parse(EV.entities).filter((e) => LEDGER.some((c) => c.entity === e.name && /^C\d/.test(c.question)));
+  assert.deepEqual(reviewed.map((e) => e.name + ' ' + e.source_ids.join('/')), ['Mosline Travel Consultancy Firm S1', 'Start Abroad S2', 'Traveling with Kristin S4', 'LA Relocation Group S5', 'International Relocation Partner S11', 'Intermark Relocation S13']);
+});
+
 test('ranking: unsupported superlatives are reported', async () => {
   for (const s of [
     'Intermark Relocation is the most comprehensive provider reviewed, covering both planning and execution.',
-    'Intermark Relocation is the most comprehensive provider reviewed [S13].',                                   // one source cannot support a comparison
+    'Intermark Relocation is the most comprehensive provider reviewed [S13].',
     'By the number of services listed, Intermark Relocation is the most comprehensive provider reviewed.',       // a criterion with no evidence
     'Traveling with Kristin is the leading provider in this space [S4].',
     'Start Abroad [S2] and LA Relocation Group [S5] are the most established competitors.',                      // evidence with no criterion
   ]) assert.ok((await onLast(s)).includes(RANKED), s);
 });
 
-test('ranking: a stated criterion with verified evidence for the companies compared passes, and so does removing the ranking', async () => {
+test('ranking: evidence for two companies does not support "most" among all those reviewed', async () => {
+  const two = 'By the number of services each page lists, Intermark Relocation is the most comprehensive provider reviewed: its page lists webinars, company registration, digital nomad visas and moving services [S13], against visas, housing and banking for Start Abroad [S2].';
+  const text = HELD_PLAN.replace(/\n+$/, '') + '\n\n' + two + '\n';
+  const issue = (await check(text)).det_issues.find((i) => i.line === text.replace(/\n+$/, '').split('\n').length && /RANKED/.test(i.type));
+  assert.equal(issue.severity, 'MAJOR');
+  assert.match(issue.detail, /it cites no verified claim for Mosline Travel Consultancy Firm, Traveling with Kristin, LA Relocation Group, International Relocation Partner, and a ranking of the 6 companies reviewed needs evidence for every one of them/);
+  assert.match(issue.detail, /Evidence for two companies supports a comparison between those two only/);
+  // Five of six is still not all.
+  assert.ok((await onLast('In terms of the range of services listed, Intermark Relocation [S13] is the most extensive provider reviewed, ahead of Mosline Travel Consultancy Firm [S1], Start Abroad [S2], Traveling with Kristin [S4] and LA Relocation Group [S5].')).includes(RANKED));
+});
+
+test('ranking: a stated criterion with verified evidence for every company reviewed passes', async () => {
+  const all = 'By the number of services each page lists, Intermark Relocation [S13] is the most comprehensive provider reviewed, ahead of Mosline Travel Consultancy Firm [S1], Start Abroad [S2], Traveling with Kristin [S4], LA Relocation Group [S5] and International Relocation Partner [S11].';
+  assert.deepEqual(only(await onLast(all), /RANKED/), []);
+});
+
+test('ranking: evidence for two supports a comparison between those two, worded as that', async () => {
   for (const s of [
-    'By the number of services each page lists, Intermark Relocation is the most comprehensive provider reviewed: its page lists webinars, company registration, digital nomad visas and moving services [S13], against visas, housing and banking for Start Abroad [S2].',
-    'In terms of the range of services listed on the pages reviewed, Intermark Relocation [S13] is the most extensive provider, ahead of Mosline Travel Consultancy Firm [S1] and LA Relocation Group [S5].',
+    'In terms of the number of services listed, Intermark Relocation is more comprehensive than Start Abroad [S13] [S2].',
+    'Of the two, Intermark Relocation is the most comprehensive by the number of services its page lists [S13], compared with Start Abroad [S2].',
+    'Intermark Relocation\'s page lists more services than Start Abroad\'s: webinars, company registration, visas and moving services [S13] against visas, housing and banking [S2].',
+  ]) assert.deepEqual(only(await onLast(s), /RANKED/), [], s);
+  // The comparison still needs its criterion and evidence for both.
+  assert.ok((await onLast('Intermark Relocation is more comprehensive than Start Abroad [S13] [S2].')).includes(RANKED));
+  assert.ok((await onLast('In terms of the number of services listed, Intermark Relocation is more comprehensive than Start Abroad [S13].')).includes(RANKED));
+});
+
+test('ranking: removing the ranking, or wording it as a hypothesis, passes', async () => {
+  for (const s of [
     'Intermark Relocation\'s page lists webinars, company registration, digital nomad visas and moving services [S13].',
     'It is a hypothesis that Intermark Relocation is the most comprehensive provider among those reviewed.',
   ]) assert.deepEqual(only(await onLast(s), /RANKED/), [], s);
