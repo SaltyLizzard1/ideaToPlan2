@@ -46,9 +46,10 @@ const verifierAnswer = (unchanged) => {
   qa.choices[0].message.content = JSON.stringify(body);
   return qa;
 };
-const secondPass = async (rev, qa = fx('Final QA')[1]) => {
-  const cc = await check(rev.text, { rev });
-  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': cc, 'Apply Revisions': rev, 'Build Evidence': EV }, qa);
+// The whole-plan review is asked for only where a test is about it. The saved verifier answer of the run predates it.
+const secondPass = async (rev, qa = fx('Final QA')[1], { review = false, ev = EV } = {}) => {
+  const cc = await check(rev.text, { rev, ev });
+  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': review ? cc : { ...cc, review_lines: [] }, 'Apply Revisions': rev, 'Build Evidence': ev }, qa);
   return { cc, out };
 };
 const gateOf = (out) => runNode('delivery-gate.js', { 'Finalize Plan': { status: 'HOLD', final_findings: [] }, 'Plan Revision Request': out });
@@ -221,94 +222,161 @@ test('refused edits: without a refusal the gate and the report say nothing about
 
 // ---------------- 1b. Closing a major finding on a passage nobody edited ----------------
 
-// The reviser adds a date note to Section 4 through the paragraph above the table (U4) and returns the row at L71 (U5)
-// and the row at L139 (U8) as they were. The reviewer's finding QA-008 on U5, "no note in Section 4", is then false:
-// the note is there. Its finding QA-009 on U8, "no note in Section 5", is still true: Section 5 has no note.
-const NOTE_S4 = 'Note: all sources cited in this section are undated. The descriptions reflect what was found at the time of research and may have changed.';
-const withNoteInSection4 = () => apply({ U4: (e) => ({ new_text: NOTE_S4 + ' ' + e.new_text }), U5: () => ({ new_text: ASSEMBLED[70] }), U8: () => ({ new_text: ASSEMBLED[138] }) });
-const JUSTIFIED = { unit: 'U5', id: 'QA-008', present: false, reason: 'Section 4 now carries a note saying that all sources cited in the section are undated, which covers S1 in this row.', basis: 'section_note', quote: 'all sources cited in this section are undated' };
+// QA-014 says L351 presents an assumption as a conclusion ("would be a stronger starting point"). The reviser returns
+// the row as it was. Whether the finding may close then rests on the verifier's answer for that unchanged passage.
+const ROW351 = ASSEMBLED[350];
+const leftAlone351 = () => apply({ U11: () => ({ new_text: ROW351 }) });
+const JUSTIFIED = { unit: 'U11', id: 'QA-014', present: false, reason: 'The passage asks the founder to consider whether a different customer profile would be stronger. It is a conditional question, so no assumption is presented as a conclusion.', basis: 'passage', quote: 'consider whether a different customer profile' };
 const answers = (list) => verifierAnswer((run) => run.filter((u) => !list.some((x) => x.unit === u.unit && x.id === u.id)).concat(list));
 
-test('closure: a false reviewer finding closes on an explicit, reasoned verdict that quotes the section', async () => {
-  const rev = await withNoteInSection4();
-  assert.equal(rev.unchanged_units.find((u) => u.unit === 'U5').kind, 'unchanged');
+test('closure: a finding closes without an edit on an explicit, reasoned verdict that quotes the passage', async () => {
+  assert.match(ROW351, /consider whether a different customer profile, one closer to your own experience, would be a stronger starting point/);
+  const rev = await leftAlone351();
+  assert.equal(rev.unchanged_units.find((u) => u.unit === 'U11').kind, 'unchanged');
   const { cc, out } = await secondPass(rev, answers([JUSTIFIED]));
-  // Code agrees: the automated check no longer reports Section 4.
-  assert.ok(!cc.det_issues.some((i) => /UNDATED SOURCES WITHOUT/.test(i.type) && /Section 4/.test(i.detail)));
-  const v = out.verification.find((x) => x.id === 'QA-008');
+  const v = out.verification.find((x) => x.id === 'QA-014');
   assert.equal(v.status, 'FIXED');
   assert.equal(v.closed_without_edit, true);
-  assert.match(v.note, /^CLOSED WITHOUT AN EDIT: .*Section 4 now carries a note.*Quoted: "all sources cited in this section are undated"/);
-  assert.ok(!out.findings.some((f) => f.id === 'QA-008'));
-  assert.deepEqual(out.closed_without_edit.map((x) => x.id), ['QA-008']);
+  assert.match(v.note, /^CLOSED WITHOUT AN EDIT: .*It is a conditional question.*Quoted: "consider whether a different customer profile"/);
+  assert.ok(!out.findings.some((f) => f.id === 'QA-014'));
+  assert.deepEqual(out.closed_without_edit.map((x) => x.id), ['QA-014']);
   const report = await reportOf(rev, cc, out);
-  assert.match(report, /MAJOR FINDINGS CLOSED WITHOUT AN EDIT \(1\)\. The verifier read the unchanged passage and justified each one\. Read the justification\.\n- QA-008 \|/);
+  assert.match(report, /MAJOR FINDINGS CLOSED WITHOUT AN EDIT \(1\)\. The verifier read the unchanged passage and justified each one\. Read the justification\.\n- QA-014 \|/);
 });
 
-test('closure: a genuine finding stays open when "not present" is not justified', async () => {
-  const rev = await withNoteInSection4();
-  const base = { unit: 'U8', id: 'QA-009', present: false };
+test('closure: the finding stays open when "not present" is not justified', async () => {
+  const rev = await leftAlone351();
+  const base = { unit: 'U11', id: 'QA-014', present: false };
   const cases = [
     [{ ...base }, /it gives no reason; it quotes nothing/],
     [{ ...base, note: 'Not present.' }, /it gives no reason/],
-    [{ ...base, reason: 'Section 5 uses undated sources and the note about them is still missing from the section.', basis: 'passage', quote: 'Among the competitors reviewed' }, /its reason says the problem is in the passage, which contradicts its verdict/],
-    [{ ...base, reason: 'The weather in Chiang Mai is pleasant at this time of year and the row reads well.', basis: 'passage', quote: 'Among the competitors reviewed' }, /its reason does not address this finding/],
-    // A note in another section does not count: the words quoted are in Section 4, not in Section 5.
-    [{ ...base, reason: 'A note says that all sources cited in the section are undated, which covers these sources.', basis: 'section_note', quote: 'all sources cited in this section are undated' }, /the words it quotes are not in the passage, its section, or the ledger/],
-    [{ ...base, reason: 'A note in this section says the sources are undated, which covers these sources.', basis: 'section_note', quote: 'Note: S1, S4, S10 and S15 are undated.' }, /the words it quotes are not in the passage, its section, or the ledger/],
+    [{ ...base, reason: 'The passage still states that the other profile would be a stronger starting point, an assumption presented as a conclusion.', basis: 'passage', quote: 'would be a stronger starting point' }, /its reason says the problem is in the passage, which contradicts its verdict/],
+    [{ ...base, reason: 'The weather in Chiang Mai is pleasant at this time of year and the row reads well.', basis: 'passage', quote: 'would be a stronger starting point' }, /its reason does not address this finding/],
+    [{ ...base, reason: 'The assumption is not presented as a conclusion because the row is labelled as a hypothesis.', basis: 'passage', quote: 'This is a hypothesis to test, not a conclusion.' }, /the words it quotes are not in the passage, its section, or the ledger/],
   ];
   for (const [ans, why] of cases) {
-    const { out } = await secondPass(rev, answers([JUSTIFIED, ans]));
-    const v = out.verification.find((x) => x.id === 'QA-009');
+    const { out } = await secondPass(rev, answers([ans]));
+    const v = out.verification.find((x) => x.id === 'QA-014');
     assert.equal(v.status, 'NOT_FIXED', String(why));
     assert.equal(v.closure_unjustified, true);
     assert.match(v.note, why);
-    const f = out.findings.find((x) => x.id === 'QA-009');
+    const f = out.findings.find((x) => x.id === 'QA-014');
     assert.equal(f.severity, 'MAJOR');
     assert.equal(f.closure_unjustified, true);
-    assert.deepEqual(out.unjustified_closures.map((x) => x.id), ['QA-009']);
-    // The false finding in the same run still closes.
-    assert.equal(out.verification.find((x) => x.id === 'QA-008').status, 'FIXED');
+    assert.deepEqual(out.unjustified_closures.map((x) => x.id), ['QA-014']);
   }
   // "Present", and no answer at all, leave it open as before.
-  for (const list of [[JUSTIFIED, { ...base, present: true, reason: 'Section 5 has no note about its undated sources.' }], [JUSTIFIED]]) {
-    const { out } = await secondPass(rev, verifierAnswer((run) => (list.length === 1 ? run.filter((u) => u.unit !== 'U8' && u.unit !== 'U5') : run.filter((u) => !list.some((x) => x.unit === u.unit && x.id === u.id))).concat(list)));
-    assert.equal(out.verification.find((x) => x.id === 'QA-009').status, 'NOT_FIXED');
-    assert.ok(out.findings.some((x) => x.id === 'QA-009' && x.severity === 'MAJOR'));
+  for (const list of [[{ ...base, present: true, reason: 'The row states the comparison as a fact.' }], null]) {
+    const { out } = await secondPass(rev, list ? answers(list) : verifierAnswer((run) => run.filter((u) => u.unit !== 'U11')));
+    assert.equal(out.verification.find((x) => x.id === 'QA-014').status, 'NOT_FIXED');
+    assert.ok(out.findings.some((x) => x.id === 'QA-014' && x.severity === 'MAJOR'));
   }
 });
 
 test('closure: a blocking finding is never closed without an edit, however well the verdict is justified', async () => {
-  const rev = await withNoteInSection4();
+  const rev = await apply({ U8: () => ({ new_text: ASSEMBLED[138] }) });
   const well = (id) => ({ unit: 'U8', id, present: false, reason: 'The competitive gap and its citation are worded conditionally on customer interviews in this passage, so no finding is asserted.', basis: 'passage', quote: 'if customer interviews confirm this is a real need' });
-  const { out } = await secondPass(rev, answers([JUSTIFIED, well('QA-002'), well('QA-003')]));
+  const { out } = await secondPass(rev, answers([well('QA-002'), well('QA-003')]));
   for (const id of ['QA-002', 'QA-003']) {
     assert.notEqual(out.verification.find((x) => x.id === id).status, 'FIXED', id);
     assert.ok(out.findings.some((f) => f.id === id && f.severity === 'BLOCKING'), id);
   }
-  assert.deepEqual(out.closed_without_edit.map((x) => x.id), ['QA-008']);
+  assert.deepEqual(out.closed_without_edit, []);
 });
 
 test('closure: a refused replacement is not closed by a justified verdict either', async () => {
-  const rev = await apply({ U4: (e) => ({ new_text: NOTE_S4 + ' ' + e.new_text }), U5: (e) => ({ new_text: rowOnly(e).replace(/\|\s*$/, '| a third cell |') }) });
-  assert.equal(rev.unchanged_units.find((u) => u.unit === 'U5').kind, 'rejected');
+  const rev = await apply({ U11: (e) => ({ new_text: e.new_text.replace(/\|\s*$/, '| a third cell |') }) });
+  assert.equal(rev.unchanged_units.find((u) => u.unit === 'U11').kind, 'rejected');
   const { out } = await secondPass(rev, answers([JUSTIFIED]));
-  const f = out.findings.find((x) => x.id === 'QA-008');
+  const f = out.findings.find((x) => x.id === 'QA-014');
   assert.equal(f.severity, 'MAJOR');
   assert.equal(f.correction_not_applied, true);
   assert.deepEqual(out.closed_without_edit, []);
 });
 
 test('closure: the verifier is told what a "not present" answer must contain', async () => {
-  const rev = await withNoteInSection4();
+  const rev = await leftAlone351();
   const p = JSON.parse((await check(rev.text, { rev })).qa_payload);
   assert.match(p.messages[0].content, /An answer of "present": false closes a finding that nobody edited, so it has to be justified/);
   assert.match(p.messages[0].content, /"unchanged":\[\{"unit":"the unit ID","id":the finding id,"present":true or false,"reason":"one or two sentences about this finding","basis":"passage or section_note or ledger","quote":"exact words relied on, or empty"\}\]/);
   assert.match(p.messages[0].content, /When you are not sure, answer true\./);
   const user = p.messages[1].content;
-  const part = user.slice(user.indexOf('PASSAGES LEFT UNCHANGED'));
-  assert.match(part, /unit U5 \| id QA-008 \| MAJOR .*\n   Root problem: Section 4 .*\n   Section: 4\. Competitive Landscape\n   Notes about source dates in that section: \[L64\] Note: all sources cited in this section are undated/);
-  assert.match(part, /unit U8 \| id QA-009 \| MAJOR .*\n   Root problem: Section 5 .*\n   Section: 5\. SWOT \/ Strategic Position\n   Notes about source dates in that section: none\n   Passage, unchanged: \| Opportunities \|/);
+  assert.match(user.slice(user.indexOf('PASSAGES LEFT UNCHANGED')), /unit U11 \| id QA-014 \| MAJOR .*\n   Root problem: L351 recommends/);
+});
+
+// ---------------- 1c. Findings about undated sources are decided against the revised section ----------------
+
+// The saved model-assisted replay: the reviser's 28 edits on the draft, and the verifier's answer to them.
+const REPLAY = path.join(DIR, 'replay');
+const replayJson = (name) => JSON.parse(readFileSync(path.join(REPLAY, name), 'utf8'));
+const replayResponse = (name) => ({ choices: [{ message: { content: readFileSync(path.join(REPLAY, name), 'utf8') } }], usage: {} });
+const replayRev = () => runNode('apply-revisions.js', { 'Plan Revision Request': replayJson('Plan Revision Request pass 1.json'), 'Assemble Plan': fx('Assemble Plan') }, replayResponse('reviser-output.json'));
+// The evidence as the corrected nodes build it from the saved answers of the run: E24 excluded, E44 not yet checked.
+let rebuilt = null;
+const rebuiltEvidence = async () => { if (!rebuilt) rebuilt = await runNode('build-evidence.js', evStubs({ 'Build Recheck Request': (await runNode('build-recheck-request.js', { 'Collect Evidence': fx('Collect Evidence'), 'Build Verification Request': fx('Build Verification Request'), 'Verify Claims': fx('Verify Claims') })).map((i) => i.json) })); return rebuilt; };
+const replayVerifier = (change = (o) => o) => { const o = change(replayJson('verifier-output.json')); return { choices: [{ message: { content: JSON.stringify(o) } }], usage: {} }; };
+
+test('date notes: in the replay the verifier held QA-008 open for S7, which Section 4 no longer cites', async () => {
+  const said = replayJson('verifier-output.json').verifications.find((v) => String(v.id) === 'QA-008');
+  assert.equal(said.status, 'PARTLY_FIXED');
+  assert.match(said.note, /omits S7, which the finding names as undated in Section 4/);
+  const rev = await replayRev();
+  const section4 = rev.text.slice(rev.text.indexOf('## 4. '), rev.text.indexOf('## 5. '));
+  assert.ok(!/\bS7\b/.test(section4));
+});
+
+test('date notes: QA-008 is decided against the sources the revised Section 4 cites, and closes', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const { cc, out } = await secondPass(rev, replayVerifier(), { ev });
+  const s4 = cc.section_dates.find((d) => d.no === '4');
+  assert.deepEqual(s4.used, ['S1', 'S3', 'S4', 'S6', 'S10', 'S13', 'S15', 'W5']);
+  assert.deepEqual(s4.missing, []);
+  assert.deepEqual(s4.dated, ['W5 (31/03/2016)']);
+  const v = out.verification.find((x) => x.id === 'QA-008');
+  assert.equal(v.status, 'FIXED');
+  assert.equal(v.decided_by_code, true);
+  assert.equal(v.closed_without_edit, undefined);
+  assert.match(v.note, /Decided by code against the revised plan: Section 4 now cites S1, S3, S4, S6, S10, S13, S15, W5; .* S7 is named in the finding and no longer cited in this section, so no note is owed for it\. Every undated source the section cites is covered by a note in it\. The verifier answered partly fixed/);
+  assert.ok(!out.findings.some((f) => f.id === 'QA-008'));
+  // The verifier is shown the same facts.
+  const user = JSON.parse(cc.qa_payload).messages[1].content;
+  assert.match(user, /SOURCE DATES BY SECTION OF THE REVISED PLAN \(judge every finding about undated or dated sources against this list, not against the sources named in the finding/);
+  assert.match(user, /Section 4\. Competitive Landscape \| cites S1, S3, S4, S6, S10, S13, S15, W5 \| undated: S1, S3, S4, S6, S10, S13, S15 \| dated: W5 \(31\/03\/2016\) \| date notes at: L68 \| undated sources with no note: none/);
+});
+
+test('date notes: the note that is really missing in Section 3 stays open, whatever the verifier says', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const { cc, out } = await secondPass(rev, replayVerifier(), { ev });
+  assert.deepEqual(cc.section_dates.find((d) => d.no === '3').missing, ['S1', 'S4']);
+  const open = out.findings.filter((f) => f.check === 'UNDATED SOURCES WITHOUT A NOTE IN THIS SECTION');
+  assert.deepEqual(open.map((f) => f.severity + ' L' + f.line), ['MAJOR L57']);
+  assert.match(open[0].problem, /Section 3 \(Market Opportunity & Fit\) uses S1, S4 from L57 on/);
+  // A reviewer finding about a section that still lacks its note cannot be closed by a "fixed" verdict.
+  const noNote = await apply();                       // the run's own revision
+  const stripped = { ...noNote, text: noNote.text.split('\n').filter((l) => !/^Note: the competitor sources cited in this section/.test(l)).join('\n') };
+  const r = await secondPass(stripped, verifierAnswer((u) => u));
+  const v = r.out.verification.find((x) => x.id === 'QA-009');
+  assert.equal(v.status, 'NOT_FIXED');
+  assert.match(v.note, /Still with no note: S1, S4, S10, S15\./);
+});
+
+test('source dates: a page found by search that was read carries the date its own text shows', async () => {
+  const before = JSON.parse(EV.sources).find((s) => s.id === 'W5');
+  assert.equal(before.published, 'date not shown');
+  assert.equal(before.published_basis, 'search listing');
+  // The page verifier had read the date in the run. It was never copied to the record.
+  const said = fx('Verify Claims').map((r) => { try { return JSON.parse(r.choices[0].message.content.replace(/^[^{]*/, '').replace(/[^}]*$/, '')); } catch (e) { return null; } }).find((o) => o && o.source_id === 'W5');
+  assert.equal(said.date_shown, '31/03/2016');
+  const w5 = JSON.parse((await rebuiltEvidence()).sources).find((s) => s.id === 'W5');
+  assert.equal(w5.published, '31/03/2016');
+  assert.equal(w5.published_iso, '2016-03-31');
+  assert.match(w5.published_basis, /^shown on the fetched page/);
+  // Research sources are dated exactly as before, and a search page that shows no date stays undated.
+  const now = JSON.parse((await rebuiltEvidence()).sources);
+  JSON.parse(EV.sources).filter((s) => /^S/.test(s.id)).forEach((s) => assert.equal(now.find((n) => n.id === s.id).published, s.published, s.id));
+  assert.equal(now.find((s) => s.id === 'W1').published, 'date not shown');
 });
 
 // ---------------- 2. Payment ----------------
@@ -363,7 +431,9 @@ test('payment: with no answer from the separate check, neither E24 nor the short
   const ledger = ledgerOf(ev);
   assert.equal(ledger.length, 13);
   assert.ok(!ledger.some((c) => c.claim_id === 'E24' || c.claim_id === 'E44'));
-  ledger.forEach((c) => assert.deepEqual(c, LEDGER.find((o) => o.claim_id === c.claim_id)));
+  // Every remaining entry is identical, except that the entry on W5 now carries the date its page shows.
+  ledger.forEach((c) => assert.deepEqual({ ...c, published: '' }, { ...LEDGER.find((o) => o.claim_id === c.claim_id), published: '' }));
+  assert.deepEqual(ledger.filter((c) => c.published !== LEDGER.find((o) => o.claim_id === c.claim_id).published).map((c) => c.claim_id + ' ' + c.published), ['E41 31/03/2016']);
   const ex = JSON.parse(ev.excluded_claims);
   const e24 = ex.find((x) => x.claim_id === 'E24');
   assert.equal(e24.kind, 'payment');
@@ -578,11 +648,11 @@ test('focus: no ledger entry of this run says which stage a provider works at', 
   assert.ok(!LEDGER.some((c) => /decision|decid|after (?:a|the) move|post-|already committed|execution/i.test(c.claim + ' ' + c.page_excerpt)));
 });
 
-test('focus: lines 57, 64, 89, 125 and 481 assign providers a post-decision focus and block', async () => {
+test('focus: lines 57, 64, 76, 89, 125 and 481 assign providers a post-decision focus and block', async () => {
   const out = await check();
   for (const n of [64, 125, 481]) assert.match(lineOf(n), /services oriented toward logistics and execution after a relocation decision is made/);
   assert.match(lineOf(89), /Our read: RELONXT, like Expat US, appears to serve people who have already committed to a move and need execution support\./);
-  assert.deepEqual(out.det_issues.filter((i) => /PROVIDER FOCUS/.test(i.type)).map((i) => i.line), [57, 64, 89, 125, 481]);
+  assert.deepEqual(out.det_issues.filter((i) => /PROVIDER FOCUS/.test(i.type)).map((i) => i.line), [57, 64, 76, 89, 125, 481]);
   out.det_issues.filter((i) => /PROVIDER FOCUS/.test(i.type)).forEach((i) => assert.equal(i.severity, 'BLOCKING'));
   assert.ok(!/L57\b|L125 .*focus|L481\b/i.test(fx('Delivery Gate').blockers_text), 'the run did not block on these lines for this');
 });
@@ -690,8 +760,11 @@ test('63226 recheck: the saved plan, read only, against the corrected checks', a
     'L57 PAYMENT STATED WITHOUT EVIDENCE',
     'L57 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
     'L64 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
+    'L76 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
     'L89 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
-  ]);
+  ].concat(['L121 DATE NOT IN THE SOURCE RECORD']).sort());
+  // L121 gives W5 the date March 2016. The saved record of the run has no date for W5; the rebuilt record has it.
+  assert.ok(!(await check(HELD_PLAN, { ev: await rebuiltEvidence() })).det_issues.some((i) => i.line === 121 && /DATE NOT IN|DATE NOTE IS/.test(i.type)));
   // The two blockers the run raised in error are gone, and nothing is reported at their lines for those checks.
   assert.ok(!out.det_issues.some((i) => i.line === 71 && /ONE SOURCE/.test(i.type)));
   assert.ok(!out.det_issues.some((i) => i.line === 125 && /COMPETITIVE GAP/.test(i.type)));
@@ -732,7 +805,7 @@ test('63226 replay: with the corrected Apply Revisions, the L139 gap claim and b
   const out = await check(rev.text, { rev });
   assert.ok(!out.det_issues.some((i) => /COMPETITIVE GAP|UNDATED SOURCES WITHOUT|ONE SOURCE CITED|SOURCE DATE NOTE/.test(i.type)));
   // What the reviser was never asked to fix in the run is still there, and is now reported.
-  assert.deepEqual([...new Set(out.det_issues.filter((i) => i.severity === 'BLOCKING').map((i) => i.type))].sort(), ['PAYMENT STATED WITHOUT EVIDENCE', 'PROVIDER FOCUS STATED WITHOUT EVIDENCE', 'SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE', 'SURVEY FINDING GENERALISED']);
+  assert.deepEqual([...new Set(out.det_issues.filter((i) => i.severity === 'BLOCKING').map((i) => i.type))].sort(), ['DATE NOT IN THE SOURCE RECORD', 'PAYMENT STATED WITHOUT EVIDENCE', 'PROVIDER FOCUS STATED WITHOUT EVIDENCE', 'SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE', 'SURVEY FINDING GENERALISED']);
 });
 
 // ---------------- 6. Rankings of companies ----------------
@@ -778,4 +851,232 @@ test('ranking: a ranking offered as a hypothesis may not be relied on as a fact 
   assert.deepEqual(only((await twoLines(hyp, 'Expat US lists home search, school search and visa guidance [S1].')).second, /HYPOTHETICAL|RANKED/), []);
   // Stating the ranking again without the label is the unsupported ranking itself.
   assert.ok((await twoLines(hyp, 'Expat US is the most comprehensive provider reviewed.')).second.includes(RANK));
+});
+
+// ---------------- 7. What the final review of the replay missed ----------------
+
+test('replay misses: the verifier of the replay was never shown the line nobody edited', () => {
+  const sent = readFileSync(path.join(REPLAY, 'verifier-user.txt'), 'utf8');
+  assert.ok(!sent.includes('hard to replicate'), 'L78 was not in the verifier request');
+  assert.ok(!/REVISED PLAN/.test(sent), 'the revised plan was not in the verifier request');
+  // It was shown the two edited passages it passed.
+  assert.ok(sent.includes('No page reviewed explicitly positions around the pre-decision phase'));
+  assert.ok(sent.includes('list services oriented toward logistics and compliance'));
+  const said = replayJson('verifier-output.json');
+  assert.ok(said.edit_checks.filter((e) => ['U14', 'U15', 'U26'].includes(e.unit)).every((e) => e.verdict === 'NO_NEW_DEFECT'));
+});
+
+test('replay misses: the four defects are now reported by code on the replayed plan', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  assert.equal(rev.applied_count, 28);
+  const out = await check(rev.text, { rev, ev });
+  assert.deepEqual(out.det_issues.filter((i) => i.severity === 'BLOCKING' && i.line).map((i) => 'L' + i.line + ' ' + i.type).sort(), [
+    'L127 COMPETITIVE GAP STATED AS A FINDING',
+    'L143 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
+    'L485 COMPETITIVE GAP STATED AS A FINDING',
+    'L68 SOURCE DATE NOTE IS WRONG',
+    'L78 PROVIDER FOCUS STATED WITHOUT EVIDENCE',
+  ]);
+  assert.match(out.det_issues.find((i) => i.line === 143).detail, /"oriented toward logistics and compliance", and the verified entries of S1, S4, S10, S15 do not say that/);
+  assert.match(out.det_issues.find((i) => i.line === 68).detail, /W5 is called undated, but its page shows "31\/03\/2016"/);
+});
+
+test('absence: "no page reviewed positions around X" is a finding unless that sentence labels it', async () => {
+  for (const s of [
+    'No page reviewed explicitly positions around the pre-decision phase.',
+    'None of these pages states whether the provider works with people before they have decided to relocate, and no page reviewed explicitly positions around the pre-decision phase.',
+    'No provider reviewed for this plan offers pre-decision planning. That absence does not establish that no such provider exists.',
+  ]) assert.ok((await onLast(s)).includes('BLOCKING COMPETITIVE GAP STATED AS A FINDING'), s);
+  for (const s of [
+    'Whether any page reviewed positions around the pre-decision phase is not established.',
+    'It is a hypothesis that no provider reviewed offers pre-decision planning.',
+    'If no page reviewed positions around the pre-decision phase, that could be an opening to test.',
+  ]) assert.deepEqual(only(await onLast(s), /COMPETITIVE GAP/), [], s);
+});
+
+test('stage: a stage attributed to a named company blocks wherever the name stands', async () => {
+  for (const s of [
+    "A customer who has already decided to relocate to the US would find Expat US's depth of operational support hard to replicate independently.",
+    'For people who have already committed to a move, RELONXT is the natural choice.',
+  ]) assert.ok((await onLast(s)).includes(FOCUS), s);
+  for (const s of [
+    'A customer who has already decided to move may still want a second opinion.',
+    'Whether Expat US works only with people who have already decided to relocate is not established by its pages.',
+  ]) assert.deepEqual(only(await onLast(s), /PROVIDER FOCUS/), [], s);
+});
+
+test('characterisation: what pages are said to be oriented toward has to be in the entries of each page cited', async () => {
+  assert.ok((await onLast('The pages reviewed for Expat US [S1] and RELONXT [S4] list services oriented toward logistics and compliance.')).includes(FOCUS));
+  // Fragomen's verified entry speaks of compliance in its own words.
+  assert.match(LEDGER.find((c) => c.claim_id === 'E17').claim, /remain in compliance/);
+  assert.deepEqual(only(await onLast("Fragomen's Digital Nomad Services are focused on compliance [S15]."), /PROVIDER FOCUS/), []);
+  // The same description of Expat US, whose entries do not use the word, blocks.
+  assert.ok((await onLast('Expat US is focused on compliance [S1].')).includes(FOCUS));
+  // A list of what the pages name passes.
+  assert.deepEqual(only(await onLast('The pages reviewed list home search, school search and utility setup [S1] [S4].'), /PROVIDER FOCUS|DETAIL NOT/), []);
+});
+
+test('dates: a date given for a source has to be the date in its record', async () => {
+  const DATE = 'BLOCKING DATE NOT IN THE SOURCE RECORD';
+  const rebuiltEv = await rebuiltEvidence();
+  const s = 'The BecomeNomad page [W5] carries a date of 31/03/2016, so the tools listed may no longer be current.';
+  assert.ok((await onLast(s)).includes(DATE), 'the saved record has no date for W5');
+  assert.deepEqual(only(await onLast(s, { ev: rebuiltEv }), /DATE NOT IN|DATE NOTE IS/), [], 'the rebuilt record has it');
+  assert.deepEqual(only(await onLast('The BecomeNomad page [W5] is dated March 2016.', { ev: rebuiltEv }), /DATE NOT IN|DATE NOTE IS/), []);
+  assert.ok((await onLast('The BecomeNomad page [W5] carries a date of 12/05/2019.', { ev: rebuiltEv })).some((x) => /DATE NOT IN|DATE NOTE IS/.test(x)));
+  assert.ok((await onLast("Expat US's page [S1] was published on 14/02/2024.", { ev: rebuiltEv })).some((x) => /DATE NOT IN|DATE NOTE IS/.test(x)));
+  // The date a page was retrieved is not a date of the source.
+  assert.deepEqual(only(await onLast('As of the date retrieved (October 2026), Expat US lists home search on its page [S1].', { ev: rebuiltEv }), /DATE NOT IN|DATE NOTE IS/), []);
+});
+
+// ---------------- 8. The E44 dependency ----------------
+
+test('E44: the replayed plan depends on it at one line, and is held for that', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const lines = rev.text.split('\n');
+  assert.match(lines[73], /^\| Offer \| End-to-end relocation support including .* school search, visa guidance, utility setup, .* \[S1\] \[S3\] \[S6\] \|$/);
+  // No verified claim about Expat US mentions guidance. Only the excluded E24 and the unverified E44 do.
+  const ledger = JSON.parse(ev.research_ledger);
+  assert.ok(!ledger.some((c) => c.claim_id === 'E24' || c.claim_id === 'E44'));
+  assert.ok(!ledger.filter((c) => c.entity === 'Expat US').some((c) => /guidance/i.test(c.claim + ' ' + c.page_excerpt)));
+  assert.ok(!/\bS7\b/.test(rev.text), 'S7 is no longer cited anywhere');
+  const hold = (await check(rev.text, { rev, ev })).det_issues.find((i) => /^SOURCE VERIFICATION INCOMPLETE$/.test(i.type));
+  assert.equal(hold.severity, 'BLOCKING');
+  assert.match(hold.detail, /covering claim E44\..* E44: L74 says something about Expat US that no verified claim about it states and this unverified claim does \([a-z, ]*guidanc[a-z, ]*\)\./);
+  assert.ok(!/the plan names Expat US/.test(hold.detail), 'naming a company that has other verified claims is not the reason');
+});
+
+test('E44: with that detail removed, the unverified proposal is unused and the plan is not held for it', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const text = rev.text.replace('school search, visa guidance, utility setup', 'school search, utility setup');
+  assert.notEqual(text, rev.text);
+  const out = await check(text, { rev: { ...rev, text }, ev });
+  assert.ok(!out.det_issues.some((i) => i.type === 'SOURCE VERIFICATION INCOMPLETE'));
+  const warn = out.det_issues.find((i) => i.type === 'SOURCE VERIFICATION INCOMPLETE FOR UNUSED CLAIMS');
+  assert.equal(warn.severity, 'MAJOR');
+  assert.match(warn.detail, /Nothing in the plan rests on them/);
+  // E44 itself stays out of the ledger until it is checked.
+  assert.ok(!JSON.parse(ev.research_ledger).some((c) => c.claim_id === 'E44'));
+});
+
+test('E44: citing S7, or naming a company with no other verified claim, is still a dependency', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const clean = rev.text.replace('school search, visa guidance, utility setup', 'school search, utility setup');
+  const cited = clean + '\n\nExpat US describes relocation support [S7].\n';
+  const a = (await check(cited, { rev: { ...rev, text: cited }, ev })).det_issues.find((i) => i.type === 'SOURCE VERIFICATION INCOMPLETE');
+  assert.equal(a.severity, 'BLOCKING');
+  assert.match(a.detail, /the plan cites S7, and no verified claim exists on that page/);
+  // With every verified claim about Expat US taken away, naming it is enough: anything said about it may rest on E44.
+  const bare = { ...ev, research_ledger: JSON.stringify(JSON.parse(ev.research_ledger).filter((c) => c.entity !== 'Expat US')) };
+  const b = (await check(clean, { rev: { ...rev, text: clean }, ev: bare })).det_issues.find((i) => i.type === 'SOURCE VERIFICATION INCOMPLETE');
+  assert.equal(b.severity, 'BLOCKING');
+  assert.match(b.detail, /E44: the plan names Expat US, and no verified claim about it exists/);
+});
+
+// ---------------- 9. The final review covers the whole revised plan ----------------
+
+const LABELS = /hypothes|whether|\bmay\b|\bmight\b|\bcould\b|\bif\b|assum|untested|unvalidated|not (?:yet )?(?:been )?(?:established|known|verified|confirmed|shown|stated)|our read|IdeaToPlan/i;
+const scriptedReview = (cc, ev, rev, over = {}) => {
+  const ledger = JSON.parse(ev.research_ledger);
+  const text = rev.text.split('\n');
+  return cc.review_lines.map((r) => {
+    if (over[r.line]) return { line: r.line, ...over[r.line] };
+    const cited = [...new Set(text[r.line - 1].match(/\b[SW]\d+\b/g) || [])];
+    if (cited.length) return { line: r.line, verdict: 'SUPPORTED', claim_ids: ledger.filter((c) => cited.some((id) => c.source_ids.includes(id))).map((c) => c.claim_id), quote: '', problem: '' };
+    return { line: r.line, verdict: /hypothes|whether|\bmay\b|\bmight\b|\bcould\b|\bif\b|assum|untested/i.test(text[r.line - 1]) ? 'LABELLED' : 'NO_EXTERNAL_CLAIM', claim_ids: [], quote: '', problem: '' };
+  });
+};
+
+test('whole plan: the final review is owed a verdict for edited and untouched lines alike', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const cc = await check(rev.text, { rev, ev });
+  const text = rev.text.split('\n');
+  assert.equal(cc.review_lines.length, 81);
+  assert.equal(cc.review_lines.filter((r) => r.edited).length, 30);
+  // The untouched line the replay missed is on the list, and so is every line that cites a source or names a company.
+  assert.deepEqual(cc.review_lines.find((r) => r.line === 78), { line: 78, edited: '' });
+  text.forEach((l, i) => { if (/\[[SW]\d+\]/.test(l) || /Expat US|RELONXT|Fragomen|WhereNext|Relocate Now/.test(l)) assert.ok(cc.review_lines.some((r) => r.line === i + 1), 'L' + (i + 1)); });
+  assert.ok(cc.review_lines.every((r) => !text[r.line - 1].trim().startsWith('#')));
+  const p = JSON.parse(cc.qa_payload);
+  assert.equal(p.model, 'anthropic/claude-sonnet-4.6');
+  assert.equal(p.temperature, 0);
+  assert.match(p.messages[0].content, /4\. WHOLE-PLAN REVIEW\. The edits are not the whole plan\./);
+  assert.match(p.messages[0].content, /A statement that something is absent \("no page reviewed positions around X"\) is a statement of fact\./);
+  const user = p.messages[1].content;
+  assert.match(user, /LINES TO REVIEW \(give one "plan_review" entry for each of these 81 line numbers\)\n.*\bL78\b/);
+  assert.ok(user.slice(user.indexOf('REVISED PLAN (complete')).includes('[L78] | Why a customer might choose them | A customer who has already decided to relocate'));
+});
+
+test('whole plan: an answer without the review holds the plan as an incomplete required check', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const { out } = await secondPass(rev, replayVerifier(), { review: true, ev });
+  assert.deepEqual([out.plan_review.required, out.plan_review.unresolved.length], [81, 81]);
+  const f = out.findings.find((x) => x.id === 'FR-OPEN');
+  assert.deepEqual([f.severity, f.unresolved, f.check], ['BLOCKING', true, 'FINAL REVIEW OF THE REVISED PLAN IS INCOMPLETE']);
+  assert.match(f.problem, /81 of the 81 lines .* have no usable verdict from the final review: L\d+ \(no verdict was given\)/);
+  const g = await gateOf(out);
+  assert.equal(g.blocked, true);
+  assert.ok(g.unresolved_check_count >= 1);
+  assert.match(g.unresolved_checks_text, /FR-OPEN \| FINAL REVIEW OF THE REVISED PLAN IS INCOMPLETE/);
+});
+
+test('whole plan: an unsupported verdict on an untouched line is a confirmed blocker at that line', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const cc = await check(rev.text, { rev, ev });
+  const review = scriptedReview(cc, ev, rev, { 78: { verdict: 'UNSUPPORTED', claim_ids: [], quote: 'hard to replicate independently', problem: 'No ledger entry says which customers Expat US serves best or that its support is hard to replicate.' } });
+  const { out } = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: review })), { review: true, ev });
+  assert.deepEqual(out.plan_review.unresolved, []);
+  assert.deepEqual(out.plan_review.unsupported.map((u) => u.line), [78]);
+  assert.equal(out.plan_review.supported + out.plan_review.labelled + out.plan_review.no_external_claim, 80);
+  const f = out.findings.find((x) => x.id === 'FR-001');
+  assert.deepEqual([f.severity, f.unresolved, f.check, f.line], ['BLOCKING', undefined, 'UNSUPPORTED CLAIM IN THE REVISED PLAN', 78]);
+  assert.match(f.problem, /^This line was not edited, and no earlier finding covered it\. No ledger entry says/);
+  assert.ok(!out.findings.some((x) => x.id === 'FR-OPEN'));
+});
+
+test('whole plan: a verdict that code can check and that does not hold up leaves the line unreviewed', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const cc = await check(rev.text, { rev, ev });
+  const text = rev.text.split('\n');
+  const citedLine = cc.review_lines.find((r) => /\[S15\]/.test(text[r.line - 1]) && !/\[S1\]/.test(text[r.line - 1])).line;
+  const plainLine = cc.review_lines.find((r) => !/\b[SW]\d+\b/.test(text[r.line - 1]) && !LABELS.test(text[r.line - 1])).line;
+  const cases = [
+    [citedLine, { verdict: 'SUPPORTED', claim_ids: [] }, /SUPPORTED and names no ledger entry/],
+    [citedLine, { verdict: 'SUPPORTED', claim_ids: ['E99'] }, /names E99, which is not in the ledger/],
+    [citedLine, { verdict: 'SUPPORTED', claim_ids: ['E1'] }, /the line cites S15, and no entry named for it comes from that source/],
+    [citedLine, { verdict: 'NO_EXTERNAL_CLAIM' }, /NO_EXTERNAL_CLAIM and the line cites/],
+    [plainLine, { verdict: 'LABELLED' }, /LABELLED and the line carries no label/],
+    [plainLine, { verdict: 'FINE' }, /the verdict is not SUPPORTED, LABELLED, UNSUPPORTED, or NO_EXTERNAL_CLAIM/],
+  ];
+  for (const [line, entry, why] of cases) {
+    const { out } = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: scriptedReview(cc, ev, rev, { [line]: entry }) })), { review: true, ev });
+    assert.deepEqual(out.plan_review.unresolved.map((u) => u.line), [line], String(why));
+    assert.match(out.plan_review.unresolved[0].why, why);
+    assert.equal(out.findings.find((x) => x.id === 'FR-OPEN').unresolved, true);
+  }
+  // Two verdicts for one line, and a line left out, are unreviewed too.
+  const full = scriptedReview(cc, ev, rev);
+  const twice = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: full.concat([full[0]]) })), { review: true, ev });
+  assert.match(twice.out.plan_review.unresolved[0].why, /more than one verdict/);
+  const short = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: full.slice(1) })), { review: true, ev });
+  assert.deepEqual(short.out.plan_review.unresolved.map((u) => u.line + ' ' + u.why), [full[0].line + ' no verdict was given']);
+});
+
+test('whole plan: a complete review with no unsupported line adds no finding and does not overrule code', async () => {
+  const ev = await rebuiltEvidence();
+  const rev = await replayRev();
+  const cc = await check(rev.text, { rev, ev });
+  const { out } = await secondPass(rev, replayVerifier((o) => ({ ...o, plan_review: scriptedReview(cc, ev, rev) })), { review: true, ev });
+  assert.ok(!out.findings.some((x) => /^FR-/.test(x.id)));
+  assert.deepEqual([out.plan_review.unsupported.length, out.plan_review.unresolved.length], [0, 0]);
+  // The code findings on the same plan still hold it.
+  assert.ok(out.findings.filter((f) => f.severity === 'BLOCKING' && !f.unresolved).length >= 5);
 });

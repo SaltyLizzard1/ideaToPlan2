@@ -276,12 +276,24 @@ first.forEach((f) => {
   else { status = 'NOT_VERIFIED'; note = 'An edit was applied but QA gave no verdict on it.'; }
   if (mine.length && status === 'FIXED' && editedOcc + clearedOcc < occ.length) { status = 'PARTLY_FIXED'; note = editedOcc + ' of ' + occ.length + ' occurrences were edited' + (clearedOcc ? ' and ' + clearedOcc + ' left unchanged did not contain the problem' : '') + '. ' + (stillThere.length ? 'The problem is still at L' + stillThere.map((o) => o.located).join(', L') + '. ' : 'The rest were not verified. ') + note; }
   else if (mine.length && status === 'FIXED' && clearedOcc) note = note + ' ' + clearedOcc + ' passage' + (clearedOcc === 1 ? '' : 's') + ' left unchanged did not contain the problem.';
+  // UNDATED-SOURCE FINDINGS ARE DECIDED BY CODE. The reviewer wrote such a finding against the sources a section cited
+  // in the draft. The revision may have removed some of them. Whether a note is still missing is a fact about the
+  // revised section: which sources it cites now, which of them are undated, and which a note covers. Code knows all
+  // three, so it decides, in both directions, and the verifier's reading of the old source list is not used.
+  const datesNow = /undated sources? without a note|undated sources? (?:are )?not flagged/i.test(f.check + ' ' + f.problem) ? (cc.section_dates || []).find((d) => d.no === ((String((occ[0] || {}).section || '').match(/^(\d+)\./) || String(f.problem || '').match(/\bSection (\d+)\b/) || [])[1] || '')) : null;
+  if (datesNow) {
+    const named = [...new Set(String(f.problem || '').match(/\b[SW]\d+\b/g) || [])];
+    const gone = named.filter((id) => !datesNow.used.includes(id));
+    const basis = 'Decided by code against the revised plan: Section ' + datesNow.no + ' now cites ' + (datesNow.used.join(', ') || 'no source') + '; undated among them: ' + (datesNow.undated.join(', ') || 'none') + '; date notes at ' + (datesNow.note_lines.map((n) => 'L' + n).join(', ') || 'no line') + '.' + (gone.length ? ' ' + gone.join(', ') + ' ' + (gone.length === 1 ? 'is' : 'are') + ' named in the finding and no longer cited in this section, so no note is owed for ' + (gone.length === 1 ? 'it' : 'them') + '.' : '');
+    if (datesNow.missing.length) { status = 'NOT_FIXED'; note = basis + ' Still with no note: ' + datesNow.missing.join(', ') + '.'; }
+    else if (!refused.length) { status = 'FIXED'; note = basis + ' Every undated source the section cites is covered by a note in it.' + (v && v.status !== 'FIXED' ? ' The verifier answered ' + v.status.replace('_', ' ').toLowerCase() + ' ("' + String(v.note || '').slice(0, 160) + '"), which was judged against the earlier source list.' : ''); }
+  }
   if (unjustified.length) note = note + ' The verifier said the problem is absent from L' + unjustified.map((o) => o.located).join(', L') + ', and that answer closes nothing: ' + [...new Set(unjustified.flatMap((o) => judged(o).problems))].join('; ') + '.';
   if (refused.length) {
     if (status === 'FIXED') status = 'PARTLY_FIXED';
     note = 'REQUIRED CORRECTION NOT APPLIED: the replacement for ' + refused.map((u) => u.unit + ' at L' + u.line).join(', ') + ' was refused by code (' + refused.map((u) => u.why).join(' ') + '), so that passage is unchanged and this finding stands with its original severity. ' + note;
   }
-  verification.push({ id: f.id, severity: f.severity, source: f.source, check: f.check, occurrences: occ.length, status, note, ...(refused.length ? { correction_not_applied: true } : {}), ...(unjustified.length ? { closure_unjustified: true } : {}), ...(!mine.length && status === 'FIXED' ? { closed_without_edit: true } : {}) });
+  verification.push({ id: f.id, severity: f.severity, source: f.source, check: f.check, occurrences: occ.length, status, note, ...(refused.length ? { correction_not_applied: true } : {}), ...(unjustified.length ? { closure_unjustified: true } : {}), ...(!mine.length && status === 'FIXED' && !datesNow ? { closed_without_edit: true } : {}), ...(datesNow ? { decided_by_code: true } : {}) });
   if (status !== 'FIXED') findings.push({ ...f, status, ...(unjustified.length ? { closure_unjustified: true } : {}), ...(refused.length ? { correction_not_applied: true, not_applied_units: refused.map((u) => u.unit) } : {}), problem: f.problem + ' (After revision: ' + status.replace('_', ' ').toLowerCase() + '. ' + note + ')' });
 });
 // A new defect is only something the revision added. If a finding on the same edit unit is still open, the problem belongs to that finding.
@@ -405,6 +417,48 @@ log.forEach((e) => {
 // blocking at every line. An uncertain match is not a finding of any severity. It is listed apart, for a person to read.
 const possible_repeats = same_claim_elsewhere.filter((d) => !d.certain).map((d) => ({ line: d.line, unit: d.unit, issues: d.issues, removed: d.removed, found: d.found }));
 same_claim_elsewhere.filter((d) => d.certain).forEach((d, i) => findings.push({ id: 'DUP-' + String(i + 1).padStart(3, '0'), severity: d.severity, source: 'Revision check', check: 'SAME CLAIM STILL PRESENT ELSEWHERE', section: '', line: d.line, quote: d.found, occurrences: [{ line: d.line, section: '', quote: d.found }], unit: d.unit, problem: 'Edit ' + d.unit + ' corrected ' + d.issues.join(', ') + ' by removing or rewording this statement: "' + d.removed + '". A sentence that makes the same statement, including the part that was removed, is still at L' + d.line + ', which was not edited. Correcting one place does not correct the other, and the finding applies here with the same severity.', fix: '' }));
+// ---------- THE WHOLE REVISED PLAN ----------
+// Citation Check lists every line of the revised plan that cites a source, names a company, or speaks about
+// competitors, the market, or research: edited or not. The verifier owes one verdict for each. Code does not take the
+// verdict on trust where it can check it:
+// - SUPPORTED has to name ledger entries that exist, and each source the line cites has to be the source of one of them.
+// - LABELLED needs a label on the line. NO_EXTERNAL_CLAIM cannot be said of a line that cites a source.
+// - UNSUPPORTED is a confirmed finding, BLOCKING, at that line.
+// A line with no verdict, two verdicts, or a verdict that fails these checks is not reviewed. That is a required
+// check that did not complete: the plan is held, and the lines are listed.
+const required = cc.review_lines || [];
+const plan_review = { required: required.length, supported: 0, labelled: 0, no_external_claim: 0, unsupported: [], unresolved: [] };
+if (verOk && required.length) {
+  const entries = Array.isArray(qa.plan_review) ? qa.plan_review : [];
+  let ledgerList = [];
+  try { const p = JSON.parse(ledgerForClosure); if (Array.isArray(p)) ledgerList = p; } catch (e) {}
+  const LABEL_ON_LINE = /\bhypothes|\bnot (?:yet )?(?:been )?(?:established|known|verified|confirmed|shown|stated)\b|\bwhether\b|\bassum|\buntested\b|\bunvalidated\b|\bIdeaToPlan(?:'s)? (?:reads?|recommends?|hypothesis|assumes?|inference|reading)\b|\bour read\b|\bmay\b|\bmight\b|\bcould\b|\bif\b/i;
+  required.forEach((r) => {
+    const text = revisedForClosure[r.line - 1] || '';
+    const mine = entries.filter((e) => e && Number(e.line) === r.line);
+    const open = (why) => plan_review.unresolved.push({ line: r.line, edited: r.edited, why });
+    if (mine.length !== 1) return open(mine.length ? 'more than one verdict was given' : 'no verdict was given');
+    const e = mine[0];
+    const v = s(e.verdict).toUpperCase().replace(/[\s-]+/g, '_');
+    const cited = [...new Set(text.match(/\b[SW]\d+\b/g) || [])];
+    if (v === 'UNSUPPORTED') { plan_review.unsupported.push({ line: r.line, edited: r.edited, quote: s(e.quote), problem: s(e.problem) }); return; }
+    if (v === 'SUPPORTED') {
+      const ids = [...new Set((Array.isArray(e.claim_ids) ? e.claim_ids : []).map((x) => s(x).toUpperCase()).filter(Boolean))];
+      if (!ids.length) return open('the verdict is SUPPORTED and names no ledger entry');
+      const unknown = ids.filter((id) => !ledgerList.some((c) => c.claim_id === id));
+      if (unknown.length) return open('the verdict names ' + unknown.join(', ') + ', which is not in the ledger');
+      const uncovered = cited.filter((id) => !ids.some((cid) => (ledgerList.find((c) => c.claim_id === cid).source_ids || []).includes(id)));
+      if (uncovered.length) return open('the line cites ' + uncovered.join(', ') + ', and no entry named for it comes from that source');
+      plan_review.supported++;
+      return;
+    }
+    if (v === 'LABELLED') { if (!LABEL_ON_LINE.test(text)) return open('the verdict is LABELLED and the line carries no label'); plan_review.labelled++; return; }
+    if (v === 'NO_EXTERNAL_CLAIM') { if (cited.length) return open('the verdict is NO_EXTERNAL_CLAIM and the line cites ' + cited.join(', ')); plan_review.no_external_claim++; return; }
+    open('the verdict is not SUPPORTED, LABELLED, UNSUPPORTED, or NO_EXTERNAL_CLAIM');
+  });
+  plan_review.unsupported.forEach((u, i) => findings.push({ id: 'FR-' + String(i + 1).padStart(3, '0'), severity: 'BLOCKING', source: 'Final review', check: 'UNSUPPORTED CLAIM IN THE REVISED PLAN', section: '', line: u.line, quote: u.quote, occurrences: [{ line: u.line, section: '', quote: u.quote }], problem: (u.edited ? 'This line was written or changed by edit ' + u.edited + '. ' : 'This line was not edited, and no earlier finding covered it. ') + (u.problem || 'The final review found a statement of fact that the ledger does not support and the line does not label.'), fix: '' }));
+  if (plan_review.unresolved.length) findings.push({ id: 'FR-OPEN', severity: 'BLOCKING', unresolved: true, source: 'Final review', check: 'FINAL REVIEW OF THE REVISED PLAN IS INCOMPLETE', section: '', line: plan_review.unresolved[0].line, quote: '', occurrences: [], problem: plan_review.unresolved.length + ' of the ' + required.length + ' lines of the revised plan that state something about sources, companies, the market, or research have no usable verdict from the final review: ' + plan_review.unresolved.slice(0, 25).map((u) => 'L' + u.line + ' (' + u.why + ')').join('; ') + (plan_review.unresolved.length > 25 ? '; and ' + (plan_review.unresolved.length - 25) + ' more' : '') + '. This is a required check that did not complete, not a defect that was found. The plan is held until those lines have been read.', fix: '' });
+}
 order(findings);
 if (!verOk) findings.unshift({ id: 'AUTO-VER', severity: 'BLOCKING', unresolved: true, source: 'Automated check', check: 'VERIFICATION DID NOT RUN', section: '', line: null, quote: '', occurrences: [], problem: 'The verification pass did not return a readable result, so the revision has not been checked. Check the Final QA node in this execution.', fix: 'Review the plan by hand.' });
 order(findings);
@@ -419,6 +473,8 @@ return {
   verification,
   new_defects,
   unresolved_checks,
+  // The final review of the whole revised plan: how many lines it owed a verdict for, and what became of them.
+  plan_review,
   // Findings of the first review closed on the verifier's justified answer, with no edit, and answers that closed nothing.
   closed_without_edit: verification.filter((v) => v.closed_without_edit).map((v) => ({ id: v.id, severity: v.severity, check: v.check, note: v.note })),
   unjustified_closures: verification.filter((v) => v.closure_unjustified).map((v) => ({ id: v.id, severity: v.severity, check: v.check, note: v.note })),

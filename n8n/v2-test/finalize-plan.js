@@ -113,6 +113,12 @@ if (rev) {
   nd.forEach((f) => lines.push(f.id + ' | ' + f.severity + ' | ' + f.check + (f.unit ? ' | introduced by edit ' + f.unit : '') + ' | ' + f.problem));
   const maybe = res.possible_repeats || [];
   if (maybe.length) { lines.push('', 'SENTENCES THAT MAY REPEAT A CORRECTED CLAIM (' + maybe.length + '). These are not findings. Read each one.'); maybe.forEach((d) => lines.push('- L' + d.line + ' | edit ' + d.unit + ' corrected ' + d.issues.join(', ') + ' | ' + d.found)); }
+  const pr = res.plan_review;
+  if (pr && pr.required) {
+    lines.push('', 'FINAL REVIEW OF THE WHOLE REVISED PLAN: ' + pr.required + ' lines required a verdict. Supported by named ledger entries: ' + pr.supported + '. Labelled as hypothesis or inference: ' + pr.labelled + '. No external claim: ' + pr.no_external_claim + '. Unsupported: ' + pr.unsupported.length + '. Not reviewed: ' + pr.unresolved.length + '.' + (pr.unsupported.length || pr.unresolved.length ? '' : ' This is the model\'s reading, checked by code only for the entries and labels it names. It is not proof that every line is supported.'));
+    pr.unsupported.forEach((u) => lines.push('- UNSUPPORTED L' + u.line + (u.edited ? ' (edit ' + u.edited + ')' : ' (not edited)') + ': ' + (u.quote ? '"' + u.quote.slice(0, 140) + '" ' : '') + u.problem));
+    pr.unresolved.slice(0, 40).forEach((u) => lines.push('- NOT REVIEWED L' + u.line + (u.edited ? ' (edit ' + u.edited + ')' : '') + ': ' + u.why));
+  }
   const closedNoEdit = res.closed_without_edit || [];
   if (closedNoEdit.length) { lines.push('', 'MAJOR FINDINGS CLOSED WITHOUT AN EDIT (' + closedNoEdit.length + '). The verifier read the unchanged passage and justified each one. Read the justification.'); closedNoEdit.forEach((v) => lines.push('- ' + v.id + ' | ' + v.check + ' | ' + v.note)); }
   const noClose = res.unjustified_closures || [];

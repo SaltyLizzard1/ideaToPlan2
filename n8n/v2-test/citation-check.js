@@ -432,7 +432,34 @@ if (verificationIncomplete > 0) {
     const tk = name.split(/\s+/).filter(Boolean);
     const forms = [...new Set([name, tk.slice(0, 2).join(' '), tk[0] || ''].filter((n) => n.length >= 6))];
     const namedAs = forms.find((n) => new RegExp('(?:^|[^A-Za-z0-9])' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![A-Za-z0-9])').test(plan));
-    if (namedAs) depends.push(id + ': the plan names ' + namedAs);
+    // Naming the company is a dependency in itself only when nothing else is verified about it: then anything the plan
+    // says about it may rest on this claim. When other claims about the company are verified, the plan depends on
+    // this one where it says, about that company, something those claims do not state and this one does.
+    const sameCompany = x.entity ? ledgerNow.filter((c) => c.entity === x.entity) : [];
+    if (namedAs && !sameCompany.length) depends.push(id + ': the plan names ' + namedAs + ', and no verified claim about it exists');
+    else if (namedAs) {
+      const stem = (w) => w.replace(/(?:ies|es|s)$/, '').slice(0, 7);
+      const wordsIn = (v) => [...new Set(String(v || '').toLowerCase().replace(/\[[sw]\d+\]/g, ' ').replace(/[^a-z0-9]+/g, ' ').split(' ').filter((w) => w.length >= 4).map(stem))];
+      const GENERIC = new Set(['need', 'support', 'servic', 'help', 'offer', 'provid', 'includ', 'compan', 'people', 'that', 'with', 'from', 'their', 'which', 'paid']);
+      const known = new Set(sameCompany.flatMap((c) => wordsIn(String(c.claim || '') + ' ' + String(c.page_excerpt || ''))).concat(wordsIn(name)));
+      const only = wordsIn(text).filter((w) => !known.has(w) && !GENERIC.has(w));
+      const ownSources = [...new Set(sameCompany.flatMap((c) => c.source_ids || []))];
+      const planLines = plan.split('\n');
+      let owner = null;
+      let found = null;
+      planLines.forEach((raw, k) => {
+        const t = raw.trim();
+        if (!/^\|.*\|$/.test(t)) owner = null;
+        else { const cells = t.replace(/^\||\|$/g, '').split('|').map((c) => c.trim()); if (cells.length === 2 && cells[1] === '' && cells[0]) { owner = cells[0].replace(/\*/g, '').trim(); return; } }
+        if (found || !t || t.startsWith('#')) return;
+        const about = t.includes(namedAs) || (owner && owner === x.entity) || ownSources.some((sid) => new RegExp('\\b' + sid + '\\b').test(t));
+        if (!about) return;
+        const there = new Set(wordsIn(t));
+        const w = only.filter((o) => there.has(o));
+        if (w.length) found = { line: k + 1, words: w };
+      });
+      if (found) depends.push(id + ': L' + found.line + ' says something about ' + namedAs + ' that no verified claim about it states and this unverified claim does (' + found.words.join(', ') + ')');
+    }
     const figure = statsIn(text).find((tok) => !ownStats.has(tok) && !statOwners[tok] && planFigures.includes(tok));
     if (figure) depends.push(id + ': the plan states ' + figure + ', a figure only this claim gives');
     const said = longWords(name ? text.replace(name, ' ') : text);
@@ -724,7 +751,7 @@ if (!ledgerHasPrice && !lines.some((l) => cellsAndSentences(l.trim()).some((x) =
 // it. Otherwise the sentence that makes the claim must itself say it is a hypothesis, or be conditional on a test.
 // A label in another sentence of the paragraph does not cover it. "IdeaToPlan analysis" says who wrote the sentence;
 // it is not evidence and it does not make a claim conditional. Reviewing a few pages cannot show that nobody serves a need.
-const GAP_CLAIM = /\b(?:gap in the market|market gap|positioning gap|competitive gap|unmet (?:need|demand)|under-?served|untapped|white ?space|unaddressed|unoccupied|no (?:one|competitor|provider|company|service|other (?:competitor|provider|company|service)) (?:currently |yet |explicitly |directly )?(?:offers|serves|does|addresses|provides|focuses|positions|targets|covers)|none of (?:the |these |those |its |their )?(?:[a-z-]+ ){0,3}?(?:competitors?|providers?|compan(?:y|ies)|pages?|alternatives|firms?|services|sources?|rivals?|players?|them)(?: (?:reviewed|identified|listed|found|examined)(?: (?:for|in) this plan)?)?,? (?:(?:currently|yet|explicitly|directly|appears? to|was identified that|were identified that) )*(?:offers?|serves?|addresses|provides?|focus(?:es)?|positions?|targets?|covers?)\b|(?:competitors|providers|companies) (?:do not|don't|fail to) (?:offer|serve|address|provide|cover|target)|(?:unique|distinct|clear|real|meaningful|key|strong|potential) (?:positioning )?(?:differentiator|advantage|distinction|opening|opportunity)|sets? (?:it|the business|this offer) apart)\b/i;
+const GAP_CLAIM = /\b(?:gap in the market|market gap|positioning gap|competitive gap|unmet (?:need|demand)|under-?served|untapped|white ?space|unaddressed|unoccupied|no (?:one|competitor|provider|company|service|other (?:competitor|provider|company|service)) (?:currently |yet |explicitly |directly )?(?:offers|serves|does|addresses|provides|focuses|positions|targets|covers)|no (?:pages?|sites?|sources?|providers?|competitors?|compan(?:y|ies)) (?:reviewed|examined|identified|found|listed)(?: (?:for|in) this plan)? (?:(?:currently|yet|explicitly|directly) )*(?:offers?|serves?|addresses|provides?|focus(?:es)?|positions?|targets?|covers?)|none of (?:the |these |those |its |their )?(?:[a-z-]+ ){0,3}?(?:competitors?|providers?|compan(?:y|ies)|pages?|alternatives|firms?|services|sources?|rivals?|players?|them)(?: (?:reviewed|identified|listed|found|examined)(?: (?:for|in) this plan)?)?,? (?:(?:currently|yet|explicitly|directly|appears? to|was identified that|were identified that) )*(?:offers?|serves?|addresses|provides?|focus(?:es)?|positions?|targets?|covers?)\b|(?:competitors|providers|companies) (?:do not|don't|fail to) (?:offer|serve|address|provide|cover|target)|(?:unique|distinct|clear|real|meaningful|key|strong|potential) (?:positioning )?(?:differentiator|advantage|distinction|opening|opportunity)|sets? (?:it|the business|this offer) apart)\b/i;
 const GAP_CONDITIONAL = /\b(?:if|whether|could|may|might)\b/i;
 // "None offers ..." with no "of the competitors" is a competitor claim only in a sentence that is about competitors.
 // "None of these is modeled here" and "none covers the first sale" are statements about the model.
@@ -749,7 +776,7 @@ lines.forEach((line, i) => {
     const cited = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);
     if (cited.some((id) => (ledgerBySource[id] || []).some((c) => GAP_CLAIM.test(String(c.claim || '') + ' ' + String(c.page_excerpt || ''))))) return;
     // A conditional counts only when it governs the claim, so it has to come before it in the sentence.
-    if (GAP_LABEL.test(seg) || GAP_CONDITIONAL.test(seg.slice(0, gapAt(seg))) || GAP_DENIED.test(seg.slice(0, gapAt(seg)))) return;
+    if (GAP_LABEL.test(seg) || GAP_CONDITIONAL.test(seg.slice(0, gapAt(seg)).split(/;\s+|,\s+(?:and|but)\s+/).pop()) || GAP_DENIED.test(seg.slice(0, gapAt(seg)))) return;
     gapSeen.add(L);
     add('BLOCKING', 'COMPETITIVE GAP STATED AS A FINDING', 'This text states a competitive gap, an unmet need, or that no competitor does something, as a finding. No verified claim cited here states it, and this sentence does not say it is a hypothesis. A label in another sentence does not cover it, and "IdeaToPlan analysis" names the author without making the claim conditional. The pages reviewed show what those companies describe; they do not show that nobody serves this need. Reword this sentence as a hypothesis to test.', short(seg), L);
   });
@@ -844,11 +871,91 @@ lines.forEach((line, i) => {
     const head = seg.slice(0, at);
     // The subject is providers in general, or companies named in the sentence.
     const aboutProviders = FOCUS_SUBJECT.test(head) || entities.some((e) => e.name_words && spaced(head).includes(' ' + e.name_words + ' '));
-    if (!aboutProviders || !FOCUS_VERB.test(head) || OWN_OFFER.test(head) || FOCUS_LABEL.test(seg)) return false;
+    // "A customer who has already decided to relocate would find Expat US's support hard to replicate" assigns the
+    // stage to a named company without any focus verb, and with the name after the stage words.
+    const namedAnywhere = entities.some((e) => e.name_words && spaced(seg).includes(' ' + e.name_words + ' '));
+    if (!((aboutProviders && FOCUS_VERB.test(head)) || namedAnywhere) || OWN_OFFER.test(head) || FOCUS_LABEL.test(seg)) return false;
     const cited = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => (ledgerBySource[id] || []).length > 0);
     return !(cited.length && cited.every((id) => ledgerBySource[id].some((c) => STAGE_POST.test(String(c.claim || '') + ' ' + String(c.page_excerpt || '')))));
   });
   if (hit) add('BLOCKING', 'PROVIDER FOCUS STATED WITHOUT EVIDENCE', 'This text says that providers focus on, or work at, the stage after a decision has been made. The verified entries list the services each page names. None of them states which stage a provider works at, or that it leaves the earlier stage out, so this is an unsupported statement of fact about competitors. Say what the pages list, with their source IDs, and say that whether any provider works before a decision is not established by these pages.', short(hit), i + 1);
+});
+
+// ---------- WHAT A CITED SENTENCE SAYS HAS TO BE IN THE ENTRIES IT CITES ----------
+// These compare words with evidence. They do not recognise a claim by its phrasing alone.
+const stemOf = (w) => w.replace(/(?:ies|es|s)$/, '').slice(0, 7);
+const wordsOfText = (v) => String(v || '').toLowerCase().replace(/\[[sw]\d+\]/g, ' ').replace(/[^a-z0-9]+/g, ' ').split(' ').filter((w) => w.length >= 4).map(stemOf);
+const ledgerWordsOf = (id) => new Set((ledgerBySource[id] || []).flatMap((c) => wordsOfText(String(c.claim || '') + ' ' + String(c.page_excerpt || ''))));
+const citedWithLedger = (seg) => [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => (ledgerBySource[id] || []).length > 0);
+// (a) A characterisation. "Services oriented toward logistics and compliance [S1] [S4] [S10] [S15]" says what four
+//     pages are about. Each cited page's entries must use those words, or the sentence says more than they do.
+const CHARACTERISED = /\b(?:oriented|focused|focus(?:es)?|geared|aimed|centred|centered|concentrated|speciali[sz](?:es|ed|ing)) (?:toward|towards|on|at|around|in) ([^.;\[\]]{3,90})/i;
+const CHAR_STOP = new Set(['their', 'those', 'these', 'which', 'people', 'servic', 'custome', 'client', 'support', 'providi', 'helping', 'such']);
+lines.forEach((line, i) => {
+  const t = line.trim();
+  if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || demandComputed.has(t)) return;
+  let detail = '';
+  const hit = sentencesOfLine(t).find((seg) => {
+    const m = seg.match(CHARACTERISED);
+    if (!m || FOCUS_LABEL.test(seg) || OWN_OFFER.test(seg.slice(0, m.index))) return false;
+    const cited = citedWithLedger(seg);
+    const terms = [...new Set(wordsOfText(m[1]).filter((w) => w.length >= 5 && !CHAR_STOP.has(w)))];
+    if (!cited.length || !terms.length) return false;
+    const lacking = cited.map((id) => ({ id, gone: terms.filter((w) => !ledgerWordsOf(id).has(w)) })).filter((x) => x.gone.length);
+    if (!lacking.length) return false;
+    detail = '"' + m[0].trim().slice(0, 90) + '", and the verified entries of ' + lacking.map((x) => x.id).join(', ') + ' do not say that';
+    return true;
+  });
+  if (hit) add('BLOCKING', 'PROVIDER FOCUS STATED WITHOUT EVIDENCE', 'This text characterises the pages it cites: ' + detail + '. The entries list services in each company\'s own words; a summary of what they are oriented toward is IdeaToPlan\'s description, not theirs. Say what each page lists, with its source ID, or state the characterisation as IdeaToPlan\'s reading with no source ID.', short(hit), i + 1);
+});
+// (b) A list. "Temporary housing, airport pickup, home search, visa guidance [S1] [S3] [S6]" is checked item by
+//     item: an item none of whose words is in the entries of the pages cited was not verified on those pages.
+const ITEM_STOP = new Set(['such', 'includ', 'like', 'other', 'more', 'with', 'from', 'that', 'this', 'their', 'also', 'servic', 'support', 'help', 'offer', 'list', 'item', 'page']);
+lines.forEach((line, i) => {
+  const t = line.trim();
+  if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || demandComputed.has(t)) return;
+  let loose = [];
+  let ids = [];
+  const hit = sentencesOfLine(t).find((seg) => {
+    const cited = citedWithLedger(seg);
+    if (!cited.length || [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].length !== cited.length) return false;
+    // Only an enumeration is read as a list: what follows "including", "lists", or "covers", in a sentence or a
+    // profile row about one company. Ordinary prose with commas in it is not split into items.
+    const about = entities.filter((e) => e.name_words && spaced(seg).includes(' ' + e.name_words + ' ')).length;
+    if (!(profileOwner[i + 1] || about === 1)) return false;
+    const en = seg.match(/\b(?:including|includes?|lists?|covers?)\b:?\s+(?:items |services )?(?:such as )?/i);
+    if (!en) return false;
+    const items = seg.slice(en.index + en[0].length).replace(/\[[SW]\d+\]/g, ' ').split(/,\s*(?:and\s+)?|\s+and\s+/).map((x) => x.trim()).filter(Boolean);
+    if (items.length < 4) return false;
+    const have = new Set(cited.flatMap((id) => [...ledgerWordsOf(id)]));
+    loose = items.filter((it) => { const w = wordsOfText(it).filter((x) => !ITEM_STOP.has(x)); return w.length > 0 && w.length <= 3 && !w.some((x) => have.has(x)); });
+    ids = cited;
+    return loose.length > 0;
+  });
+  if (hit) add('BLOCKING', 'DETAIL NOT IN THE VERIFIED CLAIMS', 'This list cites ' + ids.join(', ') + ' and includes ' + loose.map((x) => '"' + x.slice(0, 40) + '"').join(', ') + ', which no verified claim from ' + (ids.length === 1 ? 'that page' : 'those pages') + ' states. An item is supported only when a ledger entry for a cited page names it. Remove the item, or cite the entry that states it.', short(hit), i + 1);
+});
+// (c) A date. A date given for a source has to be the date in that source's record.
+const NUM_DATE = /\b(\d{1,2})[\/.](\d{1,2})[\/.]((?:19|20)\d{2})\b/g;
+const datesStated = (v) => { const out = statedDates(v); let m; NUM_DATE.lastIndex = 0; while ((m = NUM_DATE.exec(v)) !== null) { const a = +m[1], b = +m[2]; out.push({ y: +m[3], mo: a > 12 ? b - 1 : b > 12 ? a - 1 : -1 }); } return out; };
+const DATE_SAID = /\b(?:dated?|published|updated|publication)\b/i;
+lines.forEach((line, i) => {
+  const t = line.trim();
+  const L = i + 1;
+  if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || demandComputed.has(t) || claimSeen.has(L + '|datenote')) return;
+  let detail = '';
+  const hit = sentencesOfLine(t).find((seg) => {
+    if (!DATE_SAID.test(seg) || /\b(?:retrieved|accessed|date retrieved|run date|plan date)\b/i.test(seg)) return false;
+    const stated = datesStated(seg);
+    if (!stated.length) return false;
+    let ids = [...new Set(seg.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);
+    if (!ids.length) ids = [...new Set(t.match(/\b[SW]\d+\b/g) || [])].filter((id) => srcById[id]);
+    if (!ids.length) return false;
+    const agrees = ids.some((id) => { const iso = String(srcById[id].published_iso || ''); return !!iso && stated.some((d) => d.y === +iso.slice(0, 4) && (d.mo < 0 || d.mo === +iso.slice(5, 7) - 1)); });
+    if (agrees) return false;
+    detail = ids.map((id) => id + ': ' + (srcById[id].published_iso ? '"' + srcById[id].published + '"' : 'no date (' + (srcById[id].published_basis || srcById[id].published || 'none recorded') + ')')).join('; ');
+    return true;
+  });
+  if (hit) add('BLOCKING', 'DATE NOT IN THE SOURCE RECORD', 'This text gives a date for a source, and the source record does not carry it. The record holds: ' + detail + '. A date may be stated only as the record gives it. Remove the date, or say that the source is undated.', short(hit), L);
 });
 
 // ---------- SURVEY FINDINGS KEEP THEIR SCOPE ----------
@@ -1077,13 +1184,15 @@ One JSON object and nothing else, with no code fence:
 EVERY PLACE. Before you report a defect, search the whole plan for the same proposition in any wording, including a paraphrase, a summary of it in another section, and a table cell. List every such line as an occurrence. A correction made at one line must not leave the same unsupported statement standing at another.
 GROUP BY ROOT PROBLEM. Report one finding for each underlying defect. When the same unsupported proposition, the same claim, or the same mistake appears in several places, that is one finding with several occurrences: list every line where it appears, in any section, and do not report it again as a separate finding. Do not merge different problems because they share a category: two different unsupported claims are two findings. Each occurrence names one line, and that line must contain the words that are wrong: quote them from that line. List an occurrence only for a line that has to change. Never list a line you judge acceptable; if you want to mention one, do it in the fix text. Grouping changes how findings are counted, not how strictly you review: report every line that needs to change. If there are no problems, return {"findings":[],"summary":"..."}. Never use em dashes.`;
 
-const verifySystem = `You are verifying an automated revision of an IdeaToPlan business plan. This is not a new review. Do exactly two things and nothing else.
+const verifySystem = `You are verifying an automated revision of an IdeaToPlan business plan. This is not a new review. Do exactly the numbered tasks below and nothing else.
 
 1. Each item gives an original finding, its root problem, and every edit made for it. Decide whether the root problem is gone from the edited passages. Read the whole After text of each edit, not only the words that changed: if the same unsupported proposition survives in another sentence of the passage, in different words, the finding is PARTLY_FIXED. FIXED means the root problem no longer appears in any of the edited passages. Status is FIXED, PARTLY_FIXED, or NOT_FIXED, with a note of at most 25 words that names what remains. Judge against the root problem and against FINANCIAL FACTS, the FOUNDER CONTEXT, and the EVIDENCE LEDGER. A passage that was removed no longer has the problem. Give exactly one verdict for every finding id listed. Occurrences that were not edited are counted by code.
 
 2. For each edit, look only at its After text for a new BLOCKING defect, or a clearly material MAJOR defect, that the edit itself introduced and that was not in its Before text: a new factual claim, figure, or source ID that the EVIDENCE LEDGER or FINANCIAL FACTS do not support; a new absolute, comparative, or predictive claim stated as fact; a founder fact stated wrongly; a broken sentence or table row. Give exactly one entry in "edit_checks" for every edit unit shown, with an explicit verdict. The verdict is NEW_DEFECT only when the After text contains such a defect; then give its severity, a quote, the problem, and the fix. The verdict is NO_NEW_DEFECT in every other case, including when you considered a concern and concluded that the edit is consistent with the ledger and the financial facts; then leave severity, quote, problem, and fix empty. Never give NEW_DEFECT with an explanation that concludes there is no defect: an entry whose verdict and explanation disagree is discarded and the edit is treated as not verified. Do not report style, repetition, actionability, stale sources, or anything that was already in the Before text. Never report an original finding as a new defect: if an edit did not fully fix its finding, say so in that finding's verdict. Edits that were not applied, required sections, source IDs, and financial figures are checked by code and are not your concern.
 
-3. PASSAGES LEFT UNCHANGED lists passages the reviser was asked to correct that stand as they were: the reviser returned them unchanged, gave no edit, or gave a replacement that code refused. Nothing was edited there. For each one, read the passage and decide whether the finding's root problem is in that passage as it stands: "present" is true when it is, false when the passage does not contain the problem (for example it is already worded as a labelled hypothesis). Do not assume the passage is acceptable because it was left alone, and do not assume it is defective because it was listed. Each passage is shown with its section and with any note about source dates that stands in that section. Read the passage in that context: when the finding is that a source is undated and not flagged, a note in the same section that accurately covers the passage's sources answers it, and the problem is not present in that passage. A note in a different section does not count, and a note that does not cover the passage's sources does not count. Give one answer for every unit and finding id listed. An answer of "present": false closes a finding that nobody edited, so it has to be justified: "reason" says, in one or two sentences about this finding, why the root problem is not in the passage; "basis" names what you rely on, "passage", "section_note", or "ledger"; and "quote" copies, exactly, the words you rely on from the passage, from a line of the same section, or from the evidence ledger entry. A false answer with no reason, with a reason that describes the problem as being there, or with a quote that is not in the passage, its section, or the ledger is discarded and the finding stays open. When you are not sure, answer true. For "present": true, give the reason and leave "quote" empty.
+3. PASSAGES LEFT UNCHANGED lists passages the reviser was asked to correct that stand as they were: the reviser returned them unchanged, gave no edit, or gave a replacement that code refused. Nothing was edited there. For each one, read the passage and decide whether the finding's root problem is in that passage as it stands: "present" is true when it is, false when the passage does not contain the problem (for example it is already worded as a labelled hypothesis). Do not assume the passage is acceptable because it was left alone, and do not assume it is defective because it was listed. Each passage is shown with its section and with any note about source dates that stands in that section. Read the passage in that context: when the finding is that a source is undated and not flagged, a note in the same section that accurately covers the passage's sources answers it, and the problem is not present in that passage. A note in a different section does not count, and a note that does not cover the passage's sources does not count. Give one answer for every unit and finding id listed. An answer of "present": false closes a finding that nobody edited, so it has to be justified: "reason" says, in one or two sentences about this finding, why the root problem is not in the passage; "basis" names what you rely on, "passage", "section_note", or "ledger"; and "quote" copies, exactly, the words you rely on from the passage, from a line of the same section, or from the evidence ledger entry. A false answer with no reason, with a reason that describes the problem as being there, or with a quote that is not in the passage, its section, or the ledger is discarded and the finding stays open. When you are not sure, answer true. For "present": true, give the reason and leave "quote" empty. Where a finding is about undated or dated sources, judge it against SOURCE DATES BY SECTION OF THE REVISED PLAN: what the section cites now, not the sources the finding listed when it was written.
+
+4. WHOLE-PLAN REVIEW. The edits are not the whole plan. LINES TO REVIEW lists every line of the revised plan that cites a source, names a company, or speaks about competitors, the market, or research, whether or not it was edited. Read each one in the REVISED PLAN and give exactly one "plan_review" entry for it. Verdicts: SUPPORTED when every external statement on the line is stated by the ledger entries you name in "claim_ids", with the same subject, the same qualifiers (from, about, nearly, per month), the same date, the same population and sample, and no wider scope than the entry (one company is not all providers; a sample is not a population; two companies are not a ranking of five). LABELLED when every statement the ledger does not state is, in its own sentence, worded as a hypothesis, an assumption, a recommendation or reading of IdeaToPlan, or as not established; a label in a neighbouring sentence does not cover it. UNSUPPORTED when any statement of fact on the line is neither: quote the words and say what is missing. NO_EXTERNAL_CLAIM when the line says nothing about anyone but the founder, this plan, or its model. A statement that something is absent ("no page reviewed positions around X") is a statement of fact. A date given for a source must be the date SOURCES gives it. A line with a source ID is never NO_EXTERNAL_CLAIM. When you are not sure, answer UNSUPPORTED. A line you leave out holds the plan.
 
 ${SEVERITY}
 
@@ -1091,9 +1200,25 @@ ${LINE_NOTE}
 
 OUTPUT
 One JSON object and nothing else, with no code fence:
-{"verifications":[{"id":the finding id,"status":"FIXED or PARTLY_FIXED or NOT_FIXED","note":"one sentence"}],"unchanged":[{"unit":"the unit ID","id":the finding id,"present":true or false,"reason":"one or two sentences about this finding","basis":"passage or section_note or ledger","quote":"exact words relied on, or empty"}],"edit_checks":[{"unit":"the unit ID of the edit, for example U3","verdict":"NEW_DEFECT or NO_NEW_DEFECT","severity":"BLOCKING or MAJOR, or empty for NO_NEW_DEFECT","check":"short name, or empty","quote":"a short quote from the After text, or empty","problem":"one sentence, or empty","fix":"the exact change to make, or empty"}],"summary":"one sentence on the state of the plan after revision"}
+{"verifications":[{"id":the finding id,"status":"FIXED or PARTLY_FIXED or NOT_FIXED","note":"one sentence"}],"unchanged":[{"unit":"the unit ID","id":the finding id,"present":true or false,"reason":"one or two sentences about this finding","basis":"passage or section_note or ledger","quote":"exact words relied on, or empty"}],"edit_checks":[{"unit":"the unit ID of the edit, for example U3","verdict":"NEW_DEFECT or NO_NEW_DEFECT","severity":"BLOCKING or MAJOR, or empty for NO_NEW_DEFECT","check":"short name, or empty","quote":"a short quote from the After text, or empty","problem":"one sentence, or empty","fix":"the exact change to make, or empty"}],"plan_review":[{"line":57,"verdict":"SUPPORTED or LABELLED or UNSUPPORTED or NO_EXTERNAL_CLAIM","claim_ids":["E2"],"quote":"the unsupported words, or empty","problem":"one sentence, or empty"}],"summary":"one sentence on the state of the plan after revision"}
 There is one "edit_checks" entry for every edit unit shown, whether or not it introduced anything. Never use em dashes.`;
 
+// What each section of this text cites, which of those sources are undated, and which of them no note covers.
+const sectionDates = sectionsOfPlan.map((s) => {
+  const usedHere = [];
+  for (let i = s.start + 1; i < s.end; i++) (lines[i].match(/\b[SW]\d+\b/g) || []).forEach((id) => { if (srcById[id] && !usedHere.includes(id)) usedHere.push(id); });
+  const undatedHere = usedHere.filter(isUndatedSource);
+  const notes = dateNotesIn(s);
+  const general = notes.filter((n) => NOTE_FOR_ALL.test(n.text) && (!/\b[SW]\d+\b/.test(n.text) || /\b(?:all|every|none of)\b/i.test(n.text)));
+  return { no: s.no, title: s.title, used: usedHere, undated: undatedHere, dated: usedHere.filter((id) => !isUndatedSource(id)).map((id) => id + ' (' + srcById[id].published + ')'), note_lines: notes.map((n) => n.line), missing: undatedHere.filter((id) => !(general.length > 0 || notes.some((n) => new RegExp('\\b' + id + '\\b').test(n.text)))) };
+});
+// THE LINES A FINAL REVIEW HAS TO COVER. After a revision the verifier used to see the edited passages only, so a
+// defect in a passage nobody edited was never read again. Every line of the revised plan that cites a source, names a
+// company, or speaks about competitors, the market, or research has to be read, edited or not.
+const EXTERNAL_CUE = /\b(?:competitors?|providers?|market|demand|surveys?|surveyed|stud(?:y|ies)|research|pages? reviewed|substitutes?|alternatives|industry|travelers|travellers|expats?|nomads?|benchmarks?|typical(?:ly)?|on average|trends?)\b/i;
+const editedAt = {};
+if (rev) (rev.edit_log || []).forEach((e) => { const span = String(e.after || '').split('\n').length; for (let k = 0; k < span; k++) editedAt[e.line + k] = e.unit; if (e.section_note_line) editedAt[e.section_note_line] = e.unit; });
+const reviewLines = attempt ? lines.map((l, i) => ({ l: l.trim(), n: i + 1 })).filter(({ l, n }) => l && !l.startsWith('#') && !/^\|?\s*:?-{2,}/.test(l) && !protectedText.has(l) && (editedAt[n] || /\b[SW]\d+\b/.test(l) || EXTERNAL_CUE.test(l) || entities.some((e) => e.name_words && spaced(l).includes(' ' + e.name_words + ' ')))).map(({ n }) => ({ line: n, edited: editedAt[n] || '' })) : [];
 const citedInPlan = new Set(plan.match(/\b[SW]\d+\b/g) || []);
 const shared = [
   '', 'GOAL BRIEF', fin.goal_brief,
@@ -1144,6 +1269,11 @@ if (attempt) {
     pairs.length ? pairs.map((f) => 'id ' + f.id + ' | ' + f.severity + ' | ' + f.check + '\n   Root problem: ' + f.problem + (f.fix ? '\n   Requested fix: ' + f.fix : '') + editLog.filter((e) => (e.issues || []).includes(f.id)).map((e) => '\n   Edit ' + e.unit + (e.issues.length > 1 ? ' (one replacement that also serves ' + e.issues.filter((x) => x !== f.id).join(', ') + ')' : '') + '\n     Before: ' + e.before + '\n     After: ' + (e.after || '(passage removed)') + (e.section_note ? '\n     Note placed above this table by the same edit: ' + e.section_note : '')).join('')).join('\n') : 'None. Return empty lists.',
     '', 'PASSAGES LEFT UNCHANGED (say for each unit and finding id whether the root problem is present in the passage)',
     (rev.unchanged_units || []).some((u) => (u.issues || []).some((id) => byFinding[id] && byFinding[id].source === 'QA review')) ? (rev.unchanged_units || []).flatMap((u) => (u.issues || []).filter((id) => byFinding[id] && byFinding[id].source === 'QA review').map((id) => 'unit ' + u.unit + ' | id ' + id + ' | ' + byFinding[id].severity + ' | ' + byFinding[id].check + '\n   Root problem: ' + byFinding[id].problem + '\n   Section: ' + (sectionAt(u.line || u.start) ? sectionAt(u.line || u.start).no + '. ' + sectionAt(u.line || u.start).title : 'not found') + '\n   Notes about source dates in that section: ' + (sectionAt(u.line || u.start) && dateNotesIn(sectionAt(u.line || u.start)).length ? dateNotesIn(sectionAt(u.line || u.start)).map((n) => '[L' + n.line + '] ' + n.text.slice(0, 260)).join(' | ') : 'none') + '\n   Passage, unchanged: ' + u.text)).join('\n') : 'None.',
+    '', 'SOURCE DATES BY SECTION OF THE REVISED PLAN (judge every finding about undated or dated sources against this list, not against the sources named in the finding: a source the section no longer cites needs no note there)',
+    sectionDates.filter((d) => d.used.length).map((d) => 'Section ' + d.no + '. ' + d.title + ' | cites ' + d.used.join(', ') + ' | undated: ' + (d.undated.join(', ') || 'none') + ' | dated: ' + (d.dated.join(', ') || 'none') + ' | date notes at: ' + (d.note_lines.map((n) => 'L' + n).join(', ') || 'none') + ' | undated sources with no note: ' + (d.missing.join(', ') || 'none')).join('\n') || 'No section cites a source.',
+    '', 'SOURCES CITED IN THE REVISED PLAN', JSON.stringify(sources.filter((x) => citedInPlan.has(x.id)).map(({ id, kind, title, domain, published }) => ({ id, kind, title, domain, published })), null, 1),
+    '', 'LINES TO REVIEW (give one "plan_review" entry for each of these ' + reviewLines.length + ' line numbers)', reviewLines.map((r) => 'L' + r.line + (r.edited ? ' (edited by ' + r.edited + ')' : '')).join(', ') || 'None.',
+    '', 'REVISED PLAN (complete, for the whole-plan review)', numbered,
   ].join('\n');
 }
 
@@ -1154,5 +1284,7 @@ return {
   qc_report: qcReport,
   numbered_plan: numbered,
   derived_figures: derived,
-  qa_payload: JSON.stringify({ model: 'anthropic/claude-sonnet-4.6', max_tokens: attempt ? 6000 : 8000, temperature: 0, messages: [{ role: 'system', content: attempt ? verifySystem : reviewSystem }, { role: 'user', content: runDate.line + '\n\n' + qaUser }] }),
+  section_dates: sectionDates,
+  review_lines: reviewLines,
+  qa_payload: JSON.stringify({ model: 'anthropic/claude-sonnet-4.6', max_tokens: attempt ? 14000 : 8000, temperature: 0, messages: [{ role: 'system', content: attempt ? verifySystem : reviewSystem }, { role: 'user', content: runDate.line + '\n\n' + qaUser }] }),
 };

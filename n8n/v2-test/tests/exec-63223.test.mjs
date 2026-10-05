@@ -175,9 +175,11 @@ test('noise: a dated, attributed figure with its caveat in the same sentence is 
   assert.ok((await onLast('A one-time financial plan costs $2,500 [S5].')).includes('MAJOR UNVERIFIED EVIDENCE STATED WITHOUT QUALIFICATION'));
 });
 
+// The whole-plan review was added after execution 63226. The saved verifier answer of this run predates it, so the
+// replay does not ask for it (review_lines: []). It is tested on its own in exec-63226.test.mjs.
 const secondPass = async (rev = fx('Apply Revisions')) => {
   const cc = await check(rev.text, { rev });
-  return runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': cc, 'Apply Revisions': rev, 'Build Evidence': EV }, fx('Final QA')[1]);
+  return runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': { ...cc, review_lines: [] }, 'Apply Revisions': rev, 'Build Evidence': EV }, fx('Final QA')[1]);
 };
 
 test('noise: of the sixteen overlap warnings in the run, one was a real repeat and the rest are gone', async () => {

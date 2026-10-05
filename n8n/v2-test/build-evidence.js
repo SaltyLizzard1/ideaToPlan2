@@ -337,6 +337,9 @@ const latestDate = (text) => {
   let m;
   const iso = /(\d{4})-(\d{2})-(\d{2})/g;
   while ((m = iso.exec(t)) !== null) push(m[1], +m[2] - 1, m[3]);
+  // 31/03/2016 or 03/31/2016. Read only when the order is certain: exactly one of the first two numbers is above 12.
+  const num = /\b(\d{1,2})[\/.](\d{1,2})[\/.]((?:19|20)\d{2})\b/g;
+  while ((m = num.exec(t)) !== null) { const a = +m[1], b = +m[2]; if (a > 12 && b <= 12) push(m[3], b - 1, a); else if (b > 12 && a <= 12) push(m[3], a - 1, b); }
   const mdy = new RegExp(M + '\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})', 'gi');
   while ((m = mdy.exec(t)) !== null) push(m[3], MONTH_NO[m[1].toLowerCase()], m[2]);
   const dmy = new RegExp('(\\d{1,2})(?:st|nd|rd|th)?\\s+' + M + ',?\\s+(\\d{4})', 'gi');
@@ -348,7 +351,10 @@ const latestDate = (text) => {
 
 // ---------- 4. Source records: what was requested, what answered, and the date the page itself shows. ----------
 sources.forEach((s) => {
-  if (s.kind !== 'research') return;
+  // A page found by web search that was fetched and read is recorded like any other page: the date its own text
+  // shows is the source's date. Until execution 63226 only research sources were given one, so W5 stayed
+  // "date not shown" although the verifier read 31/03/2016 on the page.
+  if (s.kind !== 'research' && !pageOf[s.id]) return;
   const p = pageOf[s.id];
   if (!p) { s.fetch = { outcome: 'not_requested' }; s.published = 'date not shown'; s.published_basis = 'page not fetched: no claim was tied to it'; return; }
   s.fetch = { requested_url: p.requested_url, final_url: p.final_url, redirected: p.redirects.length > 0, retrieved_at: p.retrieved_at, http_status: p.http_status, outcome: p.outcome, detail: p.detail, text_chars: p.text_chars };

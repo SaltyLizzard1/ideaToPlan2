@@ -25,9 +25,11 @@ const check = async (text = HELD_PLAN, { ev = EV, firstPass = false, rev } = {})
 const at = (out, line) => out.det_issues.filter((i) => i.line === line).map((i) => i.severity + ' ' + i.type);
 const onLast = async (line, opts) => { const text = HELD_PLAN.replace(/\n+$/, '') + '\n\n' + line + '\n'; return at(await check(text, opts), text.replace(/\n+$/, '').split('\n').length); };
 const only = (list, re) => list.filter((x) => re.test(x));
+// The whole-plan review was added after execution 63226. The saved verifier answer of this run predates it, so the
+// replay does not ask for it (review_lines: []). It is tested on its own in exec-63226.test.mjs.
 const secondPass = async (rev = fx('Apply Revisions'), qa = fx('Final QA')[1]) => {
   const cc = await check(rev.text, { rev });
-  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': cc, 'Apply Revisions': rev, 'Build Evidence': EV }, qa);
+  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': { ...cc, review_lines: [] }, 'Apply Revisions': rev, 'Build Evidence': EV }, qa);
   return { cc, out };
 };
 const gate = (findings) => runNode('delivery-gate.js', { 'Finalize Plan': { status: 'HOLD', final_findings: [] }, 'Plan Revision Request': { findings } });
@@ -153,7 +155,7 @@ test('repeat: earlier confirmed repeats are still confirmed under the propositio
     const f = (n) => JSON.parse(readFileSync(path.join(ROOT, 'fixtures', dir, n + '.json'), 'utf8'));
     const rev = f('Apply Revisions');
     const cc = await runNode('citation-check.js', { 'Founder Context': f('Founder Context'), 'Compute Financials': f('Compute Financials'), 'Assemble Plan': f('Assemble Plan'), 'Build Evidence': f('Build Evidence'), 'Growth Plan Generator1': f('Growth Plan Generator1'), 'Apply Revisions': rev });
-    const out = await runNode('plan-revision-request.js', { 'Founder Context': f('Founder Context'), 'Compute Financials': f('Compute Financials'), 'Citation Check': cc, 'Apply Revisions': rev, 'Build Evidence': f('Build Evidence') }, f('Final QA')[1]);
+    const out = await runNode('plan-revision-request.js', { 'Founder Context': f('Founder Context'), 'Compute Financials': f('Compute Financials'), 'Citation Check': { ...cc, review_lines: [] }, 'Apply Revisions': rev, 'Build Evidence': f('Build Evidence') }, f('Final QA')[1]);
     return out.findings.filter((x) => x.check === 'SAME CLAIM STILL PRESENT ELSEWHERE').map((x) => x.line).sort((a, b) => a - b);
   };
   assert.deepEqual(await of('exec-63222'), [40, 297]);     // the price inference; "established firms"

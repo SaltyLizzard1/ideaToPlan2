@@ -92,10 +92,12 @@ test('scope: a row label and a profile table still apply to the whole row', asyn
 // ---------------- 2. The revision verifier's result ----------------
 
 const REAL = () => { const c = fx('Final QA')[1].choices[0].message.content; return JSON.parse(c.slice(c.indexOf('{'), c.lastIndexOf('}') + 1)); };
+// The whole-plan review was added after execution 63226. The saved verifier answer of this run predates it, so the
+// replay does not ask for it (review_lines: []). It is tested on its own in exec-63226.test.mjs.
 const secondPass = async (qa) => {
   const rev = fx('Apply Revisions');
   const cc = await check(rev.text, { rev });
-  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': cc, 'Apply Revisions': rev, 'Build Evidence': EV }, { choices: [{ message: { content: JSON.stringify(qa) } }] });
+  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': { ...cc, review_lines: [] }, 'Apply Revisions': rev, 'Build Evidence': EV }, { choices: [{ message: { content: JSON.stringify(qa) } }] });
   return { out, cc, rev, unv: out.findings.filter((f) => f.unresolved === true), revs: out.findings.filter((f) => /^REV-/.test(f.id)) };
 };
 const shown = () => [...new Set(fx('Apply Revisions').edit_log.map((e) => e.unit))];
@@ -254,7 +256,7 @@ test('elsewhere: a claim removed by an edit and repeated in another section is r
   e.before = e.before + ' ' + removed;
   rev.text = rev.text + '\n\nImmigration lawyers will supply most early customers for this consulting business through referral partnerships within the first quarter.\n';
   const cc = await check(rev.text, { rev });
-  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': cc, 'Apply Revisions': rev, 'Build Evidence': EV }, { choices: [{ message: { content: JSON.stringify(clean()) } }] });
+  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': { ...cc, review_lines: [] }, 'Apply Revisions': rev, 'Build Evidence': EV }, { choices: [{ message: { content: JSON.stringify(clean()) } }] });
   const dup = out.findings.filter((f) => f.check === 'SAME CLAIM STILL PRESENT ELSEWHERE');
   assert.deepEqual(dup.map((f) => f.line).sort((a, b) => a - b), [40, 297, rev.text.replace(/\n+$/, '').split('\n').length]);
 });
@@ -448,7 +450,7 @@ test('elsewhere: an uncertain match is listed apart and is not a finding; a conf
   // Most of the removed statement's words, in a sentence that may or may not say the same thing.
   rev.text = rev.text + '\n\nReferral partnerships with immigration lawyers might supply some early customers for a consulting business within a year.\n';
   const cc = await check(rev.text, { rev });
-  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': cc, 'Apply Revisions': rev, 'Build Evidence': EV }, { choices: [{ message: { content: JSON.stringify(clean()) } }] });
+  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': { ...cc, review_lines: [] }, 'Apply Revisions': rev, 'Build Evidence': EV }, { choices: [{ message: { content: JSON.stringify(clean()) } }] });
   const last = rev.text.replace(/\n+$/, '').split('\n').length;
   assert.ok(out.possible_repeats.some((d) => d.line === last), 'the uncertain sentence is listed for a person to read');
   assert.ok(!out.findings.some((f) => f.line === last), 'and it is not a finding of any severity');
