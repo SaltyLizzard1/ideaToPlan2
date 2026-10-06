@@ -89,3 +89,16 @@ Two things this settles that were unverified before: the Supabase node writes th
 - The version ID placed in the test copy for the run was removed again; the copy holds its placeholder and is inactive.
 
 A1's open visual check, closed: all 31 pages of the stored `v3.pdf` were rendered to images. Every page image is byte-identical to the corresponding image of `v2.pdf`, which was inspected page by page on 2026-10-06, and pages 1-2, 23-24 and 31 of v3 were looked at directly. The two PDF files differ only outside the page content (same size, different fingerprint).
+
+## Acceptance test A3, refusal tests and preparation, 2026-10-06 (authorised by Liz)
+
+Two writes were attempted once through n8n's own `Supabase account` credential, in workflow `DCBtwrCdKV0PmWnh` (3 nodes, archived), execution 63371:
+
+- Insert of a review record for version 3 (as a `note`, so that an unexpected success could not release anything): refused by the database with "permission denied for table plan_reviews".
+- Update of version 3's `review_notes`: refused by the database guard with "The content and the automated review of a plan version cannot be changed. Create a new version."
+
+Afterwards the complete version 3 row is byte-identical to the copy taken before, and `plan_reviews` is still empty.
+
+Prepared, not run: `a3-review-insert.sql`, the review record for Liz to read and run herself. It is a release for approval, not approval to send. It inserts only if version 3 still has its two fingerprints and is still held. It was run against a local copy of the real row in the disposable test database: one row inserted, automated status and report copied unchanged, the version still HOLD and unapproved, a second run refused, and nothing inserted when the stored fingerprint differs.
+
+Carried forward from A2: a refusal inside a workflow that is started by hand does not raise the System Alert. The alert is to be observed when the approval copy refuses a version while running as a sub-workflow; that is added to the remaining tests.
