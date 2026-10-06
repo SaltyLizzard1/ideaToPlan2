@@ -9,7 +9,7 @@
 export const replayConfig = (cfg) => `const cfg = ${JSON.stringify(cfg)};
 // A new execution starts with nothing spent.
 const sd = $getWorkflowStaticData('global');
-sd.claim_spent = 0; sd.claim_sent = 0; sd.claim_cost_unknown = false; sd.claim_stopped = ''; sd.claim_log = [];
+sd.claim_spent = 0; sd.claim_sent = 0; sd.claim_cost_unknown = false; sd.claim_stopped = ''; sd.claim_log = []; sd.claim_responses = [];
 return [{ json: cfg }];`;
 
 export const scenarios = (list) => `const cfg = $('Replay Config').first().json;
@@ -41,7 +41,7 @@ const worst = Math.round((estIn * cfg.usd_per_m_in + p.max_tokens * cfg.usd_per_
 const spent = Number(sd.claim_spent) || 0, sent = Number(sd.claim_sent) || 0;
 let stop = '';
 // A stop is final: once one request is held back, none after it is sent, whatever it would cost.
-if (sd.claim_stopped) stop = 'an earlier request was not sent, and nothing is sent after a stop';
+if (sd.claim_stopped) stop = 'stopped earlier, and nothing is sent after a stop (' + sd.claim_stopped + ')';
 else if (sd.claim_cost_unknown) stop = 'the cost of an earlier request was not reported, so what has been spent is not known';
 else if (sent >= cfg.max_requests) stop = 'the limit of ' + cfg.max_requests + ' requests is reached';
 else if (spent + worst > ceiling) stop = 'spent USD ' + spent.toFixed(4) + ' and the next request could cost up to USD ' + worst.toFixed(4) + ', over the ceiling of USD ' + ceiling.toFixed(2);
@@ -54,10 +54,27 @@ return [{ json: { not_sent: true, batch: b.batch, why: b.stop_reason } }];`;
 
 // After every request, scripted or real: the recorded cost is added. A response with no cost stops the next request.
 export const recordCost = `const sd = $getWorkflowStaticData('global');
+const g = $('Budget Gate').first().json;
 const r = $input.first().json || {};
 sd.claim_sent = (Number(sd.claim_sent) || 0) + 1;
 const cost = r.usage && typeof r.usage.cost === 'number' ? r.usage.cost : null;
 if (cost === null) sd.claim_cost_unknown = true; else sd.claim_spent = (Number(sd.claim_spent) || 0) + cost;
+// THE RESPONSE IS INSPECTED BEFORE THE NEXT REQUEST. It has to be a whole answer, readable, for this review and this
+// batch. Anything else stops the run for good: the next request is not sent, and nothing is retried.
+const choice = (r.choices || [])[0];
+let fault = '';
+if (r.error || !choice) fault = 'the request failed or returned no answer';
+else {
+  const raw = String((choice.message || {}).content || '');
+  let o = null;
+  try { o = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch (e) {}
+  if (choice.finish_reason === 'length') fault = 'the answer was cut off at the output limit';
+  else if (!o || typeof o !== 'object') fault = 'the answer is not readable JSON';
+  else if (String(o.review) !== String(g.review)) fault = 'the answer does not give back the review token of this run';
+  else if (Number(o.batch) !== Number(g.batch)) fault = 'the answer names batch ' + o.batch + ', and batch ' + g.batch + ' was asked';
+}
+if (fault && !sd.claim_stopped) sd.claim_stopped = 'the response to request ' + g.batch + ' failed inspection: ' + fault;
+(sd.claim_responses = sd.claim_responses || []).push({ batch: g.batch, response_id: r.id || null, model: r.model || null, provider: r.provider || null, finish_reason: choice ? choice.finish_reason || null : null, prompt_tokens: r.usage ? r.usage.prompt_tokens : null, completion_tokens: r.usage ? r.usage.completion_tokens : null, cost: cost, inspection: fault || 'whole, readable, right token, right batch' });
 return [{ json: r }];`;
 
 // Faults that concern the list of responses as a whole. Dry run only; with dry_run false the list passes untouched.
@@ -115,6 +132,7 @@ return [{ json: {
   confirmed_blocker_count: gate.confirmed_blocker_count,
   kept_verifier_answer: Array.isArray(combined.choices),
   budget_log: sc.sequential ? (sd.claim_log || []) : [],
+  response_log: sc.sequential ? (sd.claim_responses || []) : [],
   spent_recorded: sc.sequential ? Math.round((Number(sd.claim_spent) || 0) * 1e6) / 1e6 : null,
 } }];`;
 

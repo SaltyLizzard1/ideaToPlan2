@@ -46,6 +46,7 @@ export const simulate = async (mode = 'scenarios', only = '') => {
       responses = [];
       for (const b of S['Build Claim Review']) {
         const g = (await run(N.budgetGate, S, b))[0];
+        S['Budget Gate'] = [g];
         if (!g.go) { responses.push((await run(N.notSent, S, g))[0]); continue; }
         const r = (await run(src('replay/scripted-responses.js'), S, g))[0];
         responses.push((await run(N.recordCost, S, r))[0]);

@@ -75,7 +75,7 @@ test('replay: requests go one at a time, and a stop is final', async () => {
   const s2 = (await simulate('sequential_dry', 'S2 sequential, ceiling reached')).runs[0];
   assert.deepEqual(s2.budget_log.map((l) => l.go), Array(11).fill(true).concat([false, false]));
   assert.match(s2.budget_log[11].stop_reason, /over the ceiling of USD 0\.60/);
-  assert.equal(s2.budget_log[12].stop_reason, 'an earlier request was not sent, and nothing is sent after a stop');
+  assert.match(s2.budget_log[12].stop_reason, /^stopped earlier, and nothing is sent after a stop \(spent USD 0\.4520/);
   assert.ok(s2.spent_recorded <= 0.6);
   const s3 = (await simulate('sequential_dry', 'S3 sequential, a response without its cost')).runs[0];
   assert.deepEqual(s3.budget_log.map((l) => l.go), [true, true, true].concat(Array(10).fill(false)));
@@ -83,6 +83,15 @@ test('replay: requests go one at a time, and a stop is final', async () => {
   const s4 = (await simulate('sequential_dry', 'S4 sequential, a failed request')).runs[0];
   assert.deepEqual(s4.budget_log.map((l) => l.go), [true, true].concat(Array(11).fill(false)));
   for (const r of [s2, s3, s4]) { assert.equal(r.held, true); assert.ok(r.claim_findings.includes('CL-OPEN unresolved CLAIM REVIEW IS INCOMPLETE')); }
+  // The response is inspected before the next request: a cut-off answer, or one for another review, ends the run.
+  const s5 = (await simulate('sequential_dry', 'S5 sequential, a cut-off answer')).runs[0];
+  assert.deepEqual(s5.budget_log.map((l) => l.go), [true].concat(Array(12).fill(false)));
+  assert.match(s5.budget_log[1].stop_reason, /the response to request 1 failed inspection: the answer was cut off at the output limit/);
+  const s6 = (await simulate('sequential_dry', 'S6 sequential, an answer for another review')).runs[0];
+  assert.deepEqual(s6.budget_log.map((l) => l.go), [true].concat(Array(12).fill(false)));
+  assert.match(s6.budget_log[1].stop_reason, /the answer does not give back the review token of this run/);
+  assert.deepEqual(s1.response_log.map((x) => x.inspection), Array(13).fill('whole, readable, right token, right batch'));
+  assert.match(s4.response_log[1].inspection, /the request failed or returned no answer/);
   // The worst case the gate reckons with is the full output limit, at the production setting.
   assert.match(budgetGate, /p\.max_tokens \* cfg\.usd_per_m_out/);
   assert.deepEqual([CONFIG.dry_run, CONFIG.usd_per_m_in, CONFIG.usd_per_m_out], [true, 3, 15]);

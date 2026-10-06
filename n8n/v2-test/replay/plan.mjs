@@ -112,6 +112,8 @@ export const scenarioList = (tokenA, stageIds) => [
   { mode: 'sequential_dry', name: 'S2 sequential, ceiling reached', plan: 'A', sequential: true, ceiling_usd: 0.6 },
   { mode: 'sequential_dry', name: 'S3 sequential, a response without its cost', plan: 'A', sequential: true, faults: { no_cost_batches: [3] } },
   { mode: 'sequential_dry', name: 'S4 sequential, a failed request', plan: 'A', sequential: true, faults: { fail_batches: [2] } },
+  { mode: 'sequential_dry', name: 'S5 sequential, a cut-off answer', plan: 'A', sequential: true, faults: { cut_unreadable: [1] } },
+  { mode: 'sequential_dry', name: 'S6 sequential, an answer for another review', plan: 'A', sequential: true, faults: { stale_token: 'R0000000' } },
   { mode: 'stage_one', name: 'stage one', plan: 'A', sequential: true, selection: stageIds },
 ];
 export const CONFIG = { dry_run: true, mode: 'scenarios', only: '', ceiling_usd: 2.25, max_requests: 13, usd_per_m_in: 3, usd_per_m_out: 15 };
