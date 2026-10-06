@@ -119,3 +119,19 @@ Carried forward from A2: a refusal inside a workflow that is started by hand doe
 - Visual review by Claude, all 32 pages: no review-status box on page 1 or anywhere; the six corrections E1 to E6 are in the rendered text; no clipping, overlap, split table row or stranded heading. Cosmetic only: the source list runs onto a last page that is otherwise empty.
 
 **Review statement.** `review-insert-version-4.sql`, prepared for Liz, not run. It names version 4's ID and fingerprints. Run against a local copy of the real row: one row inserted, version still HOLD and unapproved, second run refused, nothing inserted when the fingerprint differs. The version 3 statement `a3-review-insert.sql` was never run and is not to be used.
+
+## A4: reviewed version approved and delivered (2026-10-06)
+
+**Review record.** Liz ran `review-insert-version-4.sql` herself. Record `d6294274-de89-4888-b340-2fe10965c021`, release_for_approval, reviewer Liz Alfond, recorded_by postgres, 2026-10-06 11:38:38 UTC. Read back: fingerprints equal version 4's, automated status HOLD and notes copied unchanged, one record in `plan_reviews`.
+
+**Request.** Workflow `dcgzn5fcOyrIRz5u`, run once by Claude. Execution 63418, success. The check found the release record, the stored PDF was re-read and its fingerprint matched (`93923168...`), version 4 moved to awaiting_approval. The version ID placeholder was restored afterwards.
+
+**Approval and delivery.** Approval copy `AwxkcbnQK5ChbSOA`, execution 63419 (started as a sub-workflow). One approval email to liz@ideatoplan.to with an "Open PDF" link (the approval email carries a link, not an attachment). Liz clicked Approve once at 11:47:40 UTC.
+
+- Claim wrote approved_at and both approved fingerprints; they equal the version's own (`14f3c3f4...`, `93923168...`).
+- The PDF was downloaded again and the attachment bytes fingerprinted before sending: `93923168...`, 180,906 bytes, attachment_ok true.
+- One delivery email, Gmail message `1a1110a7d0fc86af`. The send node's recipient is fixed to liz@ideatoplan.to in the test copy.
+- Version 4: sent, sent_at 11:47:42 UTC, review_status still HOLD (the automated result is preserved). Order: delivered, 11:47:43 UTC.
+- Versions 1 to 3 unchanged. `plan_reviews` still one record. No System Alert execution.
+
+Result: A4 passed. Not checked by Claude: the two emails as they appear in the inbox.
