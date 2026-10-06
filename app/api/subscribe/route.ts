@@ -1,10 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { checkRateLimit, clientIp } from '../../../lib/rateLimit';
 import { notify } from '../../../lib/notify';
+import { recordAndNotifyLead } from '../../../lib/leadNotification';
+import { leadDeps } from '../../../lib/leadNotificationDeps';
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, formId: formIdParam, country } = await req.json();
+    const { email, formId: formIdParam, country, resultId } = await req.json();
     const allowed = await checkRateLimit(`subscribe:${clientIp(req)}`, 10, 3600);
     if (!allowed) {
       return NextResponse.json(
@@ -38,6 +40,12 @@ export async function POST(req: NextRequest) {
         "New Visa waitlist signup",
         `Email: ${email}\nCountry: ${country?.trim() || "not provided"}`
       );
+    } else {
+      // Skills Matcher lead: recorded once, owner notified once. It runs after the response is sent and never
+      // throws, so nothing here can delay or block the visitor's results.
+      after(async () => {
+        await recordAndNotifyLead(email, "skills-matcher", leadDeps, { resultId });
+      });
     }
 
     return NextResponse.json({ ok: true });
