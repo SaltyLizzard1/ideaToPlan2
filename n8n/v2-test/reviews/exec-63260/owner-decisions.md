@@ -59,3 +59,22 @@ Visual review of v2.pdf, all 31 pages, by Claude: no clipping, overlap, split ta
 | 63260 | Acceptance generation, version 1 | $1.7626 | Yes |
 | 63276 | Failed pinned rendering attempt in v2 Test, stopped after 38 s | $0.1120 | No |
 | 63295 | Rendering-only copy, version 2 | $0 metered | Yes |
+
+## Acceptance test A1, 2026-10-06: corrected text saved as version 3 (authorised by Liz)
+
+Before the run there was no execution of the save workflow, no version 3 row and no `v3.pdf`.
+
+- Workflow `mZrr18dSBQJk3mzu` "SUPERVISED TEST - Save Reviewed Version A1", built by `supervised/build.mjs save` with the text of `corrected-plan-v2.md`, parent version 2 and the seven sources of execution 63260 (the parent stores none). 19 nodes, no model, approval or customer node. Run once, then archived.
+- Execution 63363: success, 6 seconds, no model call, no metered cost.
+- Created: plan version 3, `fd285afd-9ca3-4e6f-886b-0608ce5e83f0`, order `9e68ffe1-bf25-4af5-af7e-47d309ba6bc4`, status changes_requested, review status HOLD, origin hand_corrected, parent `79d61ace-32f7-467e-b9c7-88028454d120`, not approved, not sent. PDF `9e68ffe1-bf25-4af5-af7e-47d309ba6bc4/v3.pdf`, 31 pages.
+- One held notice to liz@ideatoplan.to (message `1a110aba36438c92`). No other email.
+
+Verified afterwards, by reading the row and the stored files:
+
+- The stored text is identical to `corrected-plan-v2.md`, and `plan_sha256` equals an independently computed SHA-256 of it (`22f41348...`).
+- `sources_cited` is stored as a JSON array of 7 entries (S6, S13, S4, S15, W1, S11, W3).
+- `pdf_sha256` (`179f2b18...`) equals an independently computed SHA-256 of the stored `v3.pdf`.
+- The automated report of version 2 is carried unchanged at the end of the review notes, under the hand-corrected header.
+- Versions 1 and 2: rows unchanged (status, review status, creation time, no text, not approved, not sent); both stored PDFs are byte-identical to the copies saved earlier.
+
+Two things this settles that were unverified before: the Supabase node writes the source list as an array and the plan text byte for byte. The database's insert check on the text fingerprint passed.
