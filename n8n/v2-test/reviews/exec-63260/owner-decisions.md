@@ -141,3 +141,14 @@ Result: A4 passed. Not checked by Claude: the two emails as they appear in the i
 Liz clicked Approve a second time on the same approval email. Read back afterwards: no new execution of the approval copy or the request workflow (63419 remains the only one), no System Alert execution, version 4 unchanged (sent, same approved_at, sent_at and Gmail message `1a1110a7d0fc86af`), order unchanged (delivered, same delivered_at), versions 1 to 3 unchanged, `plan_reviews` still one record.
 
 Result: A5 passed. Nothing was sent and no row changed. Not checked by Claude: what the browser showed Liz on the second click.
+
+## A6 step 1: version 5 saved (2026-10-06)
+
+Authorized by Liz as step 1 only. Before the run: versions 1 to 4, version 4 sent, order delivered, one review record.
+
+- Workflow `VZ59ZBoFaCloASDV` (19 nodes, no model, approval or customer node; the version 4 save workflow with the parent changed to version 4 and a new note), run once and archived. Execution 63429, success, 6 seconds, no model call.
+- Created: plan version 5, `2994d4df-873b-4e1c-898f-d7700e760a1f`, changes_requested, HOLD, hand_corrected, parent version 4 (`337ce0b5-3bd6-4ace-a283-d7ab7d8989aa`), not approved, not sent. PDF `9e68ffe1-bf25-4af5-af7e-47d309ba6bc4/v5.pdf`.
+- One held notice to liz@ideatoplan.to (the notice node succeeded; its recipient is fixed).
+- Read back: stored text identical to `draft-for-version-4.md`, so the plan fingerprint equals version 4's (`14f3c3f4...`). PDF fingerprint `aa6020fa...`, equal to an independent SHA-256 of the stored file, 180,906 bytes. It differs from version 4's PDF fingerprint although the text is the same, so each render is its own file and needs its own review. Sources: 7. Version 4 and the order unchanged. `plan_reviews` still one record.
+
+**One release record per version.** The local test of migration 003 (58 checks, PostgreSQL 18.3 in PGlite, rerun today) confirms a second release record for the same version is refused by `plan_reviews_one_release`, and records cannot be edited. So version 5 can carry the release without a redelivery reason (refusal test) or the one with a reason (successful revised delivery), not both. The guard is not changed. Sequence: release version 5 without a reason, request, expect the stop message; request changes is not needed because the refusal happens before the version is reopened; then save version 6 from version 5, release it with a reason, request, approve.
