@@ -163,7 +163,7 @@ const judge = (c, a, text) => {
     if (own.length) return open('it is classed ' + cls + ' and the sentence cites ' + own.join(', ') + ': a cited sentence states something');
     const qualification = NOT_ESTABLISHED.test(text);
     if (qualification && c.company && /\b(?:price|fee|cost|rate)s?\b/i.test(s(c.row))) {
-      const priced = ledger.filter((e) => e.entity === c.company && /[$\u20ac\u00a3]\s?\d/.test(s(e.claim) + ' ' + s(e.page_excerpt))).map((e) => e.claim_id);
+      const priced = ledger.filter((e) => e.entity === c.company && /[$]\s?\d|\b(?:USD|EUR|GBP)\s?\d/.test(s(e.claim) + ' ' + s(e.page_excerpt))).map((e) => e.claim_id);
       if (priced.length) return open('it says the ' + s(c.row).toLowerCase() + ' of ' + c.company + ' is not established, and ' + priced.join(', ') + ' gives an amount');
     }
     if (c.company && !qualification) return open('it is classed ' + cls + ' and it is in the profile of ' + c.company + ': a sentence in a company profile states something or is a labelled assumption');
