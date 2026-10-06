@@ -1,0 +1,250 @@
+{
+  "name": "Email - Watchdog (marks stuck conversations failed and alerts the owner)",
+  "nodes": [
+    {
+      "id": "e01",
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "e02",
+      "name": "Fail Stuck",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://yglmlnfsyzsvozxirlpo.supabase.co/rest/v1/rpc/email_fail_stuck",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { p_minutes: 20 } }}",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "oxQOdBDbGP7WmsX1",
+          "name": "Supabase account"
+        }
+      },
+      "retryOnFail": false,
+      "alwaysOutputData": true,
+      "notes": "One database statement marks stuck conversations failed, records it, and returns them. Two sweeps cannot both return the same conversation."
+    },
+    {
+      "id": "e03",
+      "name": "Any Stuck?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ !!$json.thread_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "e04",
+      "name": "Stuck Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "sendTo": "liz@ideatoplan.to",
+        "subject": "={{ '[I2P inbox] FAILED: an email was stuck and was not answered' }}",
+        "emailType": "text",
+        "message": "={{ 'A conversation sat unhandled for more than 20 minutes and is now marked failed. Nothing was sent to the customer.\\n\\nFrom: ' + $json.customer_email + '\\nSubject: ' + $json.subject + '\\nConversation ID: ' + $json.thread_id + '\\n\\nRead and answer it by hand.' }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "eKUvaAAgyww27rSu",
+          "name": "Gmail account"
+        }
+      },
+      "retryOnFail": false,
+      "onError": "continueErrorOutput",
+      "notes": "OWNER ALERT ONLY. The recipient is fixed to liz@ideatoplan.to. This workflow has no node that emails a customer."
+    },
+    {
+      "id": "e05",
+      "name": "Record Alert Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://yglmlnfsyzsvozxirlpo.supabase.co/rest/v1/email_events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { thread_id: $('Any Stuck?').item.json.thread_id, event_type: 'owner_alert', direction: 'internal', actor: 'system', summary: 'Stuck alert emailed to liz@ideatoplan.to', detail: { gmail_message_id: $json.id } } }}",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "oxQOdBDbGP7WmsX1",
+          "name": "Supabase account"
+        }
+      },
+      "retryOnFail": false
+    },
+    {
+      "id": "e06",
+      "name": "Record Alert Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        260
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://yglmlnfsyzsvozxirlpo.supabase.co/rest/v1/email_events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { thread_id: $('Any Stuck?').item.json.thread_id, event_type: 'alert_failed', direction: 'internal', actor: 'system', summary: 'The stuck alert email could not be sent. This conversation still needs you.', detail: { error: String(($json.error && ($json.error.message || $json.error)) || 'unknown').slice(0, 500) } } }}",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "oxQOdBDbGP7WmsX1",
+          "name": "Supabase account"
+        }
+      },
+      "retryOnFail": false
+    },
+    {
+      "id": "e07",
+      "name": "Nothing Stuck",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        660,
+        260
+      ],
+      "parameters": {},
+      "notes": "No conversation is stuck."
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Fail Stuck",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fail Stuck": {
+      "main": [
+        [
+          {
+            "node": "Any Stuck?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Stuck?": {
+      "main": [
+        [
+          {
+            "node": "Stuck Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nothing Stuck",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stuck Alert": {
+      "main": [
+        [
+          {
+            "node": "Record Alert Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Record Alert Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Bangkok",
+    "errorWorkflow": "BFirlikXaAuti0bh"
+  }
+}

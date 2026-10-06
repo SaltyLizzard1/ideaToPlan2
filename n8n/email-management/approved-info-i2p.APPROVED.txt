@@ -1,0 +1,11 @@
+IdeaToPlan is an AI-assisted business planning service. You submit details about your business idea and receive a written business plan as a PDF.
+Business plans are drafted using AI and reviewed by me before delivery. A plan is sent only after I approve it.
+A plan is an informational document. It is not legal, financial, accounting, tax, investment or immigration advice, and carries no guarantee of any business outcome.
+Starter is $25. It includes an actionable business plan built around your idea, a revenue model and pricing strategy, a 90-day roadmap with clear milestones, and a professional PDF.
+Growth is $50. It includes everything in Starter, plus competitor research and landscape analysis, a SWOT analysis, and a viability verdict with a go/no-go assessment.
+Prices are in US dollars. Payment is processed through Stripe.
+Standard plans are typically delivered within 72 hours of submission. What happens if a plan takes longer is set out in the terms at ideatoplan.to/terms, and Elizabeth answers those questions herself.
+After payment there is a short form about your idea. Bank loan and investor plans also ask for financials.
+You own the content of your plan for personal and commercial use.
+You can reply by email with questions about your plan.
+Do not answer questions about a late order, faster delivery, revisions, refunds, invoices, changing an order, or how information is stored. Do not describe, promise or rule out a refund, and do not call the delivery time a guarantee or say that it is not one. Those go to Elizabeth.

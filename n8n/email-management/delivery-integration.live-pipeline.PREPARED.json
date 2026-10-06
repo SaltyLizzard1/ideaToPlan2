@@ -1,0 +1,165 @@
+{
+  "_SUPERSEDED": "2026-10-06, Liz's decision: do NOT apply this to the old live pipeline Wn6ATzrXmDvKMwJk. Approval and delivery go live with the improved (v2) pipeline's production cutover, which already ends in the same hand-off to YECjOQHj4oQYVdVW. This file is kept as a record only.",
+  "_status": "PREPARED, NOT APPLIED. Nothing in n8n has been changed by this file.",
+  "_target": "Live pipeline Wn6ATzrXmDvKMwJk, published version f009b21d-5cc3-433e-9138-52f43b6fe0b1 (rollback export: n8n/exports/).",
+  "_summary": "Adds five nodes AFTER email_business_plan_to_me, which stays enabled as the fallback. A new plan gets a stored PDF, a plan_versions row and an approval request. Customer delivery still goes to liz@ideatoplan.to until the recipient switch, which is a separate, later step.",
+  "_requires_first": [
+    "Shared workflow YECjOQHj4oQYVdVW must be PUBLISHED: a production run cannot call an unpublished sub-workflow.",
+    "Recipient in the shared workflow stays liz@ideatoplan.to at this step."
+  ],
+  "_not_included": "The recipient switch to client_email (proven in the isolated copy, execution 63249) and disabling email_business_plan_to_me. Both happen only after a controlled production test.",
+  "add_connection": {
+    "from": "email_business_plan_to_me",
+    "to": "List Plan Versions"
+  },
+  "add_nodes": [
+    {
+      "name": "List Plan Versions",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "retryOnFail": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "oxQOdBDbGP7WmsX1",
+          "name": "Supabase account"
+        }
+      },
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "plan_versions",
+        "returnAll": true,
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "submission_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Log to Supabase').first().json.id }}"
+            }
+          ]
+        }
+      },
+      "_note": "Always Output Data must be on. Without it a new order with no versions stops here silently."
+    },
+    {
+      "name": "Prepare Version",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "// Live pipeline: no automated review runs here. The version is labeled as unreviewed, never as approved.\nconst sub = $('Log to Supabase').first().json;\nif (!sub || !sub.id) throw new Error('No submission id. No plan version was created.');\nconst rows = $input.all().map((i) => i.json).filter((r) => r && r.version);\nconst version = rows.reduce((m, r) => Math.max(m, Number(r.version) || 0), 0) + 1;\nconst pdf = $('Generate PDF').first().binary;\nif (!pdf || !pdf.pdf_data) throw new Error('Generate PDF returned no file. No plan version was created.');\nconst body = $('Webhook').first().json.body || {};\nconst formEmail = String(body.email || '').trim();\nconst checkoutEmail = String(body.verifiedEmail || '').trim();\nconst emailNote = checkoutEmail && checkoutEmail.toLowerCase() !== formEmail.toLowerCase()\n  ? ' Checkout email (' + checkoutEmail + ') differs from the form email (' + formEmail + '). Delivery goes to the form email.'\n  : '';\nreturn [{\n  json: {\n    submission_id: sub.id,\n    version,\n    pdf_path: sub.id + '/v' + version + '.pdf',\n    review_status: 'NO MACHINE REVIEW',\n    review_notes: 'No automated review ran on this plan. Nothing in it has been checked by machine. Read the PDF in full before approving.' + emailNote,\n  },\n  binary: { pdf_data: { ...pdf.pdf_data, mimeType: 'application/pdf' } },\n}];"
+      }
+    },
+    {
+      "name": "Upload Plan PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "oxQOdBDbGP7WmsX1",
+          "name": "Supabase account"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "=https://yglmlnfsyzsvozxirlpo.supabase.co/storage/v1/object/plans/{{ $json.pdf_path }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "pdf_data",
+        "options": {}
+      },
+      "_note": "No x-upsert header, so an existing object cannot be overwritten."
+    },
+    {
+      "name": "Insert Plan Version",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "retryOnFail": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "oxQOdBDbGP7WmsX1",
+          "name": "Supabase account"
+        }
+      },
+      "parameters": {
+        "tableId": "plan_versions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "submission_id",
+              "fieldValue": "={{ $('Prepare Version').first().json.submission_id }}"
+            },
+            {
+              "fieldId": "version",
+              "fieldValue": "={{ $('Prepare Version').first().json.version }}"
+            },
+            {
+              "fieldId": "pdf_path",
+              "fieldValue": "={{ $('Prepare Version').first().json.pdf_path }}"
+            },
+            {
+              "fieldId": "review_status",
+              "fieldValue": "={{ $('Prepare Version').first().json.review_status }}"
+            },
+            {
+              "fieldId": "review_notes",
+              "fieldValue": "={{ $('Prepare Version').first().json.review_notes }}"
+            }
+          ]
+        }
+      },
+      "_note": "status defaults to awaiting_approval. Unique indexes refuse a duplicate version or a second version in flight."
+    },
+    {
+      "name": "Start Approval",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "YECjOQHj4oQYVdVW",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "plan_version_id": "={{ $json.id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "plan_version_id",
+              "displayName": "plan_version_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "_note": "If this fails after the insert, use the recovery workflow 9PLVpEU45vAhUEk2 with the version id. Do not rerun the pipeline."
+    }
+  ],
+  "chain": [
+    "email_business_plan_to_me",
+    "List Plan Versions",
+    "Prepare Version",
+    "Upload Plan PDF",
+    "Insert Plan Version",
+    "Start Approval"
+  ],
+  "v2_coordination": "v2 Test (mLyKvFeYmJHuwXQ9) already ends in the same hand-off (Prepare Version, Upload Plan PDF, Insert Plan Version, Start Approval to YECjOQHj4oQYVdVW). When v2 replaces this pipeline it arrives with delivery attached; these five nodes are then retired with the old pipeline. Nothing here edits v2."
+}
