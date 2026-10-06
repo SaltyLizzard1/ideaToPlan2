@@ -135,3 +135,9 @@ Carried forward from A2: a refusal inside a workflow that is started by hand doe
 - Versions 1 to 3 unchanged. `plan_reviews` still one record. No System Alert execution.
 
 Result: A4 passed. Not checked by Claude: the two emails as they appear in the inbox.
+
+## A5: second Approve click (2026-10-06)
+
+Liz clicked Approve a second time on the same approval email. Read back afterwards: no new execution of the approval copy or the request workflow (63419 remains the only one), no System Alert execution, version 4 unchanged (sent, same approved_at, sent_at and Gmail message `1a1110a7d0fc86af`), order unchanged (delivered, same delivered_at), versions 1 to 3 unchanged, `plan_reviews` still one record.
+
+Result: A5 passed. Nothing was sent and no row changed. Not checked by Claude: what the browser showed Liz on the second click.
