@@ -98,6 +98,10 @@ test('63257: the writer rule, the baseline wording and the printed page', async 
   assert.ok(!/>\s*---\s*</.test(out.html), 'no printed separator');
   assert.match(out.html, /Revenue stream validation/);
   assert.match(out.html, /\.header p\{color:#dbe6f2/);
+  // The PDF is the customer's copy: a held plan (this one is HOLD) prints no internal review status.
+  assert.equal(one(j('Finalize Plan')).status, 'HOLD');
+  assert.ok(!/Hold - not for delivery|unresolved blocking issues|review email/i.test(out.html), 'no review status on the page');
+  assert.match(out.html, /<div class="content"><div class="legend">/);
   // Print rules: rows stay whole where they fit, and headings stay with what follows them.
   assert.match(out.html, /tr\{break-inside:avoid;page-break-inside:avoid\}/);
   assert.match(out.html, /h2,h3,p\.sub\{break-after:avoid;page-break-after:avoid\}/);

@@ -102,3 +102,20 @@ Afterwards the complete version 3 row is byte-identical to the copy taken before
 Prepared, not run: `a3-review-insert.sql`, the review record for Liz to read and run herself. It is a release for approval, not approval to send. It inserts only if version 3 still has its two fingerprints and is still held. It was run against a local copy of the real row in the disposable test database: one row inserted, automated status and report copied unchanged, the version still HOLD and unapproved, a second run refused, and nothing inserted when the stored fingerprint differs.
 
 Carried forward from A2: a refusal inside a workflow that is started by hand does not raise the System Alert. The alert is to be observed when the approval copy refuses a version while running as a sub-workflow; that is added to the remaining tests.
+
+## Presentation rule and version 4, 2026-10-06 (instructed by Liz)
+
+**Rule.** The PDF is the customer's copy. It is rendered without internal review-status wording, before the owner reviews it, and those exact bytes are fingerprinted. HOLD stays in the database row and in the owner notice. Delivery stays blocked until the recorded review and the separate Approve click. Nothing about the approval safeguards changed.
+
+- Code: `format-plan-html.js` no longer prints the "Hold - not for delivery" box; a test asserts that a HOLD plan prints no review status. `supervised/build.mjs` builds the save workflow with the repository's formatter and refuses to build if the formatter prints review status.
+- Not changed: v2 Test still holds the older formatter (the pipeline edits are not deployed), and the stored PDFs of versions 1 to 3 still carry the box.
+
+**Version 4.** Before the run: versions 1 to 3 only, no review record, no `v4.pdf`.
+
+- Workflow `hKfRkX3TE7blqYEj` (19 nodes, no model, approval or customer node), run once and archived. Execution 63410, success, 6 seconds, no model call.
+- Created: plan version 4, `337ce0b5-3bd6-4ace-a283-d7ab7d8989aa`, order `9e68ffe1-bf25-4af5-af7e-47d309ba6bc4`, changes_requested, HOLD, hand_corrected, parent version 3 (`fd285afd-9ca3-4e6f-886b-0608ce5e83f0`), not approved, not sent. PDF `9e68ffe1-bf25-4af5-af7e-47d309ba6bc4/v4.pdf`, 32 pages.
+- One held notice to liz@ideatoplan.to (message `1a110f58f75e0660`).
+- Verified by reading back: stored text identical to `draft-for-version-4.md` (fingerprint `14f3c3f4...`); sources stored as an array of 7, taken from version 3; PDF fingerprint (`93923168...`) equals an independent SHA-256 of the stored file; version 3's notes carried unchanged; the version 3 row and the PDFs of versions 1, 2 and 3 unchanged; `plan_reviews` still empty.
+- Visual review by Claude, all 32 pages: no review-status box on page 1 or anywhere; the six corrections E1 to E6 are in the rendered text; no clipping, overlap, split table row or stranded heading. Cosmetic only: the source list runs onto a last page that is otherwise empty.
+
+**Review statement.** `review-insert-version-4.sql`, prepared for Liz, not run. It names version 4's ID and fingerprints. Run against a local copy of the real row: one row inserted, version still HOLD and unapproved, second run refused, nothing inserted when the fingerprint differs. The version 3 statement `a3-review-insert.sql` was never run and is not to be used.

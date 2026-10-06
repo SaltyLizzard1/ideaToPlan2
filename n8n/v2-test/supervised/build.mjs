@@ -104,6 +104,9 @@ export function buildRequest(approvalWorkflowId, sharedExport) {
   return check({ name: 'SUPERVISED TEST - Request approval for a reviewed version (inactive)', nodes, connections: c, settings: { executionOrder: 'v1', timezone: sh.settings.timezone, saveManualExecutions: true, errorWorkflow: sh.settings.errorWorkflow } }, { executeWorkflow: true });
 }
 
+// The formatter is the repository's file, not the copy in v2 Test: the PDF carries no internal review status.
+const formatNode = (v2) => { const x = copy(v2, 'Format Plan as HTML'); x.parameters.jsCode = fs.readFileSync(new URL('../format-plan-html.js', here), 'utf8').split('\r\n').join('\n').trimEnd(); if (/Hold - not for delivery|review email/i.test(x.parameters.jsCode)) throw new Error('the formatter still prints review status'); return x; };
+
 // ---- Save a hand-corrected text as the next version. No model, approval or customer node. ----
 export function buildSave(v2Export, input = {}) {
   const v2 = load(v2Export);
@@ -122,7 +125,7 @@ export function buildSave(v2Export, input = {}) {
     code('Check Parent', 'check-parent.js'),
     code('Prepare Client Data', 'reviewed-client-data.js'),
     code('Finalize Plan', 'reviewed-finalize.js'),
-    copy(v2, 'Format Plan as HTML'),
+    formatNode(v2),
     copy(v2, 'Generate PDF'),
     code('Fingerprint PDF', 'fingerprint-pdf.js'),
     code('Resolve Submission', 'reviewed-submission.js'),
