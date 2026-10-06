@@ -402,7 +402,9 @@ test('baseline: the fixed inputs reproduce the 63222 figures at $500, whatever t
   assert.deepEqual(out.model.year, FIN.model.year);
   assert.equal(out.cost_headroom.available_usd, 12100);
   assert.deepEqual(out.unresolved_costs, FIN.unresolved_costs);
-  assert.match(out.financial_model, /Held fixed for comparison with the earlier test run\. It is an untested scenario assumption and not a price the founder chose/);
+  assert.match(out.financial_model, /It is an untested scenario assumption and not a price the founder chose/);
+  // The baseline's wording no longer speaks of the test run: that sentence reached customer-facing text in 63257.
+  assert.ok(!/earlier test run|Held fixed for comparison/.test(out.financial_model + JSON.stringify(baseline)));
   assert.ok(!/E27|established firms/.test(JSON.stringify(baseline)));
 });
 

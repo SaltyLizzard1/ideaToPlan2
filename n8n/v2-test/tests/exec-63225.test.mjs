@@ -433,8 +433,11 @@ test('63225 recheck: seven confirmed defects, no unresolved required check, and 
     'L153 SUPERLATIVE STATED WITHOUT COMPARATIVE EVIDENCE',
     // An unsupported ranking of companies is a statement of fact, and blocks like any other since commit after 10c023c.
     'L157 COMPETITOR RANKED WITHOUT EVIDENCE',
-  ].concat(['L157 SUBSTITUTE LIMITATION STATED WITHOUT EVIDENCE']).sort());
+  ].concat(['L157 SUBSTITUTE LIMITATION STATED WITHOUT EVIDENCE', 'L437 ACTION PLAN TARGET EXCEEDS THE FORECAST']).sort());
   assert.deepEqual(f.filter((x) => x.unresolved), []);
+  // Found by the check added after execution 63257: the roadmap asks for 3 paying customers in Month 3, and the
+  // forecast has 1 per month in Months 1-3.
+  assert.ok(f.some((x) => x.check === 'ACTION PLAN TARGET EXCEEDS THE FORECAST' && x.line === 437 && x.severity === 'BLOCKING'));
   assert.deepEqual(f.filter((x) => x.severity === 'MAJOR').map((x) => x.check + (x.line ? ' L' + x.line : '')).sort(), [
     'FINANCIAL MODEL',
     'SOURCE VERIFICATION INCOMPLETE FOR UNUSED CLAIMS',
@@ -447,7 +450,7 @@ test('63225 recheck: seven confirmed defects, no unresolved required check, and 
   assert.ok(!f.some((x) => x.line === 616), 'corrected line 616 passes');
   const g = await gate(f);
   assert.equal(g.blocked, true);
-  assert.equal(g.confirmed_blocker_count, 9);
+  assert.equal(g.confirmed_blocker_count, 10);
   assert.equal(g.unresolved_check_count, 0);
   assert.equal(g.warning_count, 5);
 });

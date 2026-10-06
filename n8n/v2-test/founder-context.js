@@ -233,6 +233,13 @@ State each gap once. Do not repeat "no evidence was found" or "not researched" t
 rules.push(`RULE 17. CALLOUTS.
 Highlight the most important conclusions with callout lines. A callout is a single line on its own that starts with two greater-than signs, a label, and a colon, for example: >> DO THIS FIRST: Hold ten conversations with people in your target group this week. Allowed labels: RECOMMENDS, DO THIS FIRST, BIGGEST RISK, VALIDATE THIS, FIRST REVENUE MILESTONE, WATCH THIS NUMBER. Use DO THIS FIRST, BIGGEST RISK, and FIRST REVENUE MILESTONE exactly once each. Use no more than eight callouts in the whole plan. Never put a callout inside a table.`);
 
+rules.push(`RULE 20. KEEP THE PLAN CONSISTENT WITH ITS OWN MODEL AND ITS OWN EVIDENCE.
+- Customer targets in the 90-Day Action Plan must not exceed the forecast. The forecast table gives the customers per month for Months 1-3. No 90-day target, in any phase, may state more paying customers in a month than that. If the roadmap needs a higher aim, call it a stretch aim beyond the forecast, in those words, in the same sentence.
+- A count has to match what it counts. "Five competitors were reviewed" is followed by exactly five names. "Three providers (...)" lists exactly three.
+- Do not give the session, product, or service a length, a format, or a component that the FOUNDER CONTEXT does not give. If the plan needs one to be concrete, say in the same sentence that it is IdeaToPlan's proposed assumption for the founder to confirm.
+- A competitor's Strength, positioning, customer, or stage is only what its ledger entries say, in plain words. Use no adjective the entry does not carry (comprehensive, end-to-end, high-touch, established, leading, premium). A sentence that begins "Our read:" is still a claim: word it in that sentence as a hypothesis to test, or leave it out.
+- Never say what a source, an article, or a competitor does not cover or does not offer. The ledger records what a page says, not what it leaves out.
+- Never print a rule number or a rule name in the plan ("Rule 7"). Headings are plain names.`);
 rules.push(`RULE 18. SAY IT ONCE, IN PLAIN ENGLISH.
 Explain each risk, assumption, and insight in full once, in the section where it matters most. Elsewhere refer to it in a single clause or by section name. Do not repeat disclaimers. A shorter, denser plan is better than a longer one; do not write to a length. Use plain words. No MBA jargon, no filler, no generic startup advice, no false precision, and no table that adds nothing. Every paragraph must be specific to this founder: if it could appear unchanged in another customer's plan, rewrite it or cut it.`);
 

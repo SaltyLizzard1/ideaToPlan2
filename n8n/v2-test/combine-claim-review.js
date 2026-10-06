@@ -39,10 +39,19 @@ const bare = (v) => String(v || '').replace(/\*\*|__|`/g, '').replace(/\[[SW]\d+
 const letters = (v) => flat(v).replace(/\[[sw]\d+\]/g, '').replace(/[^a-z0-9]/g, '');
 const numsIn = (v) => [...new Set((String(v || '').replace(/\[[SW]\d+\]/g, ' ').replace(/\bL\d+\b/g, ' ').replace(/^\s*\d+[.)]\s+/, '').match(/\d[\d,]*(?:\.\d+)?/g) || []).map((x) => x.replace(/,/g, '').replace(/\.0+$/, '')))];
 const intake = flat(ctx.founder_context);
+// Words quoted as support, looked for word for word. A quote may join several passages with "..." (and, for the
+// intake, set whole sentences side by side): every piece has to be found, and a piece too short to mean anything is
+// not counted as one.
+const quotedIn = (hay, quote, min, bySentence) => {
+  const whole = flat(quote).split(String.fromCharCode(8230)).join('...');
+  if (whole && hay.includes(whole)) return true;
+  const pieces = whole.split(bySentence ? /\s*\.{3}\s*|(?<=[.!?])\s+/ : /\s*\.{3}\s*/).map((x) => x.trim()).filter(Boolean);
+  return pieces.length > 1 && pieces.every((x) => x.length >= min && hay.includes(x));
+};
 // Figures that are the plan's own: the intake and the computed financial model. They need no ledger entry.
 const ownNumbers = new Set(numsIn([ctx.founder_context, fin.scenario_block, fin.forecast_block, fin.budget_block, fin.loan_block, JSON.stringify(fin.allowed_money || '')].join(' ')));
 // A LABEL SAYS THE STATEMENT IS NOT A FACT. These words label the sentence they are in.
-const LABEL = /\bhypothes|\bassum|\bnot (?:yet )?(?:been )?(?:established|known|verified|confirmed|shown|stated|captured|validated)\b|\bwhether\b|\buntested\b|\bunvalidated\b|\bto (?:be )?test(?:ed)?\b|\bIdeaToPlan(?:'s)? (?:reads?|recommends?|hypothesis|assumes?|inference|reading|notes|suggests)\b|\bscenario\b|\bmodel(?:s|ed)?\b|\bforecast\b|\bprojection\b|\bplanning (?:assumption|threshold|figure)\b|\btest criterion\b|\bproposed\b|\bestimate[ds]?\b/i;
+const LABEL = /\bhypothes|\bassum|\bnot (?:yet )?(?:been )?(?:established|known|verified|confirmed|shown|stated|captured|validated)\b|\bwhether\b|\buntested\b|\bunvalidated\b|\bto (?:be )?test(?:ed)?\b|\bIdeaToPlan(?:'s)? (?:reads?|recommends?|hypothesis|assumes?|inference|reading|notes|suggests)\b|\bscenario\b|\bmodel(?:s|ed)?\b|\bforecast\b|\bprojection\b|\bplanning (?:assumption|threshold|figure)s?\b|\btest criteri(?:on|a)\b|\bproposed\b|\bestimate[ds]?\b|\bIdeaToPlan(?:'s)? reasoning\b|\b(?:based on|on) (?:the )?reasoning\b|\breasoning-based\b|\brequires? (?:testing|validation)\b/i;
 // A MODAL LABELS ONLY THE CLAUSE IT GOVERNS. "A positioning could win customers from the three established paid
 // providers" is a hypothesis about the positioning, and it still states as fact that there are three providers, that
 // they are established, and that they charge. With no other label, a modal covers the sentence only when the sentence
@@ -55,6 +64,7 @@ const GENERAL = /\b(?:people|customers?|professionals?|clients?|adults|buyers|pr
 // general about them ("Identify three communities where your customer is likely to be", "If ten messages produce no
 // conversation, stop"). The refusal below is for the plain statement.
 const DIRECTIVE = /^(?:[^:.]{2,40}:\s*)?(?:if|when|once|until|you (?:need|should|must|can|will|have)|do not|don't|identify|write|ask|track|test|use|avoid|confirm|check|review|start|begin|reach|deliver|post|share|send|book|record|measure|decide|revisit|add|choose|run|talk|contact|prepare|draft|publish|synthesize|rewrite|validate|offer|set|keep|treat|plan|build|focus|wait|participat\w*|answer\w*)\b/i;
+// (Kept for reference by tests: the words that mark advice. A recommendation is no longer refused for lacking them.)
 const ADVICE = /\b(?:should|recommends?|consider|need(?:s)? to|must|do not|don't|start|begin|ask|write|identify|track|test|use|avoid|offer|set|reach|deliver|confirm|check|review|keep|treat|plan|build|focus|wait|post|share|send|book|record|measure|decide|revisit|add|raise|lower|choose|run|talk|contact|prepare|draft|publish|synthesize|rewrite|validate)\b|\byou(?:r)?\b/i;
 // "NOT ESTABLISHED" IS A QUALIFICATION, NOT A CLAIM ABOUT THE COMPANY. In a profile, "Price | Not established from the
 // sources reviewed" says what the evidence lacks. It may be classed as asserting nothing. Where code can test it, it
@@ -94,6 +104,35 @@ const unlabelledClause = (text) => {
   }
   return null;
 };
+// A STATEMENT THAT EVIDENCE OR INTAKE INFORMATION IS MISSING NEEDS NO POSITIVE EVIDENCE. "No research was found on
+// referral rates", "the referral rate is unknown", "this does not show how many buyers exist", "outreach capacity was
+// not captured in the intake": each says what is not known. No ledger entry can state that, and asking for one turns an
+// honest sentence into a defect. These words are about evidence, tests, and the intake only. A sentence that denies
+// something about the world ("no competitor offers this") is not one of them and is judged as a claim.
+const ABSENCE = /\b(?:is|are|remains?|was|were) (?:unknown|unresolved|unvalidated|untested|unconfirmed|not resolved|not (?:yet )?(?:tested|demonstrated|modeled|proven))\b|\bnot (?:been )?(?:tested|demonstrated|captured|provided|supplied)\b|\bnot (?:a prediction|proof|evidence|a guarantee|a finding)\b|\bno (?:verified |external |customer )?(?:research|evidence|amount|result|validation|data|price|pricing)\b[^.;]{0,90}\b(?:found|established|confirm\w*|shows?|captured)\b|\b(?:does|do|did) not (?:establish|show|confirm|prove|demonstrate)\b|\bneither of which has been\b|\bnone of these has been tested\b|\bnot captured in the intake\b|\bwere not captured\b|\bwas not captured\b/i;
+// A SHORT SENTENCE ABOUT THE RESEARCH ITSELF ("Five competitors were reviewed for this plan", "Only one direct
+// competitor with verified pricing was found") describes the evidence set. No ledger entry states it, and none could.
+// It is accepted on the same footing as a statement of what is missing. A count in such a sentence is tested where it
+// can be: Citation Check compares a stated number with the names listed after it.
+const RESEARCH_NOTE = /\b(?:reviewed for this plan|(?:sources|providers|competitors) reviewed|verified (?:ledger )?entr(?:y|ies)|verified pric(?:e|ing)|(?:was|were) (?:found|researched)|could not be verified)\b/i;
+const researchNote = (text) => RESEARCH_NOTE.test(text) && text.split(/\s+/).length <= 26;
+// A STATEMENT OF THE PLAN'S OWN ARITHMETIC IS CHECKED BY THE FINANCIAL RECONCILIATION, NOT BY THE CLAIM REVIEW.
+// "1 paying customer = $500 revenue", "At Base (3 sessions per month), that is 6 founder hours": every figure is the
+// model's or the intake's, and nothing in the sentence is about anyone else. Citation Check and Compute Financials
+// test those figures against the model. The reviewer's class for such a sentence is not needed and is not used.
+const MODEL_TERMS = /\$\s?\d|\b(?:revenue|profit|net cash|operating expenses?|costs?|budget|ceiling|forecast|scenario|Base|Target|Stretch|conver(?:sion|ts?)|leads?|sessions?|customers? per month|paying customers?|per (?:session|sale|month)|founder hours|hours per|break-even|threshold|milestone|funding requirement)\b/;
+const MODEL_REF = /\b(?:this assessment|that (?:one )?(?:amount|figure)|unresolved costs?|separate allowance|the (?:Base|Target|Stretch|Target and Stretch) scenarios?|(?:Target|Stretch|Base) (?:and (?:Target|Stretch) )?scenarios?)\b/i;
+const NOT_THE_MODEL = /\b(?:survey\w*|respondents?|travell?ers|stud(?:y|ies)|research|according to|sources?|page|publish\w*|competitors?|providers?)\b/i;
+const modelStatement = (c, text) => {
+  if (/\[[SW]\d+\]/.test(text) || c.company || (c.names || []).length) return false;
+  const figs = numsIn(text);
+  if (figs.some((x) => !ownNumbers.has(x))) return false;
+  // With no figure in it, a sentence is the model's only when it points at the model in so many words.
+  if (!figs.length && !MODEL_REF.test(text)) return false;
+  return (MODEL_TERMS.test(text) || MODEL_REF.test(text)) && !NOT_THE_MODEL.test(text) && !THIRD_PARTY.test(text) && !GENERAL.test(text);
+};
+// A DATE NOTE INSIDE A CELL ("Note: S6 (WanderLuxeD) is an undated page;") is checked against the source record.
+const UNDATED_NOTE = /^(?:note:\s*)?(?:[SW]\d+\b[^;]{0,60}?(?:,|and|\s)+)*[SW]\d+\b[^;]{0,60}?\b(?:is|are) (?:an? )?undated\b/i;
 const NONE_KINDS = { question: (x) => /\?/.test(x), label: (x) => x.replace(/\[[SW]\d+\]/g, ' ').trim().split(/\s+/).length <= 8, criterion: (x) => /\d/.test(x) || /\b(?:test|criterion|threshold|target|pass|fail|metric|measure|done when|complete)\b/i.test(x), reference: (x) => /\b(?:see|section|above|below|following|table|listed|earlier|later)\b/i.test(x), other: () => true };
 const NOT_A_LABEL = /^(?:our read|our view|we think|in our view)[:,.]?$/i;
 const ASPECTS = ['subject', 'meaning', 'qualifiers', 'numbers', 'dates', 'population', 'scope'];
@@ -154,6 +193,17 @@ const judge = (c, a, text) => {
   const cls = s(a.class).toUpperCase();
   const open = (why) => ({ status: 'open', cls, why });
   const defect = (check, why, links) => ({ status: 'defect', cls, check, why, links: links || {} });
+  // Decided by code, whatever class the reviewer gave.
+  if (UNDATED_NOTE.test(bare(text))) {
+    const said = [...new Set(text.match(/\b[SW]\d+\b/g) || [])];
+    const dated = said.filter((id) => srcById[id] && srcById[id].published_iso);
+    if (dated.length) return defect('SOURCE DATE NOTE IS WRONG', 'The sentence calls ' + dated.join(', ') + ' undated, and the source record shows "' + srcById[dated[0]].published + '".', {});
+    if (said.length && said.every((id) => srcById[id])) return { status: 'settled', cls: 'DATE NOTE', links: { sources: said }, by_code: 'a date note, checked against the source records' };
+  }
+  if (modelStatement(c, text)) return { status: 'settled', cls: 'MODEL', links: { figures: numsIn(text) }, by_code: 'a statement of the plan\'s own figures, left to the financial reconciliation checks' };
+  // A sentence that says evidence or intake information is missing. The reviewer finds, rightly, that no entry and no
+  // intake passage states it. That is what the sentence says, so it is not a defect.
+  const absence = (ABSENCE.test(text) || researchNote(text)) && !unlabelledClause(text) && !/\[[SW]\d+\]/.test(text.replace(/\[[SW]\d+\][^.;]*\b(?:does|do) not\b/i, ''));
   if (!CLASSES.includes(cls)) return open('the class is not FOUNDER, EXTERNAL, ASSUMPTION, RECOMMENDATION, or NONE');
   const own = [...new Set((text.match(/\[[SW]\d+\]/g) || []).map((x) => x.slice(1, -1)))];
   const whole = text === c.text;
@@ -170,22 +220,32 @@ const judge = (c, a, text) => {
     if ((c.names || []).length && !qualification) return open('it is classed ' + cls + ' and it names ' + c.names.join(', ') + ': a sentence about a company states something or is a labelled assumption');
     const g = LABEL.test(text) || MODAL.test(text) || DIRECTIVE.test(bare(text)) ? null : text.match(GENERAL);
     if (g) return open('it is classed ' + cls + ' and it generalises about people, customers, or channels ("' + g[0].slice(0, 70) + '"): that is a statement about the world');
-    if (cls === 'RECOMMENDATION') {
-      if (!ADVICE.test(text)) return open('it is classed RECOMMENDATION and nothing in it advises or instructs the founder');
-      return { status: 'settled', cls, links: {}, on_judgment: 'recommendation' };
-    }
+    if (cls === 'RECOMMENDATION') return { status: 'settled', cls, links: {}, on_judgment: 'recommendation' };
     // "No assertion" needs a reason tied to the passage, and the kind it gives has to fit the words.
     const kind = s(a.kind).toLowerCase(), reason = s(a.reason);
     if (!NONE_KINDS[kind]) return open('it is classed NONE and gives no kind (question, label, criterion, reference, other)');
     if (reason.length < 12) return open('it is classed NONE and gives no reason tied to the passage');
-    if (!NONE_KINDS[kind](bare(text))) return open('it is classed NONE as a ' + kind + ', and the words are not one' + (kind === 'question' ? ': there is no question in them' : kind === 'label' ? ': they are a full sentence' : ''));
-    return { status: 'settled', cls, links: { kind, reason }, ...(kind === 'other' ? { on_judgment: 'no assertion, on the reason given' } : {}) };
+    // The kind is confirmed by code where the words bear it out. Where they do not, the answer still stands on its
+    // reason, and is counted with the answers code could not check.
+    const fits = NONE_KINDS[kind](bare(text));
+    return { status: 'settled', cls, links: { kind, reason }, ...(kind === 'other' || !fits ? { on_judgment: 'no assertion, on the reason given' } : {}) };
   }
   if (cls === 'ASSUMPTION') {
     const label = s(a.label);
+    // The row or the lead-in a sentence stands under may be its label: a cell in the row "Unvalidated assumption", a
+    // sentence under "Positioning Hypothesis." And a sentence that says something is unknown or untested labels itself.
+    // A row label is a label for its cell: the cell under "Unvalidated assumption" is the assumption. A lead-in such
+    // as "Positioning Hypothesis." heads a paragraph, and a fact stated inside one of its sentences is still a fact, so
+    // a lead-in is not taken as a label here.
+    const rowLabel = whole && LABEL.test(s(c.row));
+    if (rowLabel || ABSENCE.test(text)) {
+      const loose = unlabelledClause(text);
+      if (loose && !rowLabel) return open('the sentence says something is not known or not tested, and the clause "' + loose.clause.slice(0, 120) + '" carries no label and ' + loose.why + ': it has to be split off and judged');
+      return { status: 'settled', cls, links: { label: rowLabel ? s(c.row) : label } };
+    }
     if (!LABEL.test(text) && !MODAL.test(text)) return defect('ASSUMPTION NOT LABELLED IN THE TEXT', 'The review classed this sentence as an assumption or hypothesis. The sentence carries no hypothesis, assumption, or not-established wording of its own' + (label ? ' (the review pointed to "' + label.slice(0, 80) + '")' : '') + '. A label in a neighbouring sentence does not cover it.', { label });
     if (!label) return open('it is classed ASSUMPTION and the answer does not quote the labelling words');
-    if (!flat(text).includes(flat(label))) return open('it is classed ASSUMPTION and the label it quotes is not in the sentence');
+    if (!quotedIn(flat(text), label, 3)) return open('it is classed ASSUMPTION and the label it quotes is not in the sentence');
     if (NOT_A_LABEL.test(label.trim())) return defect('ASSUMPTION NOT LABELLED IN THE TEXT', 'The review gave "' + label + '" as the label. That names the author; it does not say the statement is a hypothesis or an assumption.', { label });
     if (LABEL.test(text)) {
       const loose = unlabelledClause(text);
@@ -208,11 +268,15 @@ const judge = (c, a, text) => {
   const supported = a.supported === true || s(a.supported).toLowerCase() === 'true';
   const unsupported = a.supported === false || s(a.supported).toLowerCase() === 'false';
   if (!supported && !unsupported) return open('the answer does not say whether the claim is supported');
+  if (absence && unsupported) return { status: 'settled', cls: 'ABSENCE', links: {}, on_judgment: 'statement that evidence or intake information is missing' };
   if (cls === 'FOUNDER') {
     if (unsupported) return defect('FOUNDER DETAIL NOT IN THE INTAKE', 'The review found that the founder context does not state this.' + (s(a.missing) ? ' Missing: ' + s(a.missing).slice(0, 240) : ''), {});
     const q = flat(a.intake_quote);
-    if (q.length < 12) return open('it is classed FOUNDER and quotes nothing from the founder context');
-    if (!intake.includes(q)) return open('it is classed FOUNDER and the words it quotes are not in the founder context');
+    // A one-word intake answer ("Experience") is the whole of what the founder said, and is quoted whole.
+    const wholeAnswer = q.length >= 3 && intake.includes(': ' + q + ' [founder-provided fact]');
+    if (q.length < 12 && !wholeAnswer) return open('it is classed FOUNDER and quotes nothing from the founder context');
+    // Sentences quoted together need not stand together in the intake. Each one has to be there, word for word.
+    if (!wholeAnswer && !quotedIn(intake, q, 12, true)) return open('it is classed FOUNDER and the words it quotes are not in the founder context');
     const foreign = numsIn(text).filter((x) => !ownNumbers.has(x));
     if (foreign.length) return open('the number ' + foreign.join(', ') + ' is not in the founder context or the financial model');
     return { status: 'settled', cls, links: { intake_quote: s(a.intake_quote) } };
@@ -244,7 +308,8 @@ const judge = (c, a, text) => {
   const hay = ids.map((id) => s(byId[id].claim) + ' ' + s(byId[id].page_excerpt)).join(' ');
   const q = flat(a.entry_quote);
   if (q.length < 6) return open('the answer does not quote the words of the entry that carry the support');
-  if (!flat(hay).includes(q)) return open('the words it quotes as support are not in the entry it names');
+  // A quote may join words of several entries with "...". Every piece has to be there, word for word.
+  if (!quotedIn(flat(hay), q, 6)) return open('the words it quotes as support are not in the entry it names');
   // Numbers and dates, where code can tell: each has to be in the entry text or its source record.
   const record = from.map((id) => (srcById[id] ? [srcById[id].title, srcById[id].published, srcById[id].published_iso].join(' ') : '')).join(' ');
   const known = new Set(numsIn(hay + ' ' + record));
@@ -257,7 +322,9 @@ const judge = (c, a, text) => {
 // Two verdicts for one claim are the same verdict when they give the same class and, where the class has one, the same
 // answer on support. "Supported" means nothing for an assumption, a recommendation, or no assertion, so it is not
 // compared there: the same recommendation listed twice is one verdict, not a contradiction.
-const sigOf = (p) => { const k = s(p && p.class).toUpperCase(); return k + (k === 'FOUNDER' || k === 'EXTERNAL' ? '/' + s(p && p.supported) : ''); };
+// An entry with a kind and no class came from the "none" form written into "claims": it is a NONE verdict.
+const classOf = (p) => s(p && p.class).toUpperCase() || (p && s(p.kind) ? 'NONE' : '');
+const sigOf = (p) => { const k = classOf(p); return k + (k === 'FOUNDER' || k === 'EXTERNAL' ? '/' + s(p && p.supported) : ''); };
 const signature = (a) => (Array.isArray(a.split) ? 'SPLIT:' + a.split.map(sigOf).join(',') : sigOf(a));
 const records = [];
 const duplicates = [], contradictory = [];
@@ -272,7 +339,9 @@ failed.forEach((f) => { if (!f.partial) failedWhy[f.batch] = f.why; });
     if (new Set(got.map(signature)).size > 1) { contradictory.push(c.id); records.push({ ...rec, status: 'open', why: got.length + ' verdicts were given and they disagree (' + got.map(signature).join(' and ') + ')' }); return; }
     duplicates.push(c.id);
   }
-  const a = got[0];
+  // Equivalent answers are merged: what one of them leaves out (a kind, a reason, a quote) the other may carry.
+  const a = got.length > 1 && !Array.isArray(got[0].split) ? got.reduce((m, x) => { Object.keys(x).forEach((k) => { if (m[k] === undefined || m[k] === '' || m[k] === null) m[k] = x[k]; }); return m; }, { ...got[0] }) : got[0];
+  if (a && !a.class && s(a.kind)) a.class = 'NONE';
   if (Array.isArray(a.split)) {
     const parts = a.split.filter((p) => p && s(p.text));
     // A split of one part is that part's verdict, and only when the part is the whole claim. A part that covers less
@@ -310,6 +379,8 @@ const claim_review = {
   rejected_responses: rejected,
   repeated_batches: repeated,
   review: expected,
+  // Settled by code, with no judgment asked of the reviewer: date notes and statements of the plan's own figures.
+  by_code: records.flatMap((r) => (r.parts ? r.parts : [r])).filter((x) => x.status === 'settled' && x.by_code).reduce((m, x) => { m[x.cls] = (m[x.cls] || 0) + 1; return m; }, {}),
   // Settled with nothing for code to check: the reviewer's judgment alone. A well-formed and wrong answer passes here.
   on_judgment: records.flatMap((r) => (r.parts ? r.parts : [r])).filter((x) => x.status === 'settled' && x.on_judgment).reduce((m, x) => { m[x.on_judgment] = (m[x.on_judgment] || 0) + 1; return m; }, {}),
   coverage: cov,

@@ -380,7 +380,8 @@ test('combining: with every claim answered once, nothing is missing and the coun
   assert.deepEqual(cr.open.map((o) => 'L' + o.line), ['L27', 'L77']);
   assert.deepEqual([cr.usage.requests, cr.usage.responses, cr.usage.answered, cr.usage.prompt_tokens, cr.usage.completion_tokens, Math.round(cr.usage.cost * 100) / 100, cr.usage.cost_known], [13, 13, 13, 91000, 26000, 0.65, true]);
   // What was settled with nothing for code to check is counted, not hidden.
-  assert.deepEqual(Object.keys(cr.on_judgment).sort(), ['assumption labelled by a modal alone', 'no assertion, on the reason given', 'recommendation']);
+  for (const k of ['assumption labelled by a modal alone', 'no assertion, on the reason given', 'recommendation']) assert.ok(cr.on_judgment[k] > 0, k);
+  assert.ok(cr.on_judgment.recommendation > 0);
 });
 
 test('combining: a missing verdict, a repeated one, and two that disagree are each recorded for what they are', async () => {
@@ -699,13 +700,17 @@ test('no assertion: a bare ID, a missing reason, and a kind that does not fit th
   const cases = [
     [c, { class: 'NONE' }, /classed NONE and gives no kind/],
     [c, { class: 'NONE', kind: 'criterion', reason: 'ok' }, /classed NONE and gives no reason tied to the passage/],
-    [c, { class: 'NONE', kind: 'question', reason: 'it asks the founder something' }, /classed NONE as a question, and the words are not one: there is no question in them/],
-    [long, { class: 'NONE', kind: 'label', reason: 'a heading for the section' }, /classed NONE as a label, and the words are not one: they are a full sentence/],
     [long, { class: 'RECOMMENDATION' }, null],
   ];
   for (const [claim, a, why] of cases) {
     const r = rec((await combine(items, respond(items, { [claim.id]: a }))).claim_review, claim.id);
     if (why) { assert.equal(r.status, 'open', JSON.stringify(a)); assert.match(r.why, why); }
+  }
+  // A kind that does not fit the words no longer makes the answer unusable. It stands on its reason, and is counted
+  // with the answers code could not check.
+  for (const [claim, a] of [[c, { class: 'NONE', kind: 'question', reason: 'it asks the founder something' }], [long, { class: 'NONE', kind: 'label', reason: 'a heading for the section' }]]) {
+    const r = rec((await combine(items, respond(items, { [claim.id]: a }))).claim_review, claim.id);
+    assert.deepEqual([r.status, r.on_judgment], ['settled', 'no assertion, on the reason given']);
   }
   // THE LIMIT, STATED AS A TEST. "What they need is a structured, personalized plan ..." is a claim about what customers
   // need. Called "other" with a plausible reason, it passes: code has nothing to check the reason against. It is

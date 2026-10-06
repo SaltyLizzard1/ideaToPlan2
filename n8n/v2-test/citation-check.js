@@ -300,7 +300,11 @@ lines.forEach((line, i) => {
       if (!ids.length) continue;
       const before = mentions.filter((x) => x.end <= run.index);
       let about = [];
-      if (before.length) {
+      // "S6 (WanderLuxeD), S13 (Kismet Travels & Tours)": a citation with its own company in brackets straight after
+      // it is a pair. It is judged as that pair, right or wrong, and not against the company named before it.
+      const paired = ids.length === 1 && clause.charAt(run.index + run[0].length) === '(' ? mentions.find((x) => x.start >= run.index + run[0].length && x.start <= run.index + run[0].length + 2) : null;
+      if (paired) about = [paired.e];
+      else if (before.length) {
         let k = before.length - 1;
         about = [before[k].e];
         while (k > 0 && /^[\s,]*(?:and|or|&)?[\s,]*$/i.test(clause.slice(before[k - 1].end, before[k].start))) { k--; about.push(before[k].e); }
@@ -693,7 +697,11 @@ lines.forEach((line, i) => {
         const lineAmounts = amountsIn(t);
         const ownEstablished = backingEntries.some((c) => { const e = ownerOfPrice(c); return !!e && amountsIn(String(c.claim || '') + ' ' + String(c.page_excerpt || '')).some((a) => lineAmounts.includes(a)) && (spaced(t).includes(' ' + e.name_words + ' ') || aliasesOf(e).some((s) => t.includes(s))); });
         const why = [];
-        if (PRICE_INFER.test(clause) && !PRICE_DENIED.test(clause)) why.push('it draws a conclusion about the market, the category, customers, or the room for this offer');
+        // A sentence that puts the question ("whether a paying market exists is a hypothesis") draws no conclusion, and
+        // neither does one that only says what a provider's page lists ("at least one provider lists premium prices").
+        const asked = /\bwhether\b[^.;]{0,160}\b(?:hypothes|unknown|not (?:been )?established|untested|unvalidated|requires? validation)|\bis a hypothesis\b/i.test(clause);
+        const listsOnly = /\b(?:one|a single|at least one|that) provider\b[^.;]{0,60}\blists?\b/i.test(clause) && !/\b(?:categor|market|industry|sector|segment)\w*\b[^.;]{0,40}\b(?:support|carr|sustain|bear)/i.test(clause);
+        if (PRICE_INFER.test(clause) && !PRICE_DENIED.test(clause) && !asked && !listsOnly) why.push('it draws a conclusion about the market, the category, customers, or the room for this offer');
         const who = clause.match(PRICE_WHO);
         if (who && !backing.toLowerCase().includes(who[0].toLowerCase().split(' ')[0])) why.push('it says the price is charged by "' + who[0] + '", which the verified claim does not state');
         if (PRICE_OWN.test(clause) && !ownEstablished) why.push('it presents the figure as that provider\'s own pricing or packages, and the ledger does not establish that: no verified entry states what that company itself charges for an offer of its own');
@@ -1036,6 +1044,65 @@ if (String(ctx.assets_state || '').toLowerCase() === 'unknown') lines.forEach((l
   if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || demandComputed.has(t)) return;
   const hit = sentencesOfLine(t).find((seg) => { const m = seg.match(UNKNOWN_NONE); return !!m && !/\b(?:if|whether|unless|in case)\b/i.test(seg.slice(0, m.index)) && !/\bnot (?:captured|provided|known|stated)\b/i.test(seg); });
   if (hit) add('BLOCKING', 'UNKNOWN STATED AS NONE', 'This text says the founder has no audience, list, customers, or website, or that one does not exist. The intake did not say what the founder already has, so that is not known. Say that it was not captured in the intake, or make the sentence conditional ("if you do not yet have an audience").', short(hit), i + 1);
+});
+
+// ---------- WHAT A SOURCE IS SAID NOT TO COVER ----------
+// "Covers practical logistics; does not cover financial planning or career transition" says what a page leaves out.
+// The ledger records what a page says. A statement of what it lacks needs a label, or it goes.
+const NOT_COVERED = /\b(?:does|do) not (?:cover|address|include|offer|provide|deal with|answer)\b/i;
+lines.forEach((line, i) => {
+  const t = line.trim();
+  const L = i + 1;
+  if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || demandComputed.has(t)) return;
+  const aboutSource = /\[[SW]\d+\]/.test(t) || !!profileOwner[L] || entities.some((e) => e.name_words && spaced(t).includes(' ' + e.name_words + ' '));
+  if (!aboutSource || issues.some((x) => x.line === L && x.type === 'SUBSTITUTE LIMITATION STATED WITHOUT EVIDENCE')) return;
+  const hit = sentencesOfLine(t).flatMap((x) => x.split(/;\s+/)).find((seg) => NOT_COVERED.test(seg) && !RANK_LABEL.test(seg) && !/\b(?:may|might|could|whether|hypothes|not (?:been )?established|unknown)\b/i.test(seg) && !/\b(?:does|do) not (?:show|establish|confirm|mean|state)\b/i.test(seg) && !/\b(?:survey|sample|data point|finding|figure|study|your)\b/i.test(seg) && !/\b(?:does|do) not cover (?:the|this|that|these|those)\b[^.;]{0,50}\b(?:group|audience|demographic|customers?|segment|buyers?)\b/i.test(seg));
+  if (hit) add('BLOCKING', 'SUBSTITUTE LIMITATION STATED WITHOUT EVIDENCE', 'This text says what a source, an article, or a provider does not cover or does not offer. The verified claims record what the page says, not what it leaves out. Say what the page covers, and word anything about what it lacks as a hypothesis to test, or remove it.', short(hit), L);
+});
+
+// ---------- A COUNT THAT DOES NOT MATCH ITS OWN LIST ----------
+// "Three providers (Focus Partners, Where to Move Guide, Virtual Vocations, kf.social, and Pet Jets)": five names.
+const COUNT_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+lines.forEach((line, i) => {
+  const t = line.trim();
+  if (!t || t.startsWith('#') || /^\|/.test(t) || demandComputed.has(t)) return;
+  const re = /\b(one|two|three|four|five|six|seven|eight|nine|ten|\d{1,2})\s+(?:other\s+|direct\s+|indirect\s+)?(?:providers?|competitors?|companies|sources|substitutes|alternatives)\s*\(([^()]{3,300})\)/gi;
+  let m;
+  while ((m = re.exec(t)) !== null) {
+    const said = COUNT_WORDS[m[1].toLowerCase()] || Number(m[1]);
+    const listed = m[2].split(/,\s*(?:and\s+)?|\s+and\s+/).map((x) => x.trim()).filter(Boolean).length;
+    if (said && listed > 1 && said !== listed) add('BLOCKING', 'COUNT DOES NOT MATCH THE LIST', 'This text says ' + m[1].toLowerCase() + ' and then lists ' + listed + ' names. State the number that the list has, or list only what the number covers.', short(m[0]), i + 1);
+  }
+});
+
+// ---------- 90-DAY TARGETS AGAINST THE FORECAST ----------
+// The forecast gives customers per month for Months 1-3. A 90-day target that names more paying customers in a month
+// than that asks the founder to beat the plan's own model without saying so.
+const firstQuarter = (() => { const m = String(fin.forecast_block || '').match(/^\|\s*Months 1-3\s*\|\s*(\d+(?:\.\d+)?)\s*\|/m); return m ? Number(m[1]) : null; })();
+if (firstQuarter !== null) {
+  let inPlan = false;
+  lines.forEach((line, i) => {
+    const t = line.trim();
+    if (/^## /.test(t)) inPlan = /90-Day/i.test(t);
+    if (!inPlan || !t || t.startsWith('#')) return;
+    const m = t.match(/\b(\d+)\s+paying customers?\s+(?:in|during|by)\s+(?:the\s+)?month\s+[123]\b/i);
+    if (m && Number(m[1]) > firstQuarter && !/\b(?:stretch|beyond the forecast|above the forecast)\b/i.test(t)) add('BLOCKING', 'ACTION PLAN TARGET EXCEEDS THE FORECAST', 'This 90-day target is ' + m[1] + ' paying customers in a month. The forecast has ' + firstQuarter + ' customer' + (firstQuarter === 1 ? '' : 's') + ' per month in Months 1-3 and reaches more only later. Set the target at what the forecast assumes for these months, or say in the same sentence that it is a stretch aim beyond the forecast.', short(m[0]), i + 1);
+  });
+}
+
+// ---------- A SESSION LENGTH THE INTAKE DOES NOT GIVE ----------
+// "A single 90-minute planning session" describes the founder's offer. If the intake gives no length, the plan may
+// propose one only as its own assumption, said in the same sentence.
+lines.forEach((line, i) => {
+  const t = line.trim();
+  if (!t || t.startsWith('#') || /^\|?\s*:?-{2,}/.test(t) || demandComputed.has(t)) return;
+  if (!/^\|\s*(?:\*\*)?(?:What they buy|Primary offer|Offer|The offer|What the customer buys)\b/i.test(t) || profileOwner[i + 1] || /\[[SW]\d+\]/.test(t)) return;
+  const m = t.match(/\b(\d{2,3})[- ]minutes?\b|\b(\d(?:\.\d)?)[- ]hours?\b/i);
+  if (!m) return;
+  const said = (m[1] || m[2]);
+  if (new RegExp('\\b' + said + '[- ]?(?:minutes?|hours?|min|hrs?)\\b', 'i').test(String(ctx.founder_context || ''))) return;
+  if (/\b(?:proposed|assum|IdeaToPlan (?:suggests|recommends|proposes)|to (?:be )?confirm|not (?:set|given|stated) (?:by|in))\b/i.test(t)) return;
+  add('BLOCKING', 'OFFER DETAIL NOT IN THE INTAKE', 'This describes the offer with a length ("' + m[0] + '") that the intake does not give. State it as IdeaToPlan\'s proposed assumption in this sentence, for the founder to confirm, or leave the length out.', short(m[0]), i + 1);
 });
 
 // ---------- SURVEY FINDINGS KEEP THEIR SCOPE ----------
