@@ -56,6 +56,44 @@ const GENERAL = /\b(?:people|customers?|professionals?|clients?|adults|buyers|pr
 // conversation, stop"). The refusal below is for the plain statement.
 const DIRECTIVE = /^(?:[^:.]{2,40}:\s*)?(?:if|when|once|until|you (?:need|should|must|can|will|have)|do not|don't|identify|write|ask|track|test|use|avoid|confirm|check|review|start|begin|reach|deliver|post|share|send|book|record|measure|decide|revisit|add|choose|run|talk|contact|prepare|draft|publish|synthesize|rewrite|validate|offer|set|keep|treat|plan|build|focus|wait|participat\w*|answer\w*)\b/i;
 const ADVICE = /\b(?:should|recommends?|consider|need(?:s)? to|must|do not|don't|start|begin|ask|write|identify|track|test|use|avoid|offer|set|reach|deliver|confirm|check|review|keep|treat|plan|build|focus|wait|post|share|send|book|record|measure|decide|revisit|add|raise|lower|choose|run|talk|contact|prepare|draft|publish|synthesize|rewrite|validate)\b|\byou(?:r)?\b/i;
+// "NOT ESTABLISHED" IS A QUALIFICATION, NOT A CLAIM ABOUT THE COMPANY. In a profile, "Price | Not established from the
+// sources reviewed" says what the evidence lacks. It may be classed as asserting nothing. Where code can test it, it
+// does: a price called not established when an entry about that company gives an amount is not accepted.
+const NOT_ESTABLISHED = /\bnot (?:yet )?(?:been )?(?:established|known|stated|shown|verified|confirmed)\b/i;
+// A FIGURE IS THE PLAN'S OWN WHEN THE SENTENCE SAYS SO. "Your specific 40-60 age group", "the model's $500 price":
+// the figure is in the intake or the financial model, and the words before it point at the founder or the plan. Such
+// a figure needs no ledger entry. The same digits attributed to a source ("6,000 surveyed travelers") do.
+const OWN_CUE = /\b(?:your|you|this plan|the plan|the model|the forecast|the budget|scenario|our|IdeaToPlan)\b[^.;,]{0,45}$/i;
+const outsideFigures = (v) => {
+  const txt = String(v || '').replace(/\[[SW]\d+\]/g, ' ').replace(/\bL\d+\b/g, ' ').replace(/^\s*\d+[.)]\s+/, '');
+  const out = [];
+  const re = /\d[\d,]*(?:\.\d+)?/g;
+  let m;
+  while ((m = re.exec(txt)) !== null) {
+    const n = m[0].replace(/,/g, '').replace(/\.0+$/, '');
+    if (ownNumbers.has(n) && OWN_CUE.test(txt.slice(Math.max(0, m.index - 70), m.index))) continue;
+    out.push(n);
+  }
+  return [...new Set(out)];
+};
+// A LABEL COVERS THE CLAUSE IT IS IN. "They depend on an audience that does not yet exist and their revenue is not yet
+// estimable": "not yet estimable" qualifies the revenue, and the audience clause is stated flat. A clause with no label
+// and no modal of its own holds the sentence when it states something code can see: a citation, an absolute ("does
+// not exist", "there is no"), other providers, or a figure from outside the plan.
+const CLAUSE = /;\s+|\s+because\s+|,\s+(?:and|but|while|whereas|so)\s+|\s+and\s+(?=(?:their|they|it|its|the|this|these|those|there)\b)/i;
+const ABSOLUTE = /\b(?:does|do|did) not (?:yet )?exist\b|\bthere (?:is|are) no\b|\bno (?:existing )?(?:audience|customers|clients|competitors?|providers?|alternatives)\b/i;
+const unlabelledClause = (text) => {
+  const clauses = String(text).split(CLAUSE).map((x) => String(x || '').trim()).filter(Boolean);
+  if (clauses.length < 2) return null;
+  for (const cl of clauses) {
+    if (LABEL.test(cl) || MODAL.test(cl)) continue;
+    const cites = cl.match(/\[[SW]\d+\]/g), ab = cl.match(ABSOLUTE), tp = cl.match(THIRD_PARTY);
+    const figs = outsideFigures(cl).filter((x) => !ownNumbers.has(x));
+    const why = cites ? 'cites ' + cites.join(' ') : ab ? 'states "' + ab[0] + '"' : tp ? 'refers to "' + tp[0] + '"' : figs.length ? 'carries the figure ' + figs.join(', ') : '';
+    if (why) return { clause: cl, why };
+  }
+  return null;
+};
 const NONE_KINDS = { question: (x) => /\?/.test(x), label: (x) => x.replace(/\[[SW]\d+\]/g, ' ').trim().split(/\s+/).length <= 8, criterion: (x) => /\d/.test(x) || /\b(?:test|criterion|threshold|target|pass|fail|metric|measure|done when|complete)\b/i.test(x), reference: (x) => /\b(?:see|section|above|below|following|table|listed|earlier|later)\b/i.test(x), other: () => true };
 const NOT_A_LABEL = /^(?:our read|our view|we think|in our view)[:,.]?$/i;
 const ASPECTS = ['subject', 'meaning', 'qualifiers', 'numbers', 'dates', 'population', 'scope'];
@@ -123,8 +161,13 @@ const judge = (c, a, text) => {
     // A sentence that cites a source, sits in a company's profile, or names a company says something about the world.
     // Classing it as advice or as nothing would take it out of the review, so that answer is not accepted.
     if (own.length) return open('it is classed ' + cls + ' and the sentence cites ' + own.join(', ') + ': a cited sentence states something');
-    if (c.company) return open('it is classed ' + cls + ' and it is in the profile of ' + c.company + ': a sentence in a company profile states something or is a labelled assumption');
-    if ((c.names || []).length) return open('it is classed ' + cls + ' and it names ' + c.names.join(', ') + ': a sentence about a company states something or is a labelled assumption');
+    const qualification = NOT_ESTABLISHED.test(text);
+    if (qualification && c.company && /\b(?:price|fee|cost|rate)s?\b/i.test(s(c.row))) {
+      const priced = ledger.filter((e) => e.entity === c.company && /[$\u20ac\u00a3]\s?\d/.test(s(e.claim) + ' ' + s(e.page_excerpt))).map((e) => e.claim_id);
+      if (priced.length) return open('it says the ' + s(c.row).toLowerCase() + ' of ' + c.company + ' is not established, and ' + priced.join(', ') + ' gives an amount');
+    }
+    if (c.company && !qualification) return open('it is classed ' + cls + ' and it is in the profile of ' + c.company + ': a sentence in a company profile states something or is a labelled assumption');
+    if ((c.names || []).length && !qualification) return open('it is classed ' + cls + ' and it names ' + c.names.join(', ') + ': a sentence about a company states something or is a labelled assumption');
     const g = LABEL.test(text) || MODAL.test(text) || DIRECTIVE.test(bare(text)) ? null : text.match(GENERAL);
     if (g) return open('it is classed ' + cls + ' and it generalises about people, customers, or channels ("' + g[0].slice(0, 70) + '"): that is a statement about the world');
     if (cls === 'RECOMMENDATION') {
@@ -144,7 +187,11 @@ const judge = (c, a, text) => {
     if (!label) return open('it is classed ASSUMPTION and the answer does not quote the labelling words');
     if (!flat(text).includes(flat(label))) return open('it is classed ASSUMPTION and the label it quotes is not in the sentence');
     if (NOT_A_LABEL.test(label.trim())) return defect('ASSUMPTION NOT LABELLED IN THE TEXT', 'The review gave "' + label + '" as the label. That names the author; it does not say the statement is a hypothesis or an assumption.', { label });
-    if (LABEL.test(text)) return { status: 'settled', cls, links: { label } };
+    if (LABEL.test(text)) {
+      const loose = unlabelledClause(text);
+      if (loose) return open('the label "' + (label || (text.match(LABEL) || [''])[0]) + '" qualifies its own clause, and the clause "' + loose.clause.slice(0, 120) + '" carries no label and ' + loose.why + ': it has to be split off and judged');
+      return { status: 'settled', cls, links: { label } };
+    }
     // Only a modal. It covers its own clause, so anything else the sentence states has to be split off and judged.
     const beside = [];
     if (own.length) beside.push('cites ' + own.join(', '));
@@ -201,13 +248,17 @@ const judge = (c, a, text) => {
   // Numbers and dates, where code can tell: each has to be in the entry text or its source record.
   const record = from.map((id) => (srcById[id] ? [srcById[id].title, srcById[id].published, srcById[id].published_iso].join(' ') : '')).join(' ');
   const known = new Set(numsIn(hay + ' ' + record));
-  const foreign = numsIn(text).filter((x) => !known.has(x));
+  const foreign = outsideFigures(text).filter((x) => !known.has(x));
   if (foreign.length) return open('the number or date ' + foreign.join(', ') + ' is not in the text of ' + ids.join(', ') + ' or its source record');
   return { status: 'settled', cls, links };
 };
 
 // ---------- 3. one result per claim ----------
-const signature = (a) => (Array.isArray(a.split) ? 'SPLIT:' + a.split.map((p) => s(p && p.class).toUpperCase() + '/' + s(p && p.supported)).join(',') : s(a.class).toUpperCase() + '/' + s(a.supported));
+// Two verdicts for one claim are the same verdict when they give the same class and, where the class has one, the same
+// answer on support. "Supported" means nothing for an assumption, a recommendation, or no assertion, so it is not
+// compared there: the same recommendation listed twice is one verdict, not a contradiction.
+const sigOf = (p) => { const k = s(p && p.class).toUpperCase(); return k + (k === 'FOUNDER' || k === 'EXTERNAL' ? '/' + s(p && p.supported) : ''); };
+const signature = (a) => (Array.isArray(a.split) ? 'SPLIT:' + a.split.map(sigOf).join(',') : sigOf(a));
 const records = [];
 const duplicates = [], contradictory = [];
 const failedWhy = {};
@@ -224,11 +275,13 @@ failed.forEach((f) => { if (!f.partial) failedWhy[f.batch] = f.why; });
   const a = got[0];
   if (Array.isArray(a.split)) {
     const parts = a.split.filter((p) => p && s(p.text));
-    if (parts.length < 2) { records.push({ ...rec, status: 'open', why: 'the split has fewer than two parts' }); return; }
+    // A split of one part is that part's verdict, and only when the part is the whole claim. A part that covers less
+    // leaves the rest with no verdict, which the coverage test below reports.
+    if (!parts.length) { records.push({ ...rec, status: 'open', why: 'the split has no parts' }); return; }
     const whole = flat(c.text);
     const off = parts.filter((p) => !whole.includes(flat(p.text)));
     if (off.length) { records.push({ ...rec, status: 'open', why: 'a part of the split is not the words of the sentence: "' + s(off[0].text).slice(0, 80) + '"' }); return; }
-    if (parts.reduce((n, p) => n + letters(p.text).length, 0) < 0.85 * letters(c.text).length) { records.push({ ...rec, status: 'open', why: 'the parts of the split leave out words of the sentence' }); return; }
+    if (parts.reduce((n, p) => n + letters(p.text).length, 0) < 0.85 * letters(c.text).length) { records.push({ ...rec, status: 'open', why: parts.length === 1 ? 'the split has one part and it is not the whole sentence: the rest has no verdict' : 'the parts of the split leave out words of the sentence' }); return; }
     const judged = parts.map((p, k) => ({ id: c.id + '.' + String.fromCharCode(97 + k), text: s(p.text), ...judge(c, p, s(p.text)) }));
     const worst = judged.some((j) => j.status === 'open') ? 'open' : judged.some((j) => j.status === 'defect') ? 'defect' : 'settled';
     records.push({ ...rec, status: worst, cls: 'SPLIT', parts: judged, why: judged.filter((j) => j.status !== 'settled').map((j) => j.id + ': ' + j.why).join(' | '), check: (judged.find((j) => j.status === 'defect') || {}).check });

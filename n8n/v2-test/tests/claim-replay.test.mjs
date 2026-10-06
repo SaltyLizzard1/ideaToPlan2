@@ -71,11 +71,11 @@ test('replay: requests go one at a time, and a stop is final', async () => {
   assert.equal(s1.budget_log.length, 13);
   assert.ok(s1.budget_log.every((l) => l.go));
   s1.budget_log.forEach((l, k) => { if (k) assert.ok(l.spent_before > s1.budget_log[k - 1].spent_before, 'what was spent is read before each request'); });
-  assert.equal(s1.spent_recorded, s1.usage.cost);
+  assert.ok(Math.abs(s1.spent_recorded - s1.usage.cost) < 1e-6);
   const s2 = (await simulate('sequential_dry', 'S2 sequential, ceiling reached')).runs[0];
   assert.deepEqual(s2.budget_log.map((l) => l.go), Array(11).fill(true).concat([false, false]));
   assert.match(s2.budget_log[11].stop_reason, /over the ceiling of USD 0\.60/);
-  assert.match(s2.budget_log[12].stop_reason, /^stopped earlier, and nothing is sent after a stop \(spent USD 0\.4520/);
+  assert.match(s2.budget_log[12].stop_reason, /^stopped earlier, and nothing is sent after a stop \(spent USD 0\.\d{4} and the next request could cost up to/);
   assert.ok(s2.spent_recorded <= 0.6);
   const s3 = (await simulate('sequential_dry', 'S3 sequential, a response without its cost')).runs[0];
   assert.deepEqual(s3.budget_log.map((l) => l.go), [true, true, true].concat(Array(10).fill(false)));

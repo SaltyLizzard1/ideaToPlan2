@@ -75,6 +75,12 @@ export const STAGE_ONE = [
   { cat: 'not scored', line: 102, re: /^A customer who wants a self-serve/, expect: 'either', basis: 'a hedged sentence in a profile; the rules ask for a split' },
   { cat: 'not scored', line: 25, re: /^What they need is a structured, personalized plan/, expect: 'either', basis: 'the founder\'s hypothesis continued from the sentence before, with no label of its own' },
 ];
+// CLARIFICATIONS OF THE KEY, RECORDED AFTER THE MODEL WAS ASKED (execution 63256). The key above is as it was when the
+// requests were sent, and the score of that execution was computed against it and stands. A clarification changes no
+// score. It says how an expectation is to be read from here on.
+export const KEY_CLARIFICATIONS = [
+  { line: 287, recorded: '2026-10-06', by: 'Liz', text: 'The sentence states two things. That the business operates globally is supported by the intake ("Where the business will operate: everywhere"), so the basis written in the key is wrong on that point. That the offer involves financial advice is judged separately: planning sessions alone do not establish that service. The expected defect is the financial-advice part only.' },
+];
 export const stageOne = async () => {
   const { items } = await buildBatches();
   const claims = items[0].claim_map.claims;

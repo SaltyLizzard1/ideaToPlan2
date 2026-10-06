@@ -138,7 +138,9 @@ test('batches: the contract asks for the class, the link, a reason for "no asser
   assert.match(sys, /A citation on the sentence does not make it supported, and a sentence with no citation can still be an EXTERNAL claim\./);
   assert.match(sys, /An entry from the cited source that does not say this is not support\./);
   assert.match(sys, /It must be labelled as such in the sentence itself/);
-  assert.match(sys, /"May", "might", "could", "would", and "if" label only the clause they govern: a fact stated inside such a sentence is still a fact, and the sentence has to be split\./);
+  assert.ok(sys.includes('A label covers only the clause it is in, and "may", "might", "could", "would", and "if" label only the clause they govern'));
+  assert.ok(sys.includes('A service, a product, or a kind of advice the FOUNDER CONTEXT does not name is not established by a broader or neighbouring one that it does name.'));
+  assert.ok(sys.includes('in one place only ("claims", "recommendation", or "none")'));
   assert.match(sys, /NONE: no factual assertion\. Give the kind and a reason tied to the words of the claim\./);
   assert.match(sys, /Return "split": two or more parts, each with "text" copied exactly from the sentence/);
   assert.match(sys, /A paraphrase is fine; a stronger, broader, or different statement is not\./);
@@ -355,7 +357,8 @@ test('not support: a split has to be the words of the sentence and leave none of
   const a = { text: 'If customer interviews confirm that this is the real barrier, a positioning built around "your personalized plan, not generic advice" could distinguish QYLAT from both', class: 'ASSUMPTION', label: 'could' };
   const b = { text: 'the logistics-focused paid services and the free content alternatives.', class: 'ASSUMPTION', label: 'could' };
   const run = async (split) => rec((await combine(items, respond(items, { [c.id]: { split } }))).claim_review, c.id);
-  assert.match((await run([a])).why, /the split has fewer than two parts/);
+  assert.match((await run([a])).why, /the split has one part and it is not the whole sentence: the rest has no verdict/);
+  assert.match((await run([])).why, /the split has no parts/);
   assert.match((await run([a, { ...b, text: 'the relocation services that charge fees' }])).why, /a part of the split is not the words of the sentence/);
   assert.match((await run([{ ...a, text: 'If customer interviews confirm that this is the real barrier' }, { ...b, text: 'the free content alternatives.' }])).why, /the parts of the split leave out words of the sentence/);
   // The second part quotes a label that is not in that part: the label of the first part does not reach it.
@@ -374,7 +377,7 @@ test('combining: with every claim answered once, nothing is missing and the coun
   assert.deepEqual([cr.claims, cr.batches, cr.missing, cr.duplicates, cr.contradictory, cr.stray, cr.failed_batches, cr.rejected_responses, cr.repeated_batches, cr.not_sent], [499, 13, [], [], [], [], [], [], [], []]);
   assert.equal(cr.settled + cr.defects.length + cr.open.length, cr.claims);
   assert.equal(cr.records.length, 499);
-  assert.deepEqual(cr.open.map((o) => 'L' + o.line), ['L77']);
+  assert.deepEqual(cr.open.map((o) => 'L' + o.line), ['L27', 'L77']);
   assert.deepEqual([cr.usage.requests, cr.usage.responses, cr.usage.answered, cr.usage.prompt_tokens, cr.usage.completion_tokens, Math.round(cr.usage.cost * 100) / 100, cr.usage.cost_known], [13, 13, 13, 91000, 26000, 0.65, true]);
   // What was settled with nothing for code to check is counted, not hidden.
   assert.deepEqual(Object.keys(cr.on_judgment).sort(), ['assumption labelled by a modal alone', 'no assertion, on the reason given', 'recommendation']);
@@ -392,7 +395,7 @@ test('combining: a missing verdict, a repeated one, and two that disagree are ea
   assert.deepEqual(cr.duplicates, [b]);
   assert.equal(rec(cr, b).status, rec((await combine(items, respond(items))).claim_review, b).status, 'the same verdict twice is counted once');
   assert.deepEqual(cr.contradictory, [c]);
-  assert.deepEqual([rec(cr, c).status, rec(cr, c).why], ['open', '2 verdicts were given and they disagree (ASSUMPTION/ and EXTERNAL/false)']);
+  assert.deepEqual([rec(cr, c).status, rec(cr, c).why], ['open', '2 verdicts were given and they disagree (ASSUMPTION and EXTERNAL/false)']);
   assert.ok(!cr.defects.some((d) => d.id === c), 'a verdict that is contradicted is not taken as a finding');
 });
 
@@ -504,7 +507,8 @@ test('report: defects, unreviewed claims, failed requests and coverage are separ
   const out = await finish(cc, await combine(items, responses));
   const cr = out.claim_review;
   const report = await reportOf(cc, out);
-  assert.equal(cr.open.length, items[11].ids.length + 1);
+  // The failed request, the claim left out, and L27, which the scripted reviewer labels as a whole.
+  assert.equal(cr.open.length, items[11].ids.length + 2);
   assert.match(report, new RegExp('CLAIM REVIEW, SENTENCE BY SENTENCE: 499 claims, reviewed in 13 requests\\. Settled: \\d+ \\(\\d+ founder facts linked to the intake, \\d+ external claims linked to ledger entries, \\d+ labelled assumptions, \\d+ recommendations, \\d+ with no factual assertion\\)\\. Confirmed defects: ' + cr.defects.length + '\\. Not reviewed: ' + cr.open.length + '\\.'));
   const a = report.indexOf('Confirmed defects (' + cr.defects.length + '):'), b = report.indexOf('Not reviewed: no usable verdict (' + cr.open.length + ')'), c = report.indexOf('- REQUEST 12 of 13: no usable answer came back for this batch');
   assert.ok(a > 0 && b > a && c > b, [a, b, c].join(' '));
