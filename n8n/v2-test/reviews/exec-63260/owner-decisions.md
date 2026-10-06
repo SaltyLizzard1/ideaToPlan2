@@ -78,3 +78,14 @@ Verified afterwards, by reading the row and the stored files:
 - Versions 1 and 2: rows unchanged (status, review status, creation time, no text, not approved, not sent); both stored PDFs are byte-identical to the copies saved earlier.
 
 Two things this settles that were unverified before: the Supabase node writes the source list as an array and the plan text byte for byte. The database's insert check on the text fingerprint passed.
+
+## Acceptance test A2, 2026-10-06: approval requested with no review record (authorised by Liz)
+
+- Before: the request workflow `dcgzn5fcOyrIRz5u` was read back and its three Code nodes were identical to the repository; `Start Approval` pointed at the test copy `AwxkcbnQK5ChbSOA`; no row in `plan_reviews` existed for version 3 (the table was empty).
+- Execution 63370, one run, 1.6 seconds, ended in an error as intended. Path: Run Once, Plan Version ID, Load Version, Load Submission, Load All Versions (3 rows), Load Review (no record), Check Version, which stopped with: "Plan version fd285afd-9ca3-4e6f-886b-0608ce5e83f0 has no human release record (automated status HOLD). Every version needs a recorded review before approval. No approval email sent."
+- Did not run: Download Stored PDF, Verify Stored PDF, Reopen, Start Approval. The approval copy has no execution at all.
+- Emails: none. No node that sends mail ran in any workflow. The System Alert workflow did not run either (its last execution is 63240 on 2026-10-05): n8n does not start the error workflow for a run started by hand in the editor. The mailbox itself was not opened.
+- After: the version 3 row is identical to the copy taken before the run (changes_requested, HOLD, no approved time or fingerprints, not sent). `plan_reviews` is still empty. No version of the order is in flight.
+- The version ID placed in the test copy for the run was removed again; the copy holds its placeholder and is inactive.
+
+A1's open visual check, closed: all 31 pages of the stored `v3.pdf` were rendered to images. Every page image is byte-identical to the corresponding image of `v2.pdf`, which was inspected page by page on 2026-10-06, and pages 1-2, 23-24 and 31 of v3 were looked at directly. The two PDF files differ only outside the page content (same size, different fingerprint).
