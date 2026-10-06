@@ -19,7 +19,8 @@ const makeWorld = () => {
   };
   return { rows, sent, deps };
 };
-const RID = '0c5c6f0e-1d2a-4b3c-8d4e-5f6a7b8c9d0e';
+// The real format: 12 hex characters, as app/api/quiz/route.ts creates them.
+const RID = '19d72b0f92b4';
 
 test('the alert carries email, capture time, source and the top match when a result id is given', async () => {
   const w = makeWorld();
@@ -33,6 +34,7 @@ test('the alert carries email, capture time, source and the top match when a res
 test('no result id, a malformed one, or a failed lookup still notifies, with the match marked not available', async () => {
   const cases = [
     [{}, async () => 'x'],
+    [{ resultId: '19d72b0f92b4/../x' }, async () => 'x'],
     [{ resultId: 'not-a-uuid\nBcc: someone@example.com' }, async () => 'x'],
     [{ resultId: RID }, async () => { throw new Error('db down'); }],
     [{ resultId: RID }, async () => null],

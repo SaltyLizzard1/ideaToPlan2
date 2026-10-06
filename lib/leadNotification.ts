@@ -23,12 +23,13 @@ export type LeadDeps = {
 export type LeadContext = { resultId?: unknown };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// A result id is 12 hex characters (see app/api/quiz/route.ts). Hyphenated ids are accepted too.
+const RESULT_ID = /^[0-9a-f]{12}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // The matched opportunity is read from the stored result, never taken from the browser. Anything that goes
 // wrong here leaves it as "not available"; it can never stop or delay the notification itself.
 async function topMatchLine(context: LeadContext, deps: LeadDeps): Promise<string[]> {
-  const resultId = typeof context.resultId === 'string' && UUID.test(context.resultId) ? context.resultId : null;
+  const resultId = typeof context.resultId === 'string' && RESULT_ID.test(context.resultId) ? context.resultId : null;
   if (!resultId || !deps.lookupTopMatch) return ['Top match: not available'];
   let title: string | null = null;
   try {
