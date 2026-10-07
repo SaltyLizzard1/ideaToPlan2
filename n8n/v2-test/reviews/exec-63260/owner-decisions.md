@@ -255,3 +255,13 @@ Authorized by Liz: exactly one owner test, no card charge, no rerun, no review r
 **Old OpenRouter keys.** A read-only scan of all 54 workflows found no active workflow on an old key. One inactive workflow, `aBpk1zMORyuDuRTU` (Full Pipeline OLD), uses `Bearer Auth account 2`, which was not rotated. No plaintext key remains in any node.
 
 **Webhook credential.** `Header Auth account 2` is attached to five webhook nodes and nothing else: `idea-submission-v2`, `quiz-match-v2` (POST), `quiz-ranking-v1`, `quiz-detail-v1`, `site-alert-v1`. `N8N_WEBHOOK_SECRET` is set in the Vercel projects `idea-to-plan2` and `qylat-next`; `idea-to-plan` has no variables and `qylat-analytics` has none of these.
+
+## Webhook secret rotation: deferred by Liz (2026-10-07)
+
+Liz decided to skip the webhook secret rotation for launch. Nothing was rotated and no credential or environment value was changed.
+
+Basis given to her: the secret is in plain text only inside n8n (the pinned webhook data of v2 Test and past executions), which requires her login; it is not in the repository; with it someone could post fake orders or quiz requests but could not read data, and no plan is delivered without her review and Approve click; model spend is capped at $30 a month on the OpenRouter key. The rotation itself would interrupt the quiz and the order form.
+
+Do it later if n8n access is ever shared, a backup is restored elsewhere, or access to the instance is suspected. The sequence and rollback are written up above under "Webhook credential" and in the session notes: Vercel values first, redeploy both projects, save the n8n credential when the deployments are ready, verify through `site-alert-v1`, update `qylat-next/.env.local` last.
+
+Still for Liz: disable the four old OpenRouter keys (`Ideatoplan`, `N8N-Pipeline`, `May_N8N`, `N8N`). No active workflow depends on them.
