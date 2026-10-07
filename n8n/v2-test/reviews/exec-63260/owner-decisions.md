@@ -166,3 +166,21 @@ Authorized by Liz in her completion instruction of 2026-10-07, including running
 **Approval and delivery.** Request execution 63508, approval copy execution 63509. Approval email subject ends "REVISED PLAN" and states the earlier delivery and the recorded reason. Approve clicked once by Claude at 05:03:10 UTC. Claim wrote approved fingerprints equal to the version's. Attachment fingerprinted before sending: `96c48bf6...`, match. One delivery, Gmail message `1a114be87a9a7144`, to liz@ideatoplan.to. The attachment was then fetched from the delivered message in the mailbox and hashed: `96c48bf656ca21c12981398e52c11d2410750b625e6f8d668fff5fb61f604b6b`, 180,906 bytes, equal to the approved fingerprint. Version 6: sent. Order: delivered 05:03:13 UTC. Version 4 and version 5 unchanged.
 
 Result: A6 passed.
+
+## A7 and A8: refusal paths (2026-10-07)
+
+Authorized by Liz in her completion instruction of 2026-10-07. All on version 7, which exists only for these tests.
+
+**Version 7.** Save workflow `0mzNssECPudIIwl3`, archived. Version 7 `bc2a1a84-750d-4d5e-b2ef-79940e1e9673`, parent version 6, HOLD, hand_corrected, text identical to `draft-for-version-4.md`, PDF `ba6bea6d...` equal to an independent SHA-256 of the stored file. Release record `review-insert-version-7-refusal-paths-test.sql`, entered through the dashboard after a hash check of the entered text; it states that Liz has not read the version 7 PDF and that no delivery is intended.
+
+**A7, changed file.** Variant approval copy `BYOz3Z9Ig9zpsSzl`: identical to the test copy except that Download PDF reads `v5.pdf`, a different stored file. No stored PDF was written or overwritten. Request execution 63518, variant execution 63519. Approve clicked once by Claude. Claim wrote the approved fingerprints; the attachment check found a different fingerprint; Send to Customer did not run; version 7 recorded send_failed; one send-error alert to liz@ideatoplan.to (Gmail `1a114c40fccdf857`). No delivery, order unchanged.
+
+**A7, system alert.** Temporary caller `V65Mhtl9rOpnYTCe` started the test copy as a sub-workflow for version 2, which has no fingerprints and is not awaiting approval. Execution 63533 refused: "Plan version 79d61ace-32f7-467e-b9c7-88028454d120 is changes_requested, expected awaiting_approval. No approval email sent." Exactly one System Alert execution followed (63534). Version 2 unchanged. This closes the item carried forward from A2.
+
+**A8, request changes.** Request execution 63524 (accepted from send_failed), test copy execution 63525. "Request changes" clicked once by Claude. Version 7 recorded changes_requested. Nothing sent.
+
+**A8, timeout.** Request with approval_wait_minutes 2, test copy execution 63529, no click. After two minutes version 7 recorded approval_timeout and the timeout alert node ran. Nothing sent.
+
+After all tests: versions 4 and 6 sent, version 7 approval_timeout, all others changes_requested; order delivered at the version 6 time; four review records. The request workflow `dcgzn5fcOyrIRz5u` was restored (placeholder ID, test copy as target, no wait override). Both temporary copies archived.
+
+Result: A7 and A8 passed. Acceptance tests A1 to A8 are complete.
