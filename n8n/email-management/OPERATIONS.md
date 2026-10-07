@@ -62,3 +62,50 @@ a published workflow in the editor unless you mean to change it: the editor save
 Approval-controlled plan delivery (shared workflow `YECjOQHj4oQYVdVW`) goes live with the improved plan pipeline's
 production cutover. See `n8n/v2-test/GO-LIVE-CHECKLIST.md`.
 `delivery-integration.live-pipeline.PREPARED.json` is a superseded record and must not be applied.
+
+## Acceptance evidence, 2026-10-06 and 2026-10-07
+
+Recorded here so it survives the removal of the test conversations. Numbers are n8n execution IDs.
+
+| Check | Run | Result | Model cost |
+|---|---|---|---|
+| Batch: two eligible emails, one ignored, call limit of one | 63264 to 63267 | Independent runs; one call granted, one refused; no model call | $0.00 |
+| General question with instruction text in the body | 63270 | Escalated to the owner | $0.00837 |
+| Same message ID handed in twice | 63273, 63274 | Stopped at "duplicate"; no call, no alert | $0.00 |
+| Pricing question (old wording) | 63278 | Routine draft held in shadow | $0.00745 |
+| Refund request | 63282 | Escalated; no promise or refusal | $0.00640 |
+| Late order | 63286 | Escalated; no date or order detail | $0.00662 |
+| Follow-up in an open conversation | 63291 | Escalated; thread matched | $0.00677 |
+| Wording and gate fixes, validation | 63307 | Plain first-person draft, gate zero objections | $0.00665 |
+| Scope filter on handler v2 | 63318 to 63321 | Customer, named enquiry and known conversation in scope; generic words left alone | $0.00 |
+| Send step enabled, shadow on | 63374 to 63377 | No send claim, no send | $0.00 |
+| One real reply to the owner's test address | 63383 | Sent once, threaded, Gmail message `1a110ce37bcfacb5`; receipt confirmed by Liz | $0.00741 |
+| Forwarded mail from the public Gmail address | 63423 | Sender, original destination and authentication intact; draft held | $0.00887 |
+| Order-status question from a single-order address | 63537 | Gate approved the draft; held by the category guard; no send claim, no send; one owner alert | $0.00441 |
+
+Total model spend for all checks: $0.0629. Database self-tests: `002` (12 checks) and `004` (send claim) both
+passed and rolled back. Published handler read back on 2026-10-06: all eleven code steps identical to `nodes/*.js`.
+Skills Matcher lead alert accepted on production: one capture, one alert with all five lines, no duplicate.
+I2P Inbox accepted on production: behind login, real data, last navigation link.
+
+The order-status check (63537) is the runtime proof of the category hold. It was sent from
+`ideatoplanincome@gmail.com`, so it also triggered the safeguard for the business's own addresses. Both reasons
+were recorded; the category hold has not been seen on its own with an outside customer.
+
+### Test data cleanup, 2026-10-07
+
+Sixteen test conversations with made-up message IDs (batch tests and scope checks) and their 48 history entries
+were deleted, by exact ID, in one transaction. Nothing else was touched.
+
+Eight test conversations (46 history entries) are kept on purpose. They came from real Gmail messages, and their
+"received" records are the mechanism that stops a message being processed twice. Deleting them would leave only
+the poller's own time tracking and the launch cutoff between those messages and a second handling, and two of them
+are dated after the cutoff. They show in the I2P Inbox as Needs attention, except the one that was answered:
+
+- `fa6011e4-18d3-415b-bf13-1235ef55f498` "Growth plan details" (a real reply was sent; its records stop a second send)
+- `ab914657-ee69-414c-9f75-aa5c4ce5acc2`, `52af3a8d-9f13-4e82-93ee-69aa6baa48e1`,
+  `dc087c3f-99c2-48b7-88a3-a6ec4fa093e2`, `395f7536-bf50-4ff9-b034-aa827201febd`,
+  `e04098e6-b9c7-4b43-bd56-e83bb4397a74`, `20d04589-f634-42d6-9993-75376d9e3455`,
+  `8616e843-24bd-4201-90b2-c8ff0fb68bea`
+
+The lead record, every budget counter, and all orders, plan versions, reviews and PDFs were left as they were.
