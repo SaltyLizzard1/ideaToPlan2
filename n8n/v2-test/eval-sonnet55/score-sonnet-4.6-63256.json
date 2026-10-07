@@ -1,0 +1,840 @@
+{
+ "label": "sonnet-4.6-63256",
+ "key_clarifications": [
+  {
+   "line": 287,
+   "recorded": "2026-10-06",
+   "by": "Liz",
+   "text": "The sentence states two things. That the business operates globally is supported by the intake (\"Where the business will operate: everywhere\"), so the basis written in the key is wrong on that point. That the offer involves financial advice is judged separately: planning sessions alone do not establish that service. The expected defect is the financial-advice part only."
+  }
+ ],
+ "score": {
+  "completeness": {
+   "sent": 36,
+   "usable": 32,
+   "unreviewed": [
+    "L251 K1wzn0zb",
+    "L287 K0w80t2a",
+    "L129 K1q3rqdp",
+    "L102 K0e5q1o1"
+   ]
+  },
+  "detection": {
+   "targets": 13,
+   "found": 10,
+   "missed_as_settled": [],
+   "left_unreviewed": [
+    "L251 K1wzn0zb",
+    "L287 K0w80t2a",
+    "L129 K1q3rqdp"
+   ]
+  },
+  "false_positives": {
+   "controls": 20,
+   "wrongly_defect": [],
+   "left_unreviewed": []
+  },
+  "by_category": {
+   "intake attribution": {
+    "targets_found": "1 of 3",
+    "controls_settled": "3 of 3"
+   },
+   "payment": {
+    "targets_found": "0 of 1",
+    "controls_settled": "2 of 2"
+   },
+   "company focus": {
+    "targets_found": "4 of 4",
+    "controls_settled": "4 of 4"
+   },
+   "survey scope": {
+    "targets_found": "2 of 2",
+    "controls_settled": "3 of 3"
+   },
+   "substitute limitations": {
+    "targets_found": "1 of 1",
+    "controls_settled": "3 of 3"
+   },
+   "uncited assertions": {
+    "targets_found": "2 of 2",
+    "controls_settled": "5 of 5"
+   }
+  },
+  "not_scored": [
+   "L89 defect EXTERNAL CLAIM WITHOUT A SUPPORTING ENTRY",
+   "L102 open",
+   "L25 settled"
+  ]
+ },
+ "rows": [
+  {
+   "id": "K0bfdbnl",
+   "line": 27,
+   "cat": "intake attribution",
+   "expect": "defect",
+   "basis": "code: UNKNOWN STATED AS NONE at L27",
+   "text": "The model is designed this way deliberately: high-margin service revenue requires a small audience to generate income, while the scalable streams require an audience that does not yet exist.",
+   "status": "defect",
+   "check": "ASSUMPTION NOT LABELLED IN THE TEXT",
+   "why": "K0bfdbnl.b: The review classed this sentence as an assumption or hypothesis. The sentence carries no hypothesis, assumption, or not-established wording of its own (the review pointed to \"does not yet exist\"). A label in a neighbouring sentence does not cover it.",
+   "model_answer": {
+    "id": "K0bfdbnl",
+    "split": [
+     {
+      "text": "The model is designed this way deliberately: high-margin service revenue requires a small audience to generate income,",
+      "class": "FOUNDER",
+      "supported": true,
+      "intake_quote": "The business will initially prioritize high-margin service revenue because it requires a relatively small audience to generate income."
+     },
+     {
+      "text": "while the scalable streams require an audience that does not yet exist.",
+      "class": "ASSUMPTION",
+      "label": "does not yet exist"
+     }
+    ]
+   }
+  },
+  {
+   "id": "K1wzn0zb",
+   "line": 251,
+   "cat": "intake attribution",
+   "expect": "defect",
+   "basis": "code: UNKNOWN STATED AS NONE at L251",
+   "text": "None of these is modeled here because they depend on an audience that does not yet exist and their revenue is not yet estimable.",
+   "status": "open",
+   "check": "",
+   "why": "the label \"not yet estimable\" qualifies its own clause, and the clause \"they depend on an audience that does not yet exist\" carries no label and states \"does not yet exist\": it has to be split off and judged",
+   "model_answer": {
+    "id": "K1wzn0zb",
+    "class": "ASSUMPTION",
+    "label": "not yet estimable"
+   }
+  },
+  {
+   "id": "K0w80t2a",
+   "line": 287,
+   "cat": "intake attribution",
+   "expect": "defect",
+   "basis": "my reading: the intake lists planning tools and sessions, not financial advice, and does not say the business operates globally",
+   "text": "These are not optional checks: the offer involves personalized financial and life-planning advice delivered to paying clients, and the business operates globally.",
+   "status": "open",
+   "check": "",
+   "why": "it is classed FOUNDER and the words it quotes are not in the founder context",
+   "model_answer": {
+    "id": "K0w80t2a",
+    "class": "FOUNDER",
+    "supported": true,
+    "intake_quote": "one-on-one planning sessions, and business planning services for people interested in creating location-independent income … everywhere"
+   }
+  },
+  {
+   "id": "K0jzmxph",
+   "line": 27,
+   "cat": "intake attribution",
+   "expect": "settle",
+   "basis": "intake: \"digital planning products, affiliate commissions ...\"",
+   "text": "You have described additional revenue streams, including digital planning products, affiliate commissions, and brand partnerships, as later additions once an audience is established.",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K0jzmxph",
+    "class": "FOUNDER",
+    "supported": true,
+    "intake_quote": "Additional revenue streams may include digital planning products, affiliate commissions from relevant travel and relocation services, and brand partnerships as the audience grows."
+   }
+  },
+  {
+   "id": "K02bb2ab",
+   "line": 37,
+   "cat": "intake attribution",
+   "expect": "settle",
+   "basis": "intake: \"adult, typically age 40 to 60, who is financially stable ...\"",
+   "text": "Your target customer is an adult, typically aged 40 to 60, who is financially stable enough to consider a major lifestyle change but uncertain how to make it happen.",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K02bb2ab",
+    "class": "FOUNDER",
+    "supported": true,
+    "intake_quote": "adult, typically age 40 to 60, who is financially stable enough to consider a major lifestyle change but feels uncertain about how to make it happen."
+   }
+  },
+  {
+   "id": "K03yuer4",
+   "line": 25,
+   "cat": "intake attribution",
+   "expect": "settle",
+   "basis": "intake, and it reports the customer's doubt, not feasibility",
+   "text": "The business is designed to serve adults who are financially stable enough to consider long-term travel, relocation abroad, or a career exit, but who feel stuck because they do not know whether it is realistic, affordable, or logistically possible.",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K03yuer4",
+    "class": "FOUNDER",
+    "supported": true,
+    "intake_quote": "adult, typically age 40 to 60, who is financially stable enough to consider a major lifestyle change but feels uncertain about how to make it happen. They may be considering long-term travel, moving abroad, leaving a traditional career, or creating more flexible income. Their biggest concerns are usually money, employment, logistics, fear of making the wrong decision, and not knowing where to begin."
+   }
+  },
+  {
+   "id": "K1q3rqdp",
+   "line": 129,
+   "cat": "payment",
+   "expect": "defect",
+   "basis": "code: PAYMENT STATED WITHOUT EVIDENCE at L129",
+   "text": "If customer interviews confirm that this is the real barrier, a positioning built around \"your personalized plan, not generic advice\" could distinguish QYLAT from both the logistics-focused paid services and the free content alternatives.",
+   "status": "open",
+   "check": "",
+   "why": "its only label is \"If\", which covers the clause it governs and nothing else, and the sentence refers to \"both the logistics-focused paid services\": the hypothesis has to be split from what is stated inside it",
+   "model_answer": {
+    "id": "K1q3rqdp",
+    "class": "ASSUMPTION",
+    "label": "If customer interviews confirm"
+   }
+  },
+  {
+   "id": "K1i63vtl",
+   "line": 127,
+   "cat": "payment",
+   "expect": "settle",
+   "basis": "labelled as not established",
+   "text": "Whether any of these providers charges a fee is not established from the sources reviewed.",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K1i63vtl",
+    "class": "NONE",
+    "kind": "other",
+    "reason": "The sentence states only that pricing information was not found in the sources reviewed; it asserts no fact about whether any provider charges a fee."
+   }
+  },
+  {
+   "id": "K0r6e9sg",
+   "line": 75,
+   "cat": "payment",
+   "expect": "settle",
+   "basis": "labelled as not established",
+   "text": "Not established from the sources reviewed",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K0r6e9sg",
+    "class": "NONE",
+    "kind": "other",
+    "reason": "The cell states only that price information was not found in the sources reviewed; it asserts no fact about Expat US's pricing."
+   }
+  },
+  {
+   "id": "K16cvh8h",
+   "line": 79,
+   "cat": "company focus",
+   "expect": "defect",
+   "basis": "code: PROVIDER FOCUS STATED WITHOUT EVIDENCE at L79",
+   "text": "Our read: Expat US is focused on people who have already made the decision and are moving to the US specifically.",
+   "status": "defect",
+   "check": "EXTERNAL CLAIM WITHOUT A SUPPORTING ENTRY",
+   "why": "The review found no ledger entry that supports this. Missing: No entry states that Expat US is focused only on people who have already made the decision to move, or that it does not serve people still in the pre-decision stage.",
+   "model_answer": {
+    "id": "K16cvh8h",
+    "class": "EXTERNAL",
+    "supported": false,
+    "missing": "No entry states that Expat US is focused only on people who have already made the decision to move, or that it does not serve people still in the pre-decision stage."
+   }
+  },
+  {
+   "id": "K19fk1m7",
+   "line": 103,
+   "cat": "company focus",
+   "expect": "defect",
+   "basis": "my reading: E10 lists what the platform offers and says nothing of who it is for",
+   "text": "Our read: Relocate Now appears to be a tool for people managing an active move.",
+   "status": "defect",
+   "check": "EXTERNAL CLAIM WITHOUT A SUPPORTING ENTRY",
+   "why": "The review found no ledger entry that supports this. Missing: No entry states that Relocate Now is a tool for people managing an active move rather than people in a pre-decision or planning stage.",
+   "model_answer": {
+    "id": "K19fk1m7",
+    "class": "EXTERNAL",
+    "supported": false,
+    "missing": "No entry states that Relocate Now is a tool for people managing an active move rather than people in a pre-decision or planning stage."
+   }
+  },
+  {
+   "id": "K0462poo",
+   "line": 113,
+   "cat": "company focus",
+   "expect": "defect",
+   "basis": "my reading: E17 describes one service and does not say the firm is established",
+   "text": "Established legal and immigration firm;",
+   "status": "defect",
+   "check": "EXTERNAL CLAIM WITHOUT A SUPPORTING ENTRY",
+   "why": "The review found no ledger entry that supports this. Missing: No entry states that Fragomen is an established legal and immigration firm or characterises it as such.",
+   "model_answer": {
+    "id": "K0462poo",
+    "class": "EXTERNAL",
+    "supported": false,
+    "missing": "No entry states that Fragomen is an established legal and immigration firm or characterises it as such."
+   }
+  },
+  {
+   "id": "K0oepgt5",
+   "line": 77,
+   "cat": "company focus",
+   "expect": "defect",
+   "basis": "ledger: the entry that says so (E3) was verified on S1, and the sentence cites S3",
+   "text": "19 years in business [S3];",
+   "status": "defect",
+   "check": "CITED SOURCE DOES NOT CARRY THE STATEMENT",
+   "why": "The review named E3 as the support. That entry was verified on S1. The sentence cites S3, and none of the entries named comes from there.",
+   "model_answer": {
+    "id": "K0oepgt5",
+    "class": "EXTERNAL",
+    "supported": true,
+    "entries": [
+     "E3"
+    ],
+    "entry_quote": "19 Years in business",
+    "aspects": {
+     "subject": "yes",
+     "meaning": "yes",
+     "qualifiers": "na",
+     "numbers": "yes",
+     "dates": "na",
+     "population": "na",
+     "scope": "yes"
+    }
+   }
+  },
+  {
+   "id": "K18ge80s",
+   "line": 73,
+   "cat": "company focus",
+   "expect": "settle",
+   "basis": "ledger: E1, on S1, says this",
+   "text": "Global companies and their employees relocating to the United States, and individuals and families relocating to the US [S1]",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K18ge80s",
+    "class": "EXTERNAL",
+    "supported": true,
+    "entries": [
+     "E1"
+    ],
+    "entry_quote": "Supporting global companies and their employees relocating to the United states, Visas, housing, settling-in, schools and more, 19 years experience, trusted by global companies. Also supporting individuals and families relocating to the US",
+    "aspects": {
+     "subject": "yes",
+     "meaning": "yes",
+     "qualifiers": "yes",
+     "numbers": "na",
+     "dates": "na",
+     "population": "na",
+     "scope": "yes"
+    }
+   }
+  },
+  {
+   "id": "K01vuej9",
+   "line": 98,
+   "cat": "company focus",
+   "expect": "settle",
+   "basis": "ledger: E10, on S10, lists these",
+   "text": "A digital platform offering relocation, tax support, housing, living essentials, community, exclusive perks, and secure document management through a single online access point [S10]",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K01vuej9",
+    "class": "EXTERNAL",
+    "supported": true,
+    "entries": [
+     "E10"
+    ],
+    "entry_quote": "Relocate Now's intuitive online platform offers a single point of access for relocation, tax support, housing, living essentials, community, exclusive perks, and secure document management.",
+    "aspects": {
+     "subject": "yes",
+     "meaning": "yes",
+     "qualifiers": "yes",
+     "numbers": "na",
+     "dates": "na",
+     "population": "na",
+     "scope": "yes"
+    }
+   }
+  },
+  {
+   "id": "K1be0bdo",
+   "line": 110,
+   "cat": "company focus",
+   "expect": "settle",
+   "basis": "ledger: E17, on S15, says this",
+   "text": "Help for employers to plan for digital nomads in immigration programs, navigate digital nomad regimes globally, identify program opportunities, and remain in compliance [S15]",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K1be0bdo",
+    "class": "EXTERNAL",
+    "supported": true,
+    "entries": [
+     "E17"
+    ],
+    "entry_quote": "We can help you: Plan for Digital Nomads in your immigration program Navigate Digital Nomad regimes in countries around the world Identify opportunities for your program from these regimes Remain in compliance as this trend continues to expand",
+    "aspects": {
+     "subject": "yes",
+     "meaning": "yes",
+     "qualifiers": "yes",
+     "numbers": "na",
+     "dates": "na",
+     "population": "na",
+     "scope": "yes"
+    }
+   }
+  },
+  {
+   "id": "K1h56jmn",
+   "line": 79,
+   "cat": "company focus",
+   "expect": "settle",
+   "basis": "labelled as a hypothesis",
+   "text": "This is a hypothesis to test.",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K1h56jmn",
+    "class": "ASSUMPTION",
+    "label": "This is a hypothesis to test."
+   }
+  },
+  {
+   "id": "K0syx28s",
+   "line": 483,
+   "cat": "survey scope",
+   "expect": "defect",
+   "basis": "code: PROBLEM STATED AS CONFIRMED at L483",
+   "text": "The problem you are addressing, people who want to make a major lifestyle change but do not know where to start, is real and reported.",
+   "status": "defect",
+   "check": "EXTERNAL CLAIM WITHOUT A SUPPORTING ENTRY",
+   "why": "K0syx28s.a: The review found no ledger entry that supports this. Missing: E43 is about administrative tasks like paperwork and visas taking more time than expected among 600 surveyed travelers; no entry states that the problem of people wanting to make a major lifestyle change but not knowing where to start is re",
+   "model_answer": {
+    "id": "K0syx28s",
+    "split": [
+     {
+      "text": "The problem you are addressing, people who want to make a major lifestyle change but do not know where to start, is real and reported.",
+      "class": "EXTERNAL",
+      "supported": false,
+      "missing": "E43 is about administrative tasks like paperwork and visas taking more time than expected among 600 surveyed travelers; no entry states that the problem of people wanting to make a major lifestyle change but not knowing where to start is real and reported."
+     }
+    ]
+   }
+  },
+  {
+   "id": "K0h24w3k",
+   "line": 43,
+   "cat": "survey scope",
+   "expect": "defect",
+   "basis": "code: PROBLEM STATED AS CONFIRMED at L43",
+   "text": "It does suggest that logistical friction is a real and reported experience for people navigating international travel and relocation, which is consistent with the problem you are trying to solve.",
+   "status": "defect",
+   "check": "ASSUMPTION NOT LABELLED IN THE TEXT",
+   "why": "The review classed this sentence as an assumption or hypothesis. The sentence carries no hypothesis, assumption, or not-established wording of its own (the review pointed to \"It does suggest\"). A label in a neighbouring sentence does not cover it.",
+   "model_answer": {
+    "id": "K0h24w3k",
+    "class": "ASSUMPTION",
+    "label": "It does suggest"
+   }
+  },
+  {
+   "id": "K04x22l0",
+   "line": 43,
+   "cat": "survey scope",
+   "expect": "settle",
+   "basis": "ledger: E43 says this, with the sample",
+   "text": "Nearly two-thirds of 600 surveyed travelers said administrative tasks like paperwork and visas take more time than they expected, according to Holafly's Digital Nomad Friction Index 2026 [S28].",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K04x22l0",
+    "class": "EXTERNAL",
+    "supported": true,
+    "entries": [
+     "E43"
+    ],
+    "entry_quote": "Nearly two-thirds of 600 surveyed travelers said administrative tasks like paperwork and visas take up more time than they expected, according to Global eSIM provider Holafly's recently released its Digital Nomad Friction Index 2026.",
+    "aspects": {
+     "subject": "yes",
+     "meaning": "yes",
+     "qualifiers": "yes",
+     "numbers": "yes",
+     "dates": "yes",
+     "population": "yes",
+     "scope": "yes"
+    }
+   }
+  },
+  {
+   "id": "K1guqs2s",
+   "line": 483,
+   "cat": "survey scope",
+   "expect": "settle",
+   "basis": "ledger: E43 says this, with the sample",
+   "text": "Nearly two-thirds of 600 surveyed travelers said administrative tasks like paperwork and visas take more time than they expected [S28].",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K1guqs2s",
+    "class": "EXTERNAL",
+    "supported": true,
+    "entries": [
+     "E43"
+    ],
+    "entry_quote": "Nearly two-thirds of 600 surveyed travelers said administrative tasks like paperwork and visas take up more time than they expected",
+    "aspects": {
+     "subject": "yes",
+     "meaning": "yes",
+     "qualifiers": "yes",
+     "numbers": "yes",
+     "dates": "yes",
+     "population": "yes",
+     "scope": "yes"
+    }
+   }
+  },
+  {
+   "id": "K026sxik",
+   "line": 43,
+   "cat": "survey scope",
+   "expect": "settle",
+   "basis": "it states the limits of the survey, which E43 bears out",
+   "text": "This is a survey of 600 travelers, not a population figure, and it covers travelers broadly rather than your specific 40-60 age group.",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K026sxik",
+    "class": "EXTERNAL",
+    "supported": true,
+    "entries": [
+     "E43"
+    ],
+    "entry_quote": "Nearly two-thirds of 600 surveyed travelers said administrative tasks like paperwork and visas take up more time than they expected, according to Global eSIM provider Holafly's recently released its Digital Nomad Friction Index 2026.",
+    "aspects": {
+     "subject": "yes",
+     "meaning": "yes",
+     "qualifiers": "yes",
+     "numbers": "yes",
+     "dates": "yes",
+     "population": "yes",
+     "scope": "yes"
+    }
+   }
+  },
+  {
+   "id": "K18jra50",
+   "line": 127,
+   "cat": "substitute limitations",
+   "expect": "defect",
+   "basis": "code: SUBSTITUTE LIMITATION STATED WITHOUT EVIDENCE at L127",
+   "text": "The free substitutes, blogs, forums, and resource lists, address the information need but not the personalized, structured planning need.",
+   "status": "defect",
+   "check": "EXTERNAL CLAIM WITHOUT A SUPPORTING ENTRY",
+   "why": "The review found no ledger entry that supports this. Missing: No entry states that free substitutes such as blogs, forums, and resource lists address only the information need and not a personalized, structured planning need, or characterises them in this way.",
+   "model_answer": {
+    "id": "K18jra50",
+    "class": "EXTERNAL",
+    "supported": false,
+    "missing": "No entry states that free substitutes such as blogs, forums, and resource lists address only the information need and not a personalized, structured planning need, or characterises them in this way."
+   }
+  },
+  {
+   "id": "K0gqllem",
+   "line": 127,
+   "cat": "substitute limitations",
+   "expect": "settle",
+   "basis": "labelled as a hypothesis",
+   "text": "Whether a gap exists at the pre-decision stage is a hypothesis to test in customer conversations, not a confirmed finding.",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K0gqllem",
+    "class": "ASSUMPTION",
+    "label": "is a hypothesis to test"
+   }
+  },
+  {
+   "id": "K1wkkdv2",
+   "line": 123,
+   "cat": "substitute limitations",
+   "expect": "settle",
+   "basis": "labelled as not established",
+   "text": "how widely it is used is not established",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K1wkkdv2",
+    "class": "NONE",
+    "kind": "other",
+    "reason": "The cell states only that how widely BecomeNomad is used is not established; it asserts no fact about the company or its usage."
+   }
+  },
+  {
+   "id": "K1vf7ygj",
+   "line": 122,
+   "cat": "substitute limitations",
+   "expect": "settle",
+   "basis": "ledger: E21, on S13, says this",
+   "text": "Curated tools and services for every stage of an international move, from visa applications to setting up a new life abroad;",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K1vf7ygj",
+    "class": "EXTERNAL",
+    "supported": true,
+    "entries": [
+     "E21"
+    ],
+    "entry_quote": "Curated tools and services to help with every stage of your international move — from visa applications to setting up your new life abroad.",
+    "aspects": {
+     "subject": "yes",
+     "meaning": "yes",
+     "qualifiers": "yes",
+     "numbers": "na",
+     "dates": "na",
+     "population": "na",
+     "scope": "yes"
+    }
+   }
+  },
+  {
+   "id": "K0d4wtto",
+   "line": 462,
+   "cat": "uncited assertions",
+   "expect": "defect",
+   "basis": "my reading: a general statement about people, with no source and no label; missed in the replay",
+   "text": "Reasoning: People who are seriously considering a major life change often seek out communities of people who have done it or are doing it.",
+   "status": "defect",
+   "check": "EXTERNAL CLAIM WITHOUT A SUPPORTING ENTRY",
+   "why": "The review found no ledger entry that supports this. Missing: No entry states that people seriously considering a major life change often seek out communities of people who have done it or are doing it.",
+   "model_answer": {
+    "id": "K0d4wtto",
+    "class": "EXTERNAL",
+    "supported": false,
+    "missing": "No entry states that people seriously considering a major life change often seek out communities of people who have done it or are doing it."
+   }
+  },
+  {
+   "id": "K034bznd",
+   "line": 462,
+   "cat": "uncited assertions",
+   "expect": "defect",
+   "basis": "my reading: a statement about where customers gather, with no source and no label",
+   "text": "Facebook groups, Reddit communities, and expat forums are places where this conversation happens.",
+   "status": "defect",
+   "check": "EXTERNAL CLAIM WITHOUT A SUPPORTING ENTRY",
+   "why": "The review found no ledger entry that supports this. Missing: No entry states that Facebook groups, Reddit communities, and expat forums are places where conversations about major life changes happen.",
+   "model_answer": {
+    "id": "K034bznd",
+    "class": "EXTERNAL",
+    "supported": false,
+    "missing": "No entry states that Facebook groups, Reddit communities, and expat forums are places where conversations about major life changes happen."
+   }
+  },
+  {
+   "id": "K0b3dexg",
+   "line": 37,
+   "cat": "uncited assertions",
+   "expect": "settle",
+   "basis": "an instruction",
+   "text": "Customer conversations should test this hypothesis directly.",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K0b3dexg",
+    "class": "RECOMMENDATION",
+    "supported": false
+   }
+  },
+  {
+   "id": "K1ku9xjw",
+   "line": 133,
+   "cat": "uncited assertions",
+   "expect": "settle",
+   "basis": "a question to ask customers",
+   "text": "What did it give you that was useful, and what did it leave unanswered?\"",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K1ku9xjw",
+    "class": "NONE",
+    "kind": "question",
+    "reason": "The text is a question posed to a customer ('What did it give you that was useful, and what did it leave unanswered?') and asserts no fact."
+   }
+  },
+  {
+   "id": "K0oitxbi",
+   "line": 382,
+   "cat": "uncited assertions",
+   "expect": "settle",
+   "basis": "a done-when condition",
+   "text": "Done when: 10 conversations completed.",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K0oitxbi",
+    "class": "NONE",
+    "kind": "criterion",
+    "reason": "The sentence states a done-when condition (10 conversations completed) rather than asserting any fact."
+   }
+  },
+  {
+   "id": "K1oowgxi",
+   "line": 304,
+   "cat": "uncited assertions",
+   "expect": "settle",
+   "basis": "a rating word",
+   "text": "Low",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K1oowgxi",
+    "class": "NONE",
+    "kind": "label",
+    "reason": "The word 'Low' is a rating word with no factual assertion in it; it labels a confidence level without stating any fact."
+   }
+  },
+  {
+   "id": "K15xugcm",
+   "line": 37,
+   "cat": "uncited assertions",
+   "expect": "settle",
+   "basis": "the intake describes these wishes, and the sentence is hedged",
+   "text": "They may be thinking about long-term travel, moving abroad, leaving a traditional career, or building more flexible income.",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K15xugcm",
+    "class": "FOUNDER",
+    "supported": true,
+    "intake_quote": "They may be considering long-term travel, moving abroad, leaving a traditional career, or creating more flexible income."
+   }
+  },
+  {
+   "id": "K0qzc8d7",
+   "line": 89,
+   "cat": "not scored",
+   "expect": "either",
+   "basis": "E6 lists many services; whether \"comprehensive\" goes beyond it is a judgment",
+   "text": "Comprehensive operational coverage from arrival through full settlement",
+   "status": "defect",
+   "check": "EXTERNAL CLAIM WITHOUT A SUPPORTING ENTRY",
+   "why": "The review found no ledger entry that supports this. Missing: No entry characterises RELONXT's coverage as 'comprehensive' or ranks it as covering arrival through full settlement as a strength; E6 and E7 list services but do not use the word 'comprehensive' or frame the breadth as a strength.",
+   "model_answer": {
+    "id": "K0qzc8d7",
+    "class": "EXTERNAL",
+    "supported": false,
+    "missing": "No entry characterises RELONXT's coverage as 'comprehensive' or ranks it as covering arrival through full settlement as a strength; E6 and E7 list services but do not use the word 'comprehensive' or frame the breadth as a strength."
+   }
+  },
+  {
+   "id": "K0e5q1o1",
+   "line": 102,
+   "cat": "not scored",
+   "expect": "either",
+   "basis": "a hedged sentence in a profile; the rules ask for a split",
+   "text": "A customer who wants a self-serve, all-in-one digital tool for managing an active relocation would find the consolidated platform useful",
+   "status": "open",
+   "check": "",
+   "why": "its only label is \"would\", which covers the clause it governs and nothing else, and the sentence is in the profile of Relocate Now, refers to \"the consolidated platform\": the hypothesis has to be split from what is stated inside it",
+   "model_answer": {
+    "id": "K0e5q1o1",
+    "class": "ASSUMPTION",
+    "label": "would find"
+   }
+  },
+  {
+   "id": "K1l9okso",
+   "line": 25,
+   "cat": "not scored",
+   "expect": "either",
+   "basis": "the founder's hypothesis continued from the sentence before, with no label of its own",
+   "text": "What they need is a structured, personalized plan that tells them what is actually in the way and what to do next.",
+   "status": "settled",
+   "check": "",
+   "why": "",
+   "model_answer": {
+    "id": "K1l9okso",
+    "class": "FOUNDER",
+    "supported": true,
+    "intake_quote": "Quit Your Life and Travel solves this problem by helping people identify what is keeping them stuck and turning a vague dream into a practical, personalized plan."
+   }
+  }
+ ],
+ "rejected_responses": [],
+ "usage": [
+  {
+   "prompt_tokens": 8548,
+   "completion_tokens": 2635,
+   "total_tokens": 11183,
+   "cost": 0.065169,
+   "is_byok": false,
+   "prompt_tokens_details": {
+    "cached_tokens": 0,
+    "cache_write_tokens": 0,
+    "audio_tokens": 0,
+    "video_tokens": 0
+   },
+   "cost_details": {
+    "upstream_inference_cost": 0.065169,
+    "upstream_inference_prompt_cost": 0.025644,
+    "upstream_inference_completions_cost": 0.039525
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 0,
+    "image_tokens": 0,
+    "audio_tokens": 0
+   }
+  },
+  {
+   "prompt_tokens": 5147,
+   "completion_tokens": 829,
+   "total_tokens": 5976,
+   "cost": 0.027876,
+   "is_byok": false,
+   "prompt_tokens_details": {
+    "cached_tokens": 0,
+    "cache_write_tokens": 0,
+    "audio_tokens": 0,
+    "video_tokens": 0
+   },
+   "cost_details": {
+    "upstream_inference_cost": 0.027876,
+    "upstream_inference_prompt_cost": 0.015441,
+    "upstream_inference_completions_cost": 0.012435
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 0,
+    "image_tokens": 0,
+    "audio_tokens": 0
+   }
+  }
+ ],
+ "models": [
+  "anthropic/claude-sonnet-4.6",
+  "anthropic/claude-sonnet-4.6"
+ ]
+}
