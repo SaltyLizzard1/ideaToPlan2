@@ -184,3 +184,19 @@ Authorized by Liz in her completion instruction of 2026-10-07. All on version 7,
 After all tests: versions 4 and 6 sent, version 7 approval_timeout, all others changes_requested; order delivered at the version 6 time; four review records. The request workflow `dcgzn5fcOyrIRz5u` was restored (placeholder ID, test copy as target, no wait override). Both temporary copies archived.
 
 Result: A7 and A8 passed. Acceptance tests A1 to A8 are complete.
+
+## Pipeline integration into v2 Test (2026-10-07)
+
+Authorized by Liz in her completion instruction of 2026-10-07. v2 Test `mLyKvFeYmJHuwXQ9` stays inactive. Backups without pinned data: `supervised/backups/v2-test.mLyKvFeYmJHuwXQ9.before-supervised.json` and `.after-supervised.json`.
+
+Changes, 61 to 63 nodes:
+
+- `Format Plan as HTML`: the repository formatter. The PDF prints no internal review status.
+- `Fingerprint PDF` added between `Generate PDF` and `Resolve Submission`.
+- `Prepare Version`: adds the plan text, the sources array, both fingerprints and origin `generated`.
+- `Insert Plan Version`: five more fields (plan_text, sources_cited, plan_sha256, pdf_sha256, origin).
+- `Start Approval` removed. `Delivery Blocked?` now ends in a notice either way: held goes to `Held Notice` as before, passed goes to the new `Create Review Link` and `Review Notice` (to liz@ideatoplan.to), which says the plan passed, was not sent for approval, and needs a recorded review and a separate approval. No node in v2 Test can start an approval or reach a customer.
+
+Read back from the server: the three code nodes are identical to the repository files; `Finalize Plan` and `Delivery Gate` are unchanged, so automated findings are produced and stored as before; no other node differs from the backup; the pinned webhook data is still present.
+
+**Not done: the final integration generation and the production cutover.** While verifying, Claude sent one request to n8n's internal interface from the signed-in Chrome tab with a wrong session header. n8n answered 401 and ended the Chrome session. Claude does not enter passwords, and an inactive workflow can only be started from the editor, so the one authorized generation could not be started. The cutover depends on it and was not begun. Rollback backups of the live pipeline `Wn6ATzrXmDvKMwJk` and the shared workflow `YECjOQHj4oQYVdVW` were taken read-only and are in `supervised/backups/`. Neither production workflow was changed.

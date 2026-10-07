@@ -1,0 +1,1213 @@
+{
+ "updatedAt": "2026-08-11T11:34:48.267Z",
+ "createdAt": "2026-05-18T06:15:02.988Z",
+ "id": "Wn6ATzrXmDvKMwJk",
+ "name": "IdeaToPlan - Full Pipeline (Rebuilt)",
+ "description": "Order-alert subject line on internal email (tier + client name + emoji), plus all prior quality upgrades. To be published so production webhook runs current version.",
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "idea-submission-v2",
+    "authentication": "headerAuth",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "id": "8225b8b2-1276-4f45-a1c4-457ed9748d4a",
+   "name": "Webhook",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    0,
+    192
+   ],
+   "webhookId": "65cb7c1c-e5b3-4dbd-9f12-d815dd8ecd4b",
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "WQx18lXqetKlm2ex",
+     "name": "Header Auth account 2"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "respondWith": "json",
+    "responseBody": "{\"ok\":true}",
+    "options": {}
+   },
+   "id": "fc371827-98ea-480c-a157-61d6885fcd61",
+   "name": "Respond to Webhook",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1,
+   "position": [
+    224,
+    192
+   ]
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "1",
+       "name": "=client_name",
+       "value": "={{ $json.body.fullName }}",
+       "type": "string"
+      },
+      {
+       "id": "2",
+       "name": "email",
+       "value": "={{ $json.body.email }}",
+       "type": "string"
+      },
+      {
+       "id": "3",
+       "name": "plan_goal",
+       "value": "={{ $json.body.planGoal }}",
+       "type": "string"
+      },
+      {
+       "id": "4",
+       "name": "business_idea",
+       "value": "={{ $json.body.businessIdea }}",
+       "type": "string"
+      },
+      {
+       "id": "5",
+       "name": "target_customer",
+       "value": "={{ $json.body.targetAudience }}",
+       "type": "string"
+      },
+      {
+       "id": "6",
+       "name": "industry",
+       "value": "={{ $json.body.industry }}",
+       "type": "string"
+      },
+      {
+       "id": "7",
+       "name": "location",
+       "value": "={{ $json.body.location }}",
+       "type": "string"
+      },
+      {
+       "id": "8",
+       "name": "differentiator",
+       "value": "={{ $json.body.differentiation }}",
+       "type": "string"
+      },
+      {
+       "id": "9",
+       "name": "budget",
+       "value": "={{ $json.body.budget }}",
+       "type": "string"
+      },
+      {
+       "id": "10",
+       "name": "additional_notes",
+       "value": "={{ $json.body.problem }}",
+       "type": "string"
+      },
+      {
+       "id": "11",
+       "name": "package",
+       "value": "={{ $json.body.verifiedPlanType }}",
+       "type": "string"
+      },
+      {
+       "id": "12",
+       "name": "plan_goal_clean",
+       "value": "={{ $json.body.planGoal === 'bank-loan' ? 'Bank Loan' : $json.body.planGoal === 'investor' ? 'Investor Pitch' : 'Personal Roadmap' }}",
+       "type": "string"
+      },
+      {
+       "id": "13",
+       "name": "founder_background",
+       "value": "={{ $json.body.founderBackground }}",
+       "type": "string"
+      },
+      {
+       "id": "14",
+       "name": "funding_ask",
+       "value": "={{ $json.body.fundingAsk }}",
+       "type": "string"
+      },
+      {
+       "id": "15",
+       "name": "current_traction",
+       "value": "={{ $json.body.currentTraction }}",
+       "type": "string"
+      },
+      {
+       "id": "16",
+       "name": "use_of_funds",
+       "value": "={{ $json.body.useOfFunds }}",
+       "type": "string"
+      },
+      {
+       "id": "17",
+       "name": "exit_vision",
+       "value": "={{ $json.body.exitVision }}",
+       "type": "string"
+      },
+      {
+       "id": "18",
+       "name": "loan_amount",
+       "value": "={{ $json.body.loanAmount }}",
+       "type": "string"
+      },
+      {
+       "id": "19",
+       "name": "loan_use",
+       "value": "={{ $json.body.loanUse }}",
+       "type": "string"
+      },
+      {
+       "id": "20",
+       "name": "assets_collateral",
+       "value": "={{ $json.body.assetsCollateral }}",
+       "type": "string"
+      },
+      {
+       "id": "21",
+       "name": "credit_standing",
+       "value": "={{ $json.body.creditStanding }}",
+       "type": "string"
+      },
+      {
+       "id": "22",
+       "name": "existing_debt",
+       "value": "={{ $json.body.existingDebt }}",
+       "type": "string"
+      },
+      {
+       "id": "23",
+       "name": "current_revenue",
+       "value": "={{ $json.body.currentRevenue }}",
+       "type": "string"
+      },
+      {
+       "id": "24",
+       "name": "years_in_business",
+       "value": "={{ $json.body.yearsInBusiness }}",
+       "type": "string"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "8a60738e-d8ef-4580-a7db-c876bc2513f5",
+   "name": "Prepare Client Data",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    448,
+    192
+   ]
+  },
+  {
+   "parameters": {
+    "tableId": "idea_submissions",
+    "fieldsUi": {
+     "fieldValues": [
+      {
+       "fieldId": "client_name",
+       "fieldValue": "={{ $json.client_name }}"
+      },
+      {
+       "fieldId": "email",
+       "fieldValue": "={{ $json.email }}"
+      },
+      {
+       "fieldId": "plan_goal",
+       "fieldValue": "={{ $json.plan_goal }}"
+      },
+      {
+       "fieldId": "business_idea",
+       "fieldValue": "={{ $json.business_idea }}"
+      },
+      {
+       "fieldId": "target_customer",
+       "fieldValue": "={{ $json.target_customer }}"
+      },
+      {
+       "fieldId": "industry",
+       "fieldValue": "={{ $json.industry }}"
+      },
+      {
+       "fieldId": "location",
+       "fieldValue": "={{ $json.location }}"
+      },
+      {
+       "fieldId": "differentiator",
+       "fieldValue": "={{ $json.differentiator }}"
+      },
+      {
+       "fieldId": "budget",
+       "fieldValue": "={{ $json.budget }}"
+      },
+      {
+       "fieldId": "additional_notes",
+       "fieldValue": "={{ $json.additional_notes }}"
+      },
+      {
+       "fieldId": "package",
+       "fieldValue": "={{ $json.package }}"
+      },
+      {
+       "fieldId": "founder_background",
+       "fieldValue": "={{ $json.founder_background }}"
+      },
+      {
+       "fieldId": "funding_ask",
+       "fieldValue": "={{ $json.funding_ask }}"
+      },
+      {
+       "fieldId": "current_traction",
+       "fieldValue": "={{ $json.current_traction }}"
+      },
+      {
+       "fieldId": "use_of_funds",
+       "fieldValue": "={{ $json.use_of_funds }}"
+      },
+      {
+       "fieldId": "exit_vision",
+       "fieldValue": "={{ $json.exit_vision }}"
+      },
+      {
+       "fieldId": "loan_amount",
+       "fieldValue": "={{ $json.loan_amount }}"
+      },
+      {
+       "fieldId": "loan_use",
+       "fieldValue": "={{ $json.loan_use }}"
+      },
+      {
+       "fieldId": "assets_collateral",
+       "fieldValue": "={{ $json.assets_collateral }}"
+      },
+      {
+       "fieldId": "credit_standing",
+       "fieldValue": "={{ $json.credit_standing }}"
+      },
+      {
+       "fieldId": "existing_debt",
+       "fieldValue": "={{ $json.existing_debt }}"
+      },
+      {
+       "fieldId": "current_revenue",
+       "fieldValue": "={{ $json.current_revenue }}"
+      },
+      {
+       "fieldId": "years_in_business",
+       "fieldValue": "={{ $json.years_in_business }}"
+      },
+      {
+       "fieldId": "status",
+       "fieldValue": "pending"
+      }
+     ]
+    }
+   },
+   "id": "75d623bf-775c-4153-833b-b2c710e16f32",
+   "name": "Log to Supabase",
+   "type": "n8n-nodes-base.supabase",
+   "typeVersion": 1,
+   "position": [
+    672,
+    192
+   ],
+   "retryOnFail": true,
+   "credentials": {
+    "supabaseApi": {
+     "id": "oxQOdBDbGP7WmsX1",
+     "name": "Supabase account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "rules": {
+     "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.plan_goal }}",
+          "rightValue": "personal-roadmap",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          },
+          "id": "da1280d5-fd51-45b3-96df-1651a60bca4d"
+         }
+        ],
+        "combinator": "and"
+       }
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.plan_goal }}",
+          "rightValue": "bank-loan",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          },
+          "id": "17fed072-08dc-4ba3-b44d-f9693464e5d0"
+         }
+        ],
+        "combinator": "and"
+       }
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.plan_goal }}",
+          "rightValue": "investor",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          },
+          "id": "d621fe08-9ac5-47dd-9105-47aa65c65815"
+         }
+        ],
+        "combinator": "and"
+       }
+      }
+     ]
+    },
+    "options": {
+     "fallbackOutput": "extra"
+    }
+   },
+   "id": "5890f10c-5d2d-46ac-bb9d-3b21b879ace7",
+   "name": "Choose Goal Prompt",
+   "type": "n8n-nodes-base.switch",
+   "typeVersion": 3.4,
+   "position": [
+    896,
+    160
+   ]
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "1",
+       "name": "full_user_prompt",
+       "type": "string",
+       "value": "==You are writing a business plan for the following business:\n\nBusiness Idea: {{ $('Prepare Client Data').first().json.business_idea }}\nTarget Customer: {{ $('Prepare Client Data').first().json.target_customer }}\nIndustry: {{ $('Prepare Client Data').first().json.industry }}\nWhere They Will Operate: {{ $('Prepare Client Data').first().json.location }}\nWhat Makes Them Different: {{ $('Prepare Client Data').first().json.differentiator }}\nApproximate Start-Up Budget: {{ $('Prepare Client Data').first().json.budget }}\nCurrent Annual Revenue: {{ $('Prepare Client Data').first().json.current_revenue }}\nYears In Business: {{ $('Prepare Client Data').first().json.years_in_business }}\n\nThis plan is a personal roadmap for the founder. The tone should be direct, practical, and action-oriented. Address the founder directly in second person (you, your) throughout the document; never refer to the founder by name in third person. Prioritize clarity and executable next steps over formal business language.\n\nAdjust all terminology, metrics, and financial benchmarks to reflect standard practices in the founder's specific industry.\n\nOnly use the information provided above. Do not invent facts, figures, or details that were not supplied.\n\nFor every financial target or projection, show the simple bottom-up arithmetic that produces it (for example: audience size x conversion rate x price) and state any assumptions explicitly.\n\nDo not use em dashes anywhere in the document. Use commas, periods, or standard hyphens instead.\n\nWrite a complete business plan with these sections:\n\n## 1. Business Overview\n## 2. Market Fit\n## 3. Revenue Model\n## 4. 90-Day Action Plan\n## 5. Marketing Basics\n\nUse clear section headers. Be specific. No generic advice."
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "6664bc38-ca90-4e19-be67-9af040d7b594",
+   "name": "Personal Roadmap Prompt",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    1120,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "1",
+       "name": "full_user_prompt",
+       "type": "string",
+       "value": "==You are writing a business plan structured for a bank loan application for the following business:\n\nBusiness Idea: {{ $('Prepare Client Data').first().json.business_idea }}\nTarget Customer: {{ $('Prepare Client Data').first().json.target_customer }}\nIndustry: {{ $('Prepare Client Data').first().json.industry }}\nWhere They Will Operate: {{ $('Prepare Client Data').first().json.location }}\nWhat Makes Them Different: {{ $('Prepare Client Data').first().json.differentiator }}\nApproximate Start-Up Budget: {{ $('Prepare Client Data').first().json.budget }}\nCurrent Annual Revenue: {{ $('Prepare Client Data').first().json.current_revenue }}\nYears In Business: {{ $('Prepare Client Data').first().json.years_in_business }}\nLoan Amount Requested: {{ $('Prepare Client Data').first().json.loan_amount }}\nIntended Use of Loan: {{ $('Prepare Client Data').first().json.loan_use }}\nAssets & Collateral: {{ $('Prepare Client Data').first().json.assets_collateral }}\nCredit & Financial Standing: {{ $('Prepare Client Data').first().json.credit_standing }}\nExisting Debt or Obligations: {{ $('Prepare Client Data').first().json.existing_debt }}\n\nThis plan will be reviewed by a bank loan officer or underwriter. Write with clarity, credibility, and conservatism.\n\nOnly use the information provided above. Do not invent facts, figures, or details that were not supplied.\n\nFor every financial projection or repayment figure, show the simple bottom-up arithmetic that produces it and state any assumptions explicitly.\n\nDo not use em dashes anywhere in the document. Use commas, periods, or standard hyphens instead.\n\nWrite a complete bank loan business plan with these sections:\n\n## 1. Business Overview\n## 2. Market Fit\n## 3. Revenue Model & Financial Projections\n## 4. Loan Request & Use of Funds\n## 5. Repayment Plan\n## 6. Collateral & Risk Mitigation\n## 7. Owner Background & Qualifications\n## 8. 90-Day Action Plan\n\nUse clear section headers exactly as written above. Be specific throughout."
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "db4e15b6-b4f3-458e-82bd-e08d44129523",
+   "name": "Bank Loan Prompt",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    1120,
+    192
+   ]
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "1",
+       "name": "full_user_prompt",
+       "type": "string",
+       "value": "==You are writing an investor pitch business plan for the following business:\n\nBusiness Idea: {{ $('Prepare Client Data').first().json.business_idea }}\nTarget Customer: {{ $('Prepare Client Data').first().json.target_customer }}\nIndustry: {{ $('Prepare Client Data').first().json.industry }}\nWhere They Will Operate: {{ $('Prepare Client Data').first().json.location }}\nWhat Makes Them Different: {{ $('Prepare Client Data').first().json.differentiator }}\nApproximate Start-Up Budget: {{ $('Prepare Client Data').first().json.budget }}\nCurrent Annual Revenue: {{ $('Prepare Client Data').first().json.current_revenue }}\nYears In Business: {{ $('Prepare Client Data').first().json.years_in_business }}\nFounder Background: {{ $('Prepare Client Data').first().json.founder_background }}\nFunding Ask: {{ $('Prepare Client Data').first().json.funding_ask }}\nCurrent Traction: {{ $('Prepare Client Data').first().json.current_traction }}\nUse of Funds: {{ $('Prepare Client Data').first().json.use_of_funds }}\nExit Vision: {{ $('Prepare Client Data').first().json.exit_vision }}\n\nThis plan will be used to pitch angel investors or VCs. Write with confidence and urgency throughout.\n\nOnly use the information provided above. Do not invent facts, figures, or details that were not supplied.\n\nFor every financial projection, show the simple bottom-up arithmetic that produces it (for example: audience size x conversion rate x price) and state any assumptions explicitly.\n\nDo not use em dashes anywhere in the document. Use commas, periods, or standard hyphens instead.\n\nWrite a complete investor pitch business plan with these sections:\n\n## 1. Business Overview\n## 2. Why Now\n## 3. Market Fit\n## 4. Revenue Model\n## 5. Go-To-Market Strategy\n## 6. Traction & Growth Strategy\n## 7. The Team\n## 8. The Ask\n\nUse clear section headers exactly as written above. Be specific throughout."
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "db7110ce-5215-4b19-8412-718a377344d8",
+   "name": "Investor Pitch Prompt",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    1120,
+    384
+   ]
+  },
+  {
+   "parameters": {
+    "promptType": "define",
+    "text": "={{ $json.full_user_prompt }}",
+    "messages": {
+     "messageValues": [
+      {
+       "message": "You are a professional business plan writer. Clear, structured, polished plans. No filler. Every section specific to the business described. Never use em dashes; use commas, periods, or standard hyphens instead. Show the arithmetic behind every financial target."
+      }
+     ]
+    },
+    "batching": {}
+   },
+   "id": "7d1af314-02ea-4588-b58e-1fa18bb6d081",
+   "name": "Basic LLM Chain",
+   "type": "@n8n/n8n-nodes-langchain.chainLlm",
+   "typeVersion": 1.9,
+   "position": [
+    1344,
+    192
+   ]
+  },
+  {
+   "parameters": {
+    "model": "anthropic/claude-sonnet-4.6",
+    "options": {
+     "maxTokens": 8192,
+     "temperature": 0.7
+    }
+   },
+   "id": "8c536a2f-dbf2-4f71-844f-a936e7612ba4",
+   "name": "OpenRouter Chat Model",
+   "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+   "typeVersion": 1,
+   "position": [
+    1424,
+    416
+   ],
+   "credentials": {
+    "openRouterApi": {
+     "id": "2qOweKoKgMKiXr32",
+     "name": "OpenRouter account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 1
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $('Prepare Client Data').first().json.package }}",
+       "rightValue": "Growth",
+       "operator": {
+        "type": "string",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "3bc8e280-acd9-44f6-88de-8f95cd4b68f1",
+   "name": "Plan Type",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    1696,
+    192
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const data = $('Prepare Client Data').first().json;\nconst sanitize = (val) => { if (!val) return ''; return String(val).replace(/[\\n\\r]/g, ' ').replace(/\"/g, \"'\").replace(/\\\\/g, ''); };\nreturn {\n  business_idea: sanitize(data.business_idea), industry: sanitize(data.industry),\n  location: sanitize(data.location), target_customer: sanitize(data.target_customer),\n  differentiator: sanitize(data.differentiator), budget: sanitize(data.budget),\n  plan_goal: sanitize(data.plan_goal), client_name: sanitize(data.client_name),\n  additional_notes: sanitize(data.additional_notes),\n  query: sanitize(data.business_idea) + ' ' + sanitize(data.industry) + ' competitors ' + sanitize(data.location),\n};"
+   },
+   "id": "f597f720-25f4-4a39-8cd6-5f4e5258ff8f",
+   "name": "Sanitize Data",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1920,
+    128
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://openrouter.ai/api/v1/chat/completions",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpBearerAuth",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "HTTP-Referer",
+       "value": "https://quityourlifeandtravel.com"
+      },
+      {
+       "name": "X-Title",
+       "value": "IdeaToPlan"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "rawContentType": "application/json",
+    "body": "={{ JSON.stringify({ model: 'anthropic/claude-haiku-4.5', max_tokens: 100, messages: [{ role: 'user', content: 'From the following business description, write ONE concise web search query (under 25 words) for researching this business\\'s competitors and market. Target the core product/service, audience, and location if relevant. Return ONLY the query text. No quotes, no explanation. BUSINESS: ' + $json.query }] }) }}",
+    "options": {}
+   },
+   "id": "0312c6d2-ce32-4350-8de7-f6963c88afdf",
+   "name": "Distill Search Query",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    2144,
+    128
+   ],
+   "retryOnFail": true,
+   "credentials": {
+    "httpBearerAuth": {
+     "id": "zeH7yl8iNbDhIjLz",
+     "name": "Bearer Auth account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "url": "={{ 'https://api.search.brave.com/res/v1/web/search?q=' + encodeURIComponent($json.choices[0].message.content.replace(/[\\n\\r\"]/g, ' ').trim().split(' ').slice(0, 40).join(' ')) + '&count=5' }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "braveSearchApi",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Accept",
+       "value": "application/json"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "22218278-3cec-4bec-8419-6b82cb91de74",
+   "name": "Brave Search",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    2368,
+    128
+   ],
+   "retryOnFail": true,
+   "credentials": {
+    "braveSearchApi": {
+     "id": "FAxfDwJEqm1YDtij",
+     "name": "Brave Search account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://openrouter.ai/api/v1/chat/completions",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpBearerAuth",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "HTTP-Referer",
+       "value": "https://quityourlifeandtravel.com"
+      },
+      {
+       "name": "X-Title",
+       "value": "IdeaToPlan"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "rawContentType": "application/json",
+    "body": "={{ JSON.stringify({ model: 'perplexity/sonar', messages: [{ role: 'user', content: 'Research competitors for: ' + $('Distill Search Query').first().json.choices[0].message.content.trim() + '. For every statistic you report, state what it measures and its source. Only report figures you are confident in.' }], max_tokens: 2000 }) }}",
+    "options": {}
+   },
+   "id": "60034969-b4c1-447b-a3c9-a0b7c386f373",
+   "name": "Growth Research",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    2592,
+    128
+   ],
+   "retryOnFail": true,
+   "credentials": {
+    "httpBearerAuth": {
+     "id": "zeH7yl8iNbDhIjLz",
+     "name": "Bearer Auth account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "const research = $('Growth Research').first().json.choices[0].message.content;\nconst basePlan = $('Basic LLM Chain').first().json.text;\nconst sanitize = (val) => { if (!val) return ''; return String(val).replace(/[\\n\\r]/g, ' ').replace(/\"/g, \"'\").replace(/\\\\/g, ''); };\nreturn { research: sanitize(research), base_plan: sanitize(basePlan) };"
+   },
+   "id": "a894a6ad-8863-416e-88f6-233ef1dfcfe7",
+   "name": "Sanitize Research",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2816,
+    128
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const s = (v) => !v ? '' : String(v).replace(/[\\n\\r]/g, ' ').replace(/\"/g, \"'\").replace(/\\\\/g, '');\nconst d = $('Prepare Client Data').first().json;\nconst bp = s($('Basic LLM Chain').first().json.text);\n\nconst researchRaw = $('Growth Research').first().json;\nconst researchText = researchRaw && Array.isArray(researchRaw.choices) && researchRaw.choices[0] && researchRaw.choices[0].message ? researchRaw.choices[0].message.content : '';\nconst rs = s(researchText);\n\nconst braveRaw = $('Brave Search').first().json;\nconst braveResults = braveRaw && braveRaw.web && Array.isArray(braveRaw.web.results) ? braveRaw.web.results : [];\nconst bv = s(braveResults.map(r => (r.title || '') + ': ' + (r.description || '')).join(' | '));\n\nconst g = d.plan_goal || '';\nlet gf = '', gi = '';\nif (g === 'bank-loan') {\n  gf = 'Plan for a bank loan officer. Write with credibility and conservatism. Only use info explicitly provided. Do not invent details.';\n  gi = 'Loan: ' + s(d.loan_amount) + '. Use: ' + s(d.loan_use) + '. Collateral: ' + s(d.assets_collateral) + '. Credit: ' + s(d.credit_standing) + '. Debt: ' + s(d.existing_debt);\n} else if (g === 'investor') {\n  gf = 'Plan for investors. Write with confidence and urgency. Only use info explicitly provided. Do not invent details.';\n  gi = 'Background: ' + s(d.founder_background) + '. Ask: ' + s(d.funding_ask) + '. Traction: ' + s(d.current_traction) + '. Funds: ' + s(d.use_of_funds) + '. Exit: ' + s(d.exit_vision);\n} else {\n  gf = 'Personal roadmap. Practical tone. Address the founder directly in second person (you, your) throughout; never refer to the founder by name in third person. Only use info explicitly provided. Do not invent details.';\n}\n\nconst rc = (d.current_revenue || d.years_in_business) ? 'Revenue: ' + s(d.current_revenue) + '. Years: ' + s(d.years_in_business) + '.' : '';\n\nconst rules = 'QUALITY RULES: (1) Only cite market statistics that appear in the RESEARCH or MARKET data above; use each statistic at most once, with one clearly stated meaning; if a figure\\'s meaning is ambiguous, omit it rather than interpret it. (2) Include only competitors explicitly named in the RESEARCH or MARKET data; fewer verified competitors is better than a fuller table of uncertain ones. (3) State each key insight in depth exactly once, in its most relevant section; elsewhere reference it in a single short clause without re-arguing it. (4) For every revenue target or projection, show the simple bottom-up arithmetic that produces it (audience size x conversion rate x price) and state assumptions explicitly. (5) Never use em dashes anywhere; use commas, periods, or standard hyphens instead. (6) Format the SWOT as a markdown table with exactly two columns headed Category and Detail, and exactly four rows: Strengths, Weaknesses, Opportunities, Threats. Do not use an Internal versus External axis or any other column structure. (7) Do not cite software review-site star ratings, review counts, or directory scores anywhere in the plan. (8) Keep every markdown table to a maximum of four columns so it remains readable in a PDF.';\n\nconst uc = 'Enhance this base plan into a Growth-tier plan with competitive research and market data. ' + gf + ' Industry: ' + s(d.industry) + '. ' + rc + ' BASE PLAN: ' + bp + '. INPUTS: ' + s(d.client_name) + ', ' + s(d.business_idea) + ', ' + s(d.industry) + ', ' + s(d.location) + ', ' + s(d.target_customer) + ', ' + s(d.differentiator) + ', ' + s(d.budget) + '. ' + gi + ' RESEARCH: ' + rs + '. MARKET: ' + bv + '. Include all base plan sections enhanced with data. Add Market Saturation Score (1-10), SWOT, and Viability Verdict. Format all tabular data as markdown tables with each row on its own line. ' + rules;\n\nreturn { payload: JSON.stringify({ model: 'anthropic/claude-sonnet-4.6', max_tokens: 8000, messages: [{ role: 'system', content: 'Professional Growth-tier business plan writer. Thorough, specific, data-driven. No filler. Do not invent details. Cite only statistics present in the provided research, each used once with one meaning. Show the arithmetic behind every financial target. Never use em dashes.' }, { role: 'user', content: uc }] }) };"
+   },
+   "id": "05b98f8e-9337-439a-87e8-688fb4af2cc4",
+   "name": "Build Growth Payload",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3040,
+    128
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://openrouter.ai/api/v1/chat/completions",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpBearerAuth",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "HTTP-Referer",
+       "value": "https://quityourlifeandtravel.com"
+      },
+      {
+       "name": "X-Title",
+       "value": "IdeaToPlan"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "rawContentType": "application/json",
+    "body": "={{ $json.payload }}",
+    "options": {}
+   },
+   "id": "08b56139-ec7c-4175-94ea-3ea9c087af07",
+   "name": "Growth Plan Generator1",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    3264,
+    128
+   ],
+   "retryOnFail": true,
+   "credentials": {
+    "httpBearerAuth": {
+     "id": "zeH7yl8iNbDhIjLz",
+     "name": "Bearer Auth account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "return { text: $('Growth Plan Generator1').first().json.choices[0].message.content };"
+   },
+   "id": "5c744a37-46bc-4481-a549-5b381618842c",
+   "name": "Format Growth Output1",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3488,
+    128
+   ]
+  },
+  {
+   "parameters": {
+    "sendTo": "={{ $('Prepare Client Data').first().json.email }}",
+    "subject": "={{ 'Your ' + $('Prepare Client Data').first().json.plan_goal_clean + ' plan is in production.' }}",
+    "message": "==<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-family: Georgia, serif; max-width: 700px; margin: 0 auto;\"><tr><td style=\"background: #1e3a5f; padding: 24px 32px; border-radius: 8px 8px 0 0;\"><h1 style=\"color: #ffffff; margin: 0; font-size: 22px; letter-spacing: 1px;\">IDEA TO PLAN</h1><p style=\"color: #a0b8d0; margin: 4px 0 0; font-size: 13px;\">Business Planning Service</p></td></tr><tr><td style=\"padding: 32px; background: #ffffff;\"><p style=\"font-size: 16px; color: #222;\">Hi {{ $('Prepare Client Data').first().json.client_name.trim().replace(/\\b\\w/g, c => c.toUpperCase()) }},</p><p style=\"font-size: 15px; color: #444; line-height: 1.8;\">Your idea has been received and your business plan is now in production.</p><p style=\"font-size: 15px; color: #444; line-height: 1.8;\">I personally review every plan before it goes out. Nothing is auto-sent. When yours is ready you will receive it as a PDF, and you can reply to that email with any questions. I answer them myself.</p><p style=\"font-size: 15px; color: #444; line-height: 1.8;\">Expect it within 72 hours.</p><p style=\"font-size: 15px; color: #222; margin-top: 32px;\">Best,<br><strong>Elizabeth Alfond</strong><br><span style=\"font-size: 13px; color: #888;\">Founder, IdeaToPlan<br>ideatoplan.to</span></p></td></tr><tr><td style=\"background: #1e3a5f; padding: 20px 32px; border-radius: 0 0 8px 8px; text-align: center;\"><p style=\"color: #a0b8d0; margin: 0; font-size: 12px;\">Built for founders ready to leap. IdeaToPlan.to</p></td></tr></table>",
+    "options": {}
+   },
+   "id": "aefbda92-0303-487f-9710-890c394eb336",
+   "name": "confirmation_to_client",
+   "type": "n8n-nodes-base.gmail",
+   "typeVersion": 2.2,
+   "position": [
+    3712,
+    192
+   ],
+   "webhookId": "c31519d2-2caa-40db-8f5f-da8e7786777c",
+   "retryOnFail": true,
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "eKUvaAAgyww27rSu",
+     "name": "Gmail account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "update",
+    "tableId": "idea_submissions",
+    "matchType": "allFilters",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "id",
+       "condition": "eq",
+       "keyValue": "={{ $('Log to Supabase').first().json.id }}"
+      }
+     ]
+    },
+    "fieldsUi": {
+     "fieldValues": [
+      {
+       "fieldId": "plan_content",
+       "fieldValue": "={{ $('Prepare Client Data').first().json.package === 'Growth' ? $('Format Growth Output1').first().json.text : $('Basic LLM Chain').first().json.text }}"
+      },
+      {
+       "fieldId": "plan_generated_at",
+       "fieldValue": "={{ $now.toISO() }}"
+      },
+      {
+       "fieldId": "status",
+       "fieldValue": "generated"
+      }
+     ]
+    }
+   },
+   "id": "e7bdf0c4-7006-4493-9f6c-05e167a84ee5",
+   "name": "Update Supabase Status",
+   "type": "n8n-nodes-base.supabase",
+   "typeVersion": 1,
+   "position": [
+    3936,
+    192
+   ],
+   "credentials": {
+    "supabaseApi": {
+     "id": "oxQOdBDbGP7WmsX1",
+     "name": "Supabase account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "let plan = '';\ntry { plan = $('Format Growth Output1').first().json.text || ''; } catch (e) {}\nif (!plan) { try { plan = $('Basic LLM Chain').first().json.text || ''; } catch (e) {} }\nconst data = $('Prepare Client Data').first().json;\nplan = plan.replace(/\\s*\\u2014\\s*/g, ' - ').replace(/\\u2014/g, '-');\nconst properName = (data.client_name || '').trim().replace(/\\b\\w/g, c => c.toUpperCase());\nconst convertTables = (src) => {\n  const lines = src.split('\\n');\n  const out = [];\n  let i = 0;\n  while (i < lines.length) {\n    if (/^\\s*\\|.*\\|\\s*$/.test(lines[i])) {\n      const block = [];\n      while (i < lines.length && /^\\s*\\|.*\\|\\s*$/.test(lines[i])) { block.push(lines[i]); i++; }\n      const rows = block\n        .map(l => l.trim().replace(/^\\||\\|$/g, '').split('|').map(c => c.trim()))\n        .filter(cells => !cells.every(c => /^:?-{2,}:?$/.test(c) || c === ''));\n      if (rows.length) {\n        let t = '<table><thead><tr>' + rows[0].map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';\n        for (let r = 1; r < rows.length; r++) { t += '<tr>' + rows[r].map(c => '<td>' + c + '</td>').join('') + '</tr>'; }\n        t += '</tbody></table>';\n        out.push(t);\n      }\n    } else { out.push(lines[i]); i++; }\n  }\n  return out.join('\\n');\n};\nconst formatPlan = (text) => {\n  return convertTables(text)\n    .replace(/^### (.+)$/gm, '<h3>$1</h3>')\n    .replace(/^## (\\d+\\. .+)$/gm, '<h2>$1</h2>')\n    .replace(/^## (.+)$/gm, '<h2>$1</h2>')\n    .replace(/^# (.+)$/gm, '<h1>$1</h1>')\n    .replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>')\n    .replace(/^- (.+)$/gm, '<li>$1</li>')\n    .replace(/(<li>.*<\\/li>\\n?)+/g, '<ul>$&</ul>')\n    .replace(/\\n\\n/g, '</p><p>')\n    .trim();\n};\nconst formattedContent = formatPlan(plan);\nconst html = '<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>body{font-family:Georgia,serif;color:#1a1a2e;margin:0;padding:0}.header{background:#1e3a5f;padding:36px 48px;border-bottom:4px solid #e8b84b}.header h1{color:#fff;margin:0;font-size:28px;letter-spacing:2px;text-transform:uppercase}.meta{background:#f8f4e8;padding:16px 48px;border-left:4px solid #e8b84b;font-size:13px;color:#555}.content{padding:40px 48px;max-width:800px;margin:0 auto;line-height:1.9;font-size:15px;color:#222}h2{color:#1e3a5f;font-size:20px;margin:32px 0 12px;padding-left:12px;border-left:4px solid #e8b84b}h3{color:#1e3a5f;font-size:16px;margin:24px 0 8px}table{width:100%;border-collapse:collapse;margin:16px 0}th,td{border:1px solid #d9d2c0;padding:8px 10px;font-size:14px;text-align:left;vertical-align:top}th{background:#f8f4e8;color:#1e3a5f}ul{margin:12px 0 12px 24px}li{margin:6px 0;line-height:1.7}.footer{background:#1e3a5f;padding:20px 48px;text-align:center;margin-top:40px}.footer p{color:#a0b8d0;margin:0;font-size:12px}</style></head><body><div class=\"header\"><h1>IDEA TO PLAN</h1><p>Business Plan - ' + (data.plan_goal_clean || 'Strategic Plan') + '</p></div><div class=\"meta\"><strong>Prepared for:</strong> ' + properName + ' &nbsp;|&nbsp; <strong>Tier:</strong> ' + (data.package || '') + '</div><div class=\"content\">' + formattedContent + '</div><div class=\"footer\"><p>Built for founders ready to leap &nbsp;|&nbsp; IdeaToPlan.to</p></div></body></html>';\nreturn [{ json: { html, client_name: properName, plan_goal_clean: data.plan_goal_clean } }];"
+   },
+   "id": "fa5493fe-65e1-4e11-ba47-024af3c563da",
+   "name": "Format Plan as HTML",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4160,
+    192
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://pdfspark.dev/api/v1/pdf/from-html",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ { \"html\": $json.html, \"options\": { \"format\": \"A4\", \"margin\": { \"top\": \"10mm\", \"bottom\": \"10mm\", \"left\": \"10mm\", \"right\": \"10mm\" }, \"printBackground\": true } } }}",
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "file",
+       "outputPropertyName": "pdf_data"
+      }
+     }
+    }
+   },
+   "id": "fb5cf972-d2a5-4643-9c2c-602f8f4d9d1d",
+   "name": "Generate PDF",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    4384,
+    192
+   ],
+   "retryOnFail": true
+  },
+  {
+   "parameters": {
+    "sendTo": "liz@ideatoplan.to",
+    "subject": "={{ '💰 New ' + $('Prepare Client Data').first().json.package + ' order - ' + $('Prepare Client Data').first().json.client_name.trim().replace(/\\b\\w/g, c => c.toUpperCase()) + ' - plan attached' }}",
+    "message": "==<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-family: Georgia, serif; max-width: 700px; margin: 0 auto;\"><tr><td style=\"background: #1e3a5f; padding: 24px 32px; border-radius: 8px 8px 0 0;\"><h1 style=\"color: #ffffff; margin: 0; font-size: 22px; letter-spacing: 1px;\">IDEA TO PLAN</h1><p style=\"color: #a0b8d0; margin: 4px 0 0; font-size: 13px;\">Internal Review Draft</p></td></tr><tr><td style=\"background: #fff8e1; padding: 16px 32px; border-left: 4px solid #f59e0b;\"><p style=\"margin: 0; font-size: 13px; color: #444;\"><strong>REVIEW BEFORE SENDING TO CLIENT</strong></p><p style=\"margin: 4px 0 0; font-size: 13px; color: #666;\">Client: {{ $('Prepare Client Data').first().json.client_name.trim().replace(/\\b\\w/g, c => c.toUpperCase()) }} &nbsp;|&nbsp; {{ $('Prepare Client Data').first().json.email }} &nbsp;|&nbsp; Tier: {{ $('Prepare Client Data').first().json.package }}</p></td></tr><tr><td style=\"padding: 32px; background: #ffffff; font-size: 15px; line-height: 1.8; color: #222;\"><p>The formatted plan is attached as a PDF. Review it, then forward to the client.</p><p style=\"font-size: 13px; color: #888;\">Client was told: reviewed by hand, delivered within 72 hours, questions answered by email.</p></td></tr><tr><td style=\"background: #1e3a5f; padding: 20px 32px; border-radius: 0 0 8px 8px; text-align: center;\"><p style=\"color: #a0b8d0; margin: 0; font-size: 12px;\">Built for founders ready to leap. IdeaToPlan.to</p></td></tr></table>",
+    "options": {
+     "attachmentsUi": {
+      "attachmentsBinary": [
+       {
+        "property": "pdf_data"
+       }
+      ]
+     }
+    }
+   },
+   "id": "3f4963cd-c631-416b-ba21-3fed797ca4eb",
+   "name": "email_business_plan_to_me",
+   "type": "n8n-nodes-base.gmail",
+   "typeVersion": 2.2,
+   "position": [
+    4608,
+    192
+   ],
+   "webhookId": "a890d21e-a6bb-4e8e-8ee4-43bcdce63134",
+   "retryOnFail": true,
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "eKUvaAAgyww27rSu",
+     "name": "Gmail account"
+    }
+   }
+  }
+ ],
+ "connections": {
+  "Webhook": {
+   "main": [
+    [
+     {
+      "node": "Respond to Webhook",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Respond to Webhook": {
+   "main": [
+    [
+     {
+      "node": "Prepare Client Data",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepare Client Data": {
+   "main": [
+    [
+     {
+      "node": "Log to Supabase",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Log to Supabase": {
+   "main": [
+    [
+     {
+      "node": "Choose Goal Prompt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Choose Goal Prompt": {
+   "main": [
+    [
+     {
+      "node": "Personal Roadmap Prompt",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Bank Loan Prompt",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Investor Pitch Prompt",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Personal Roadmap Prompt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Personal Roadmap Prompt": {
+   "main": [
+    [
+     {
+      "node": "Basic LLM Chain",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Bank Loan Prompt": {
+   "main": [
+    [
+     {
+      "node": "Basic LLM Chain",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Investor Pitch Prompt": {
+   "main": [
+    [
+     {
+      "node": "Basic LLM Chain",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Basic LLM Chain": {
+   "main": [
+    [
+     {
+      "node": "Plan Type",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "OpenRouter Chat Model": {
+   "ai_languageModel": [
+    [
+     {
+      "node": "Basic LLM Chain",
+      "type": "ai_languageModel",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Plan Type": {
+   "main": [
+    [
+     {
+      "node": "Sanitize Data",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "confirmation_to_client",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Sanitize Data": {
+   "main": [
+    [
+     {
+      "node": "Distill Search Query",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Distill Search Query": {
+   "main": [
+    [
+     {
+      "node": "Brave Search",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Brave Search": {
+   "main": [
+    [
+     {
+      "node": "Growth Research",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Growth Research": {
+   "main": [
+    [
+     {
+      "node": "Sanitize Research",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Sanitize Research": {
+   "main": [
+    [
+     {
+      "node": "Build Growth Payload",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Growth Payload": {
+   "main": [
+    [
+     {
+      "node": "Growth Plan Generator1",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Growth Plan Generator1": {
+   "main": [
+    [
+     {
+      "node": "Format Growth Output1",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Format Growth Output1": {
+   "main": [
+    [
+     {
+      "node": "confirmation_to_client",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "confirmation_to_client": {
+   "main": [
+    [
+     {
+      "node": "Update Supabase Status",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Update Supabase Status": {
+   "main": [
+    [
+     {
+      "node": "Format Plan as HTML",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Format Plan as HTML": {
+   "main": [
+    [
+     {
+      "node": "Generate PDF",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Generate PDF": {
+   "main": [
+    [
+     {
+      "node": "email_business_plan_to_me",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "availableInMCP": true,
+  "binaryMode": "separate",
+  "timeSavedMode": "fixed",
+  "timezone": "Asia/Bangkok",
+  "callerPolicy": "workflowsFromSameOwner",
+  "errorWorkflow": "BFirlikXaAuti0bh"
+ },
+ "meta": {
+  "aiBuilderAssisted": true,
+  "builderVariant": "mcp",
+  "templateCredsSetupCompleted": true
+ },
+ "versionId": "f009b21d-5cc3-433e-9138-52f43b6fe0b1",
+ "activeVersionId": "f009b21d-5cc3-433e-9138-52f43b6fe0b1",
+ "versionCounter": 318,
+ "triggerCount": 1,
+ "tags": []
+}

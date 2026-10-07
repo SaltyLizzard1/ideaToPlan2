@@ -1,0 +1,995 @@
+{
+ "updatedAt": "2026-10-05T12:27:27.450Z",
+ "createdAt": "2026-10-03T04:30:17.918Z",
+ "id": "YECjOQHj4oQYVdVW",
+ "name": "IdeaToPlan - Plan Approval and Delivery (sub-workflow, TEST sends to Liz)",
+ "description": null,
+ "active": false,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "s01",
+   "name": "Start",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {
+    "inputSource": "workflowInputs",
+    "workflowInputs": {
+     "values": [
+      {
+       "name": "plan_version_id",
+       "type": "string"
+      },
+      {
+       "name": "approval_wait_minutes",
+       "type": "number"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "s02",
+   "name": "Load Version",
+   "type": "n8n-nodes-base.supabase",
+   "typeVersion": 1,
+   "position": [
+    220,
+    0
+   ],
+   "parameters": {
+    "operation": "getAll",
+    "tableId": "plan_versions",
+    "returnAll": true,
+    "filterType": "manual",
+    "matchType": "allFilters",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "id",
+       "condition": "eq",
+       "keyValue": "={{ $json.plan_version_id }}"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "supabaseApi": {
+     "id": "oxQOdBDbGP7WmsX1",
+     "name": "Supabase account"
+    }
+   },
+   "alwaysOutputData": true
+  },
+  {
+   "id": "s03",
+   "name": "Load Submission",
+   "type": "n8n-nodes-base.supabase",
+   "typeVersion": 1,
+   "position": [
+    440,
+    0
+   ],
+   "parameters": {
+    "operation": "getAll",
+    "tableId": "idea_submissions",
+    "returnAll": true,
+    "filterType": "manual",
+    "matchType": "allFilters",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "id",
+       "condition": "eq",
+       "keyValue": "={{ $json.submission_id || 'missing' }}"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "supabaseApi": {
+     "id": "oxQOdBDbGP7WmsX1",
+     "name": "Supabase account"
+    }
+   },
+   "alwaysOutputData": true
+  },
+  {
+   "id": "s04",
+   "name": "Prepare Approval",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    660,
+    0
+   ],
+   "parameters": {
+    "jsCode": "// Checks the version is still awaiting approval and gathers everything the emails need.\nconst requested = $('Start').first().json.plan_version_id;\nconst v = $('Load Version').first().json;\nconst s = $('Load Submission').first().json;\nif (!v || !v.id) throw new Error('Plan version not found: ' + requested + '. No approval email sent.');\nif (v.status !== 'awaiting_approval') throw new Error('Plan version ' + v.id + ' is ' + v.status + ', expected awaiting_approval. No approval email sent.');\nif (String(v.review_status || '').trim().toUpperCase() === 'HOLD') throw new Error('Plan version ' + v.id + ' has review status HOLD. Held plans are not sent for approval. No approval email sent.');\nif (!s || !s.id) throw new Error('Submission ' + v.submission_id + ' not found for plan version ' + v.id + '. No approval email sent.');\nconst name = String(s.client_name || '').trim().replace(/\\b\\w/g, (c) => c.toUpperCase()) || 'there';\nconst goal = s.plan_goal === 'bank-loan' ? 'Bank Loan' : s.plan_goal === 'investor' ? 'Investor Pitch' : 'Personal Roadmap';\nconst safeName = name.replace(/[\\\\/:*?\"<>|]/g, '').trim() || 'Client';\nreturn [{ json: {\n  plan_version_id: v.id,\n  submission_id: v.submission_id,\n  version: v.version,\n  pdf_path: v.pdf_path,\n  client_name: name,\n  client_email: s.email || '',\n  package: s.package || 'Unknown',\n  plan_goal_label: goal,\n  review_status: v.review_status || 'NOT RECORDED',\n  review_notes: v.review_notes || 'No review notes were recorded for this version.',\n  customer_subject: 'Your ' + goal + ' plan is ready',\n  pdf_filename: 'IdeaToPlan - ' + safeName + '.pdf',\n  // 48 hours unless the caller passes a shorter wait for testing.\n  wait_minutes: Number($('Start').first().json.approval_wait_minutes) > 0 ? Number($('Start').first().json.approval_wait_minutes) : 2880,\n} }];"
+   }
+  },
+  {
+   "id": "s05",
+   "name": "Create Signed URL",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    880,
+    0
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "=https://yglmlnfsyzsvozxirlpo.supabase.co/storage/v1/object/sign/plans/{{ $json.pdf_path }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "supabaseApi",
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "{\"expiresIn\": 259200}",
+    "options": {}
+   },
+   "credentials": {
+    "supabaseApi": {
+     "id": "oxQOdBDbGP7WmsX1",
+     "name": "Supabase account"
+    }
+   }
+  },
+  {
+   "id": "s06",
+   "name": "Build Approval Email",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1100,
+    0
+   ],
+   "parameters": {
+    "jsCode": "// Approval request to Liz. The PDF link is a fresh 72 hour signed URL; the wait limit is 48 hours.\nconst p = $('Prepare Approval').first().json;\nconst signed = $input.first().json.signedURL;\nif (!signed) throw new Error('Storage returned no signed URL for ' + p.pdf_path + '. No approval email sent.');\nconst url = 'https://yglmlnfsyzsvozxirlpo.supabase.co/storage/v1' + signed;\nconst esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst inner = '<p style=\"font-size: 18px; margin-top: 0;\"><strong>Ready for your review</strong></p>'\n  + '<p style=\"margin: 0;\">Client: ' + esc(p.client_name) + '</p><p style=\"margin: 0;\">Email: ' + esc(p.client_email) + '</p><p style=\"margin: 0;\">Package: ' + esc(p.package) + '</p><p style=\"margin: 0;\">Order: ' + esc(p.submission_id) + '</p><p style=\"margin: 0 0 16px;\">Version: ' + esc(p.version) + '</p>'\n  + '<p style=\"margin: 0;\"><strong>Review notes</strong></p><p style=\"margin: 0 0 4px;\">Status: ' + esc(p.review_status) + '</p>'\n  + '<pre style=\"white-space: pre-wrap; font-family: monospace; font-size: 12px; margin: 0 0 16px;\">' + esc(p.review_notes) + '</pre>'\n  + '<p style=\"margin: 0;\"><a href=\"' + esc(url) + '\">Open PDF</a></p><p style=\"margin: 0 0 16px;\">Available for 72 hours from this email.</p>'\n  + '<p style=\"margin: 0;\"><strong>Approve:</strong> Send this version to the client.</p><p style=\"margin: 0 0 16px;\"><strong>Request changes:</strong> Hold delivery for revision.</p>'\n  + '<p>Approval expires after ' + (p.wait_minutes === 2880 ? '48 hours' : p.wait_minutes + ' minutes (test setting)') + '. No response means no delivery.</p>';\nconst html = '<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-family: Georgia, serif; max-width: 700px; margin: 0 auto;\"><tr><td style=\"background: #1e3a5f; padding: 24px 32px; border-radius: 8px 8px 0 0;\"><h1 style=\"color: #ffffff; margin: 0; font-size: 22px; letter-spacing: 1px;\">IDEA TO PLAN</h1><p style=\"color: #a0b8d0; margin: 4px 0 0; font-size: 13px;\">Internal Review</p></td></tr><tr><td style=\"padding: 32px; background: #ffffff; font-size: 15px; line-height: 1.8; color: #222; text-align: left;\">' + inner + '</td></tr></table>';\nreturn [{ json: { ...p, approval_subject: 'Approve: ' + p.package + ' plan for ' + p.client_name + ' (' + p.review_status + ')', approval_html: html } }];"
+   }
+  },
+  {
+   "id": "s07",
+   "name": "Approval Email",
+   "type": "n8n-nodes-base.gmail",
+   "typeVersion": 2.2,
+   "position": [
+    1320,
+    0
+   ],
+   "parameters": {
+    "resource": "message",
+    "operation": "sendAndWait",
+    "sendTo": "liz@ideatoplan.to",
+    "subject": "={{ $json.approval_subject }}",
+    "message": "={{ $json.approval_html }}",
+    "responseType": "approval",
+    "approvalOptions": {
+     "values": {
+      "approvalType": "double",
+      "approveLabel": "Approve",
+      "disapproveLabel": "Request changes"
+     }
+    },
+    "options": {
+     "appendAttribution": false,
+     "limitWaitTime": {
+      "values": {
+       "limitType": "afterTimeInterval",
+       "resumeAmount": "={{ $json.wait_minutes }}",
+       "resumeUnit": "minutes"
+      }
+     }
+    }
+   },
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "eKUvaAAgyww27rSu",
+     "name": "Gmail account"
+    }
+   },
+   "webhookId": "8c1d4e2a-6f3b-4a97-b2c5-0e9f7d3a1b64"
+  },
+  {
+   "id": "s08",
+   "name": "Approved?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    1540,
+    0
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "ap1",
+       "leftValue": "={{ $json.data?.approved === true }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "s09",
+   "name": "Changes Requested?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    1760,
+    260
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "cr1",
+       "leftValue": "={{ $json.data?.approved === false }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "s10",
+   "name": "Claim",
+   "type": "n8n-nodes-base.supabase",
+   "typeVersion": 1,
+   "position": [
+    1760,
+    -100
+   ],
+   "parameters": {
+    "operation": "update",
+    "tableId": "plan_versions",
+    "matchType": "allFilters",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "id",
+       "condition": "eq",
+       "keyValue": "={{ $('Prepare Approval').first().json.plan_version_id }}"
+      },
+      {
+       "keyName": "status",
+       "condition": "eq",
+       "keyValue": "awaiting_approval"
+      }
+     ]
+    },
+    "fieldsUi": {
+     "fieldValues": [
+      {
+       "fieldId": "status",
+       "fieldValue": "sending"
+      },
+      {
+       "fieldId": "approved_at",
+       "fieldValue": "={{ $now.toISO() }}"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "supabaseApi": {
+     "id": "oxQOdBDbGP7WmsX1",
+     "name": "Supabase account"
+    }
+   },
+   "alwaysOutputData": true
+  },
+  {
+   "id": "s11",
+   "name": "Claimed?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    1980,
+    -100
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "cl1",
+       "leftValue": "={{ !!$json.id }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "s12",
+   "name": "Download PDF",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2200,
+    -200
+   ],
+   "parameters": {
+    "method": "GET",
+    "url": "=https://yglmlnfsyzsvozxirlpo.supabase.co/storage/v1/object/authenticated/plans/{{ $('Prepare Approval').first().json.pdf_path }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "supabaseApi",
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "file",
+       "outputPropertyName": "data"
+      }
+     }
+    }
+   },
+   "credentials": {
+    "supabaseApi": {
+     "id": "oxQOdBDbGP7WmsX1",
+     "name": "Supabase account"
+    }
+   }
+  },
+  {
+   "id": "s13",
+   "name": "Build Customer Email",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2420,
+    -200
+   ],
+   "parameters": {
+    "jsCode": "// Customer delivery email. The PDF comes from Storage, never from the earlier run.\nconst p = $('Prepare Approval').first().json;\nconst item = $input.first();\nif (!item.binary || !item.binary.data) throw new Error('PDF download returned no file for ' + p.pdf_path + '. Row stays sending; nothing was sent.');\nconst esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst inner = '<p style=\"margin-top: 0;\">Hi ' + esc(p.client_name) + ',</p>'\n  + '<p>Your business plan is attached. I\\'ve personally reviewed it before delivery.</p>'\n  + '<p>Have a question about your plan? Reply here and we\\'ll help.</p>'\n  + '<p>Thank you for trusting IdeaToPlan with your idea.</p>'\n  + '<p style=\"margin-top: 32px;\">Best,<br><strong>Elizabeth Alfond</strong><br><span style=\"font-size: 13px; color: #888;\">Founder, IdeaToPlan<br>ideatoplan.to</span></p>';\nconst html = '<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-family: Georgia, serif; max-width: 700px; margin: 0 auto;\"><tr><td style=\"background: #1e3a5f; padding: 24px 32px; border-radius: 8px 8px 0 0;\"><h1 style=\"color: #ffffff; margin: 0; font-size: 22px; letter-spacing: 1px;\">IDEA TO PLAN</h1><p style=\"color: #a0b8d0; margin: 4px 0 0; font-size: 13px;\">Business Planning Service</p></td></tr><tr><td style=\"padding: 32px; background: #ffffff; font-size: 15px; line-height: 1.8; color: #222;\">' + inner + '</td></tr><tr><td style=\"background: #1e3a5f; padding: 20px 32px; border-radius: 0 0 8px 8px; text-align: center;\"><p style=\"color: #a0b8d0; margin: 0; font-size: 12px;\">Built for founders ready to leap. IdeaToPlan.to</p></td></tr></table>';\nreturn [{\n  json: { ...p, customer_html: html, send_attempted_at: new Date().toISOString() },\n  binary: { data: { ...item.binary.data, fileName: p.pdf_filename, mimeType: 'application/pdf' } },\n}];"
+   }
+  },
+  {
+   "id": "s14",
+   "name": "Send to Customer",
+   "type": "n8n-nodes-base.gmail",
+   "typeVersion": 2.2,
+   "position": [
+    2640,
+    -200
+   ],
+   "parameters": {
+    "sendTo": "liz@ideatoplan.to",
+    "subject": "={{ $json.customer_subject }}",
+    "emailType": "html",
+    "message": "={{ $json.customer_html }}",
+    "options": {
+     "appendAttribution": false,
+     "attachmentsUi": {
+      "attachmentsBinary": [
+       {
+        "property": "data"
+       }
+      ]
+     }
+    }
+   },
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "eKUvaAAgyww27rSu",
+     "name": "Gmail account"
+    }
+   },
+   "notes": "TEST: sendTo is hardcoded to liz@ideatoplan.to. Going live changes it to the customer email.",
+   "webhookId": "2a7e9b14-c3d8-4f05-a6e1-9b4c7d2f8e30",
+   "onError": "continueErrorOutput"
+  },
+  {
+   "id": "s15",
+   "name": "Record Sent",
+   "type": "n8n-nodes-base.supabase",
+   "typeVersion": 1,
+   "position": [
+    2860,
+    -300
+   ],
+   "parameters": {
+    "operation": "update",
+    "tableId": "plan_versions",
+    "matchType": "allFilters",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "id",
+       "condition": "eq",
+       "keyValue": "={{ $('Prepare Approval').first().json.plan_version_id }}"
+      },
+      {
+       "keyName": "status",
+       "condition": "eq",
+       "keyValue": "sending"
+      }
+     ]
+    },
+    "fieldsUi": {
+     "fieldValues": [
+      {
+       "fieldId": "status",
+       "fieldValue": "sent"
+      },
+      {
+       "fieldId": "sent_at",
+       "fieldValue": "={{ $now.toISO() }}"
+      },
+      {
+       "fieldId": "gmail_message_id",
+       "fieldValue": "={{ $('Send to Customer').first().json.id }}"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "supabaseApi": {
+     "id": "oxQOdBDbGP7WmsX1",
+     "name": "Supabase account"
+    }
+   },
+   "onError": "continueErrorOutput",
+   "notes": "sent_at is the workflow's clock at the moment it records Gmail's acceptance, a second or two after the send attempt. It is not Gmail's own timestamp and it does not prove inbox delivery. When a row is reconciled by hand after a recording failure, sent_at is set to the send attempt time from Build Customer Email (send_attempted_at)."
+  },
+  {
+   "id": "s16",
+   "name": "Mark Delivered",
+   "type": "n8n-nodes-base.supabase",
+   "typeVersion": 1,
+   "position": [
+    3080,
+    -400
+   ],
+   "parameters": {
+    "operation": "update",
+    "tableId": "idea_submissions",
+    "matchType": "allFilters",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "id",
+       "condition": "eq",
+       "keyValue": "={{ $('Prepare Approval').first().json.submission_id }}"
+      }
+     ]
+    },
+    "fieldsUi": {
+     "fieldValues": [
+      {
+       "fieldId": "status",
+       "fieldValue": "delivered"
+      },
+      {
+       "fieldId": "delivered_at",
+       "fieldValue": "={{ $now.toISO() }}"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "supabaseApi": {
+     "id": "oxQOdBDbGP7WmsX1",
+     "name": "Supabase account"
+    }
+   },
+   "onError": "continueErrorOutput"
+  },
+  {
+   "id": "s17",
+   "name": "Alert Sent Not Recorded",
+   "type": "n8n-nodes-base.gmail",
+   "typeVersion": 2.2,
+   "position": [
+    3300,
+    -200
+   ],
+   "parameters": {
+    "sendTo": "liz@ideatoplan.to",
+    "subject": "={{ 'Sent but not recorded: ' + $('Prepare Approval').first().json.client_name }}",
+    "emailType": "text",
+    "message": "={{ 'Gmail accepted the email, but the database update failed.\\n\\nGmail message ID: ' + $('Send to Customer').first().json.id + '\\nOrder: ' + $('Prepare Approval').first().json.submission_id + '\\nVersion: ' + $('Prepare Approval').first().json.version + '\\nPlan version ID: ' + $('Prepare Approval').first().json.plan_version_id + '\\n\\nDo not resend. Reconcile the plan version and order records using this message ID.' }}",
+    "options": {
+     "appendAttribution": false
+    }
+   },
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "eKUvaAAgyww27rSu",
+     "name": "Gmail account"
+    }
+   },
+   "webhookId": "6b3f0d27-9e4a-4c18-8d52-1f7a3c9e5b06"
+  },
+  {
+   "id": "s18",
+   "name": "Classify Send Error",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2860,
+    -60
+   ],
+   "parameters": {
+    "jsCode": "// Classifies a failed customer send by what is actually known. n8n's error output carries only a text message.\n// local_validation: n8n refused the recipient before transmitting anything. Nothing was sent: send_failed.\n// gmail_rejection:  Gmail verifiably refused the message: send_failed. Only patterns verified against n8n source are listed.\n// uncertain:        anything else. The message may have gone out: send_unknown. This is the safe default.\nconst e = $input.first().json || {};\nconst p = $('Build Customer Email').first().json;\nconst raw = e.error;\nconst msg = String((raw && typeof raw === 'object' ? (raw.message || raw.description) : raw) || e.message || 'No error message returned');\nconst LOCAL_VALIDATION = [/^Invalid email address\\b/i];\n// n8n 2.20.9 produces this exact text only for an HTTP 400 response (node-api.error.ts, STATUS_CODE_MESSAGES['400']).\n// A 400 needs a response from Gmail, so the message was refused, not lost. Other 4xx and all 5xx texts stay uncertain.\nconst GMAIL_REJECTION = [/^Bad request - please check your parameters\\b/];\nlet source = 'uncertain';\nif (LOCAL_VALIDATION.some((r) => r.test(msg))) source = 'local_validation';\nelse if (GMAIL_REJECTION.some((r) => r.test(msg))) source = 'gmail_rejection';\nconst status = source === 'uncertain' ? 'send_unknown' : 'send_failed';\nreturn [{ json: { ...p, send_status: status, error_source: source, error_message: msg } }];"
+   }
+  },
+  {
+   "id": "s19",
+   "name": "Record Send Error",
+   "type": "n8n-nodes-base.supabase",
+   "typeVersion": 1,
+   "position": [
+    3080,
+    -60
+   ],
+   "parameters": {
+    "operation": "update",
+    "tableId": "plan_versions",
+    "matchType": "allFilters",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "id",
+       "condition": "eq",
+       "keyValue": "={{ $json.plan_version_id }}"
+      },
+      {
+       "keyName": "status",
+       "condition": "eq",
+       "keyValue": "sending"
+      }
+     ]
+    },
+    "fieldsUi": {
+     "fieldValues": [
+      {
+       "fieldId": "status",
+       "fieldValue": "={{ $json.send_status }}"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "supabaseApi": {
+     "id": "oxQOdBDbGP7WmsX1",
+     "name": "Supabase account"
+    }
+   }
+  },
+  {
+   "id": "s20",
+   "name": "Alert Send Error",
+   "type": "n8n-nodes-base.gmail",
+   "typeVersion": 2.2,
+   "position": [
+    3300,
+    -60
+   ],
+   "parameters": {
+    "sendTo": "liz@ideatoplan.to",
+    "subject": "={{ $('Classify Send Error').first().json.send_status === 'send_failed' ? 'Delivery failed: ' + $('Classify Send Error').first().json.client_name + '\\'s plan was not sent' : 'Check Sent folder: ' + $('Classify Send Error').first().json.client_name + '\\'s plan may have gone out' }}",
+    "emailType": "text",
+    "message": "={{ (() => { const c = $('Classify Send Error').first().json; const ids = 'Order: ' + c.submission_id + '\\nVersion: ' + c.version + '\\nPlan version ID: ' + c.plan_version_id; if (c.send_status === 'send_failed') { const lead = c.error_source === 'local_validation' ? 'The send was stopped before it reached Gmail. n8n rejected the recipient address, so nothing was sent.' : 'Gmail rejected the send.'; return lead + '\\n\\nError: ' + c.error_message + '\\n' + ids + '\\n\\nResolve the error before authorizing another attempt.'; } return 'Gmail\\'s send result was not confirmed. The email may have been sent.\\n\\nCustomer: ' + c.client_email + '\\nSubject: ' + c.customer_subject + '\\nAttempted at: ' + c.send_attempted_at + '\\n' + ids + '\\nError: ' + c.error_message + '\\n\\nCheck Sent mail and reconcile the status before retrying. An immediate missing search result does not confirm failure.'; })() }}",
+    "options": {
+     "appendAttribution": false
+    }
+   },
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "eKUvaAAgyww27rSu",
+     "name": "Gmail account"
+    }
+   },
+   "webhookId": "d4a8c6e1-0b2f-4e73-9a15-7c3e8f1b6d29"
+  },
+  {
+   "id": "s21",
+   "name": "Record Changes Requested",
+   "type": "n8n-nodes-base.supabase",
+   "typeVersion": 1,
+   "position": [
+    1980,
+    160
+   ],
+   "parameters": {
+    "operation": "update",
+    "tableId": "plan_versions",
+    "matchType": "allFilters",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "id",
+       "condition": "eq",
+       "keyValue": "={{ $('Prepare Approval').first().json.plan_version_id }}"
+      },
+      {
+       "keyName": "status",
+       "condition": "eq",
+       "keyValue": "awaiting_approval"
+      }
+     ]
+    },
+    "fieldsUi": {
+     "fieldValues": [
+      {
+       "fieldId": "status",
+       "fieldValue": "changes_requested"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "supabaseApi": {
+     "id": "oxQOdBDbGP7WmsX1",
+     "name": "Supabase account"
+    }
+   }
+  },
+  {
+   "id": "s22",
+   "name": "Record Timeout",
+   "type": "n8n-nodes-base.supabase",
+   "typeVersion": 1,
+   "position": [
+    1980,
+    360
+   ],
+   "parameters": {
+    "operation": "update",
+    "tableId": "plan_versions",
+    "matchType": "allFilters",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "id",
+       "condition": "eq",
+       "keyValue": "={{ $('Prepare Approval').first().json.plan_version_id }}"
+      },
+      {
+       "keyName": "status",
+       "condition": "eq",
+       "keyValue": "awaiting_approval"
+      }
+     ]
+    },
+    "fieldsUi": {
+     "fieldValues": [
+      {
+       "fieldId": "status",
+       "fieldValue": "approval_timeout"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "supabaseApi": {
+     "id": "oxQOdBDbGP7WmsX1",
+     "name": "Supabase account"
+    }
+   }
+  },
+  {
+   "id": "s23",
+   "name": "Alert Timeout",
+   "type": "n8n-nodes-base.gmail",
+   "typeVersion": 2.2,
+   "position": [
+    2200,
+    360
+   ],
+   "parameters": {
+    "sendTo": "liz@ideatoplan.to",
+    "subject": "={{ 'Not sent: approval timed out for ' + $('Prepare Approval').first().json.client_name }}",
+    "emailType": "text",
+    "message": "={{ 'The ' + ($('Prepare Approval').first().json.wait_minutes === 2880 ? '48-hour' : $('Prepare Approval').first().json.wait_minutes + '-minute (test setting)') + ' approval window expired. This version was not sent.\\n\\nOrder: ' + $('Prepare Approval').first().json.submission_id + '\\nVersion: ' + $('Prepare Approval').first().json.version + '\\nPlan version ID: ' + $('Prepare Approval').first().json.plan_version_id + '\\n\\nUse \\'Re-request approval\\' with this plan version ID to review the existing PDF.' }}",
+    "options": {
+     "appendAttribution": false
+    }
+   },
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "eKUvaAAgyww27rSu",
+     "name": "Gmail account"
+    }
+   },
+   "webhookId": "f1c7a3e9-5d28-4b60-8e4f-2a9b6c0d7e13"
+  }
+ ],
+ "connections": {
+  "Start": {
+   "main": [
+    [
+     {
+      "node": "Load Version",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Load Version": {
+   "main": [
+    [
+     {
+      "node": "Load Submission",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Load Submission": {
+   "main": [
+    [
+     {
+      "node": "Prepare Approval",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepare Approval": {
+   "main": [
+    [
+     {
+      "node": "Create Signed URL",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Create Signed URL": {
+   "main": [
+    [
+     {
+      "node": "Build Approval Email",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Approval Email": {
+   "main": [
+    [
+     {
+      "node": "Approval Email",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Approval Email": {
+   "main": [
+    [
+     {
+      "node": "Approved?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Approved?": {
+   "main": [
+    [
+     {
+      "node": "Claim",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Changes Requested?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Changes Requested?": {
+   "main": [
+    [
+     {
+      "node": "Record Changes Requested",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Record Timeout",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Claim": {
+   "main": [
+    [
+     {
+      "node": "Claimed?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Claimed?": {
+   "main": [
+    [
+     {
+      "node": "Download PDF",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    []
+   ]
+  },
+  "Download PDF": {
+   "main": [
+    [
+     {
+      "node": "Build Customer Email",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Customer Email": {
+   "main": [
+    [
+     {
+      "node": "Send to Customer",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Send to Customer": {
+   "main": [
+    [
+     {
+      "node": "Record Sent",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Classify Send Error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Record Sent": {
+   "main": [
+    [
+     {
+      "node": "Mark Delivered",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Alert Sent Not Recorded",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Mark Delivered": {
+   "main": [
+    [],
+    [
+     {
+      "node": "Alert Sent Not Recorded",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Classify Send Error": {
+   "main": [
+    [
+     {
+      "node": "Record Send Error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Record Send Error": {
+   "main": [
+    [
+     {
+      "node": "Alert Send Error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Record Timeout": {
+   "main": [
+    [
+     {
+      "node": "Alert Timeout",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "timezone": "Asia/Bangkok",
+  "saveManualExecutions": true,
+  "errorWorkflow": "BFirlikXaAuti0bh",
+  "callerPolicy": "workflowsFromSameOwner"
+ },
+ "meta": null,
+ "versionId": "71c2d98b-d8be-4169-bdc0-434802c98146",
+ "activeVersionId": null,
+ "versionCounter": 7,
+ "triggerCount": 0,
+ "tags": []
+}
