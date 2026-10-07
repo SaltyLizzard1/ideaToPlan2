@@ -200,3 +200,39 @@ Changes, 61 to 63 nodes:
 Read back from the server: the three code nodes are identical to the repository files; `Finalize Plan` and `Delivery Gate` are unchanged, so automated findings are produced and stored as before; no other node differs from the backup; the pinned webhook data is still present.
 
 **Not done: the final integration generation and the production cutover.** While verifying, Claude sent one request to n8n's internal interface from the signed-in Chrome tab with a wrong session header. n8n answered 401 and ended the Chrome session. Claude does not enter passwords, and an inactive workflow can only be started from the editor, so the one authorized generation could not be started. The cutover depends on it and was not begun. Rollback backups of the live pipeline `Wn6ATzrXmDvKMwJk` and the shared workflow `YECjOQHj4oQYVdVW` were taken read-only and are in `supervised/backups/`. Neither production workflow was changed.
+
+## Final integration generation and production cutover (2026-10-07)
+
+Authorized by Liz in her completion instructions of 2026-10-07. She signed in to n8n again herself.
+
+**Integration generation.** One run of inactive v2 Test from the editor, pinned TEST DATA order, $500 test baseline. Execution 63547, success, 11 minutes, measured model cost $2.0591 (30 calls; Brave Search and PDF rendering are not metered in the response). No rerun.
+
+- Order `d53c1158-25d6-4d61-862e-ea1083c415fa`, labelled TEST DATA in its notes, status generated, not delivered.
+- Plan version 1, `5dc66d48-8282-4eaf-a669-413d7afe3fd1`: origin generated, changes_requested, HOLD, not approved, not sent.
+- Stored text 71,028 characters; its SHA-256 computed independently equals the stored `plan_sha256` (`741d0a9a...`). Stored PDF 200,595 bytes; an independent SHA-256 of the stored file equals `pdf_sha256` (`c7858413...`) and the value `Fingerprint PDF` produced in the run. Sources stored as an array of 10.
+- Automated result preserved: 43 confirmed blocking findings and 1 required check that did not complete, written to the row and the notice unchanged.
+- One held notice to liz@ideatoplan.to (Gmail `1a11521d6442bf7d`). No approval request, no customer email. The PDF's first pages carry no review status.
+- No review record was written for this version and it was not approved. `plan_reviews` still holds four records.
+
+**Exposed key.** The OpenRouter key typed into the `HTTP Request` node of inactive workflow `VHx0a1Fid4Zmjw5D` was replaced by a note and read back: no key pattern remains in that workflow. The key itself was not read out or printed. It is still in that workflow's version history, so it has to be revoked at OpenRouter. Claude does not create or enter keys; that step is Liz's.
+
+**Cutover.** Built by `supervised/build-production.mjs` into `supervised/production/`, imported through the editor, settings set by API.
+
+| Workflow | ID | State |
+|---|---|---|
+| IdeaToPlan - Full Pipeline v2 (supervised) | `tZ8blRPhX7UiDxFo` | Published. 62 nodes. Webhook path `idea-submission-v2`. |
+| IdeaToPlan - Plan Approval and Delivery (supervised) | `7MAQia1N6jV4bNnc` | Published. 27 nodes. |
+| IdeaToPlan - Request approval for a reviewed version (run by hand) | `XIGjvSnypPRpZ4gb` | Manual, starts `7MAQia1N6jV4bNnc`. |
+| IdeaToPlan - Save Reviewed Version (run by hand) | `GpObSW2KKZ2S3Vxk` | Manual template, placeholder input, current formatter. |
+| IdeaToPlan - Full Pipeline (Rebuilt), the old pipeline | `Wn6ATzrXmDvKMwJk` | Unpublished, unchanged. Rollback target. |
+
+- The pipeline is v2 Test as verified, minus the `Test Financial Baseline` node, the TEST DATA note and the pinned data, with `confirmation_to_client` enabled to the address on the order and the production webhook path. Read back against the built file: every node, credential and connection matches; the only differences are default values the editor drops on import. The test baseline cannot apply: `Founder Context` uses it only under v2 Test's workflow ID.
+- The approval workflow is the tested copy with one change: `Send to Customer` goes to the email address on the order. The review-record requirement, the conditional claim, the attachment fingerprint check, send recording and the error paths are the tested ones.
+- The pipeline has no node that starts an approval. Every plan, passed or held, ends in a notice to Liz. Delivery needs a release record entered in the database, a run of the request workflow, and the Approve click.
+- Check after publishing: the path answers "not registered for GET requests. Did you mean to make a POST request?", which is n8n's reply for a registered POST path; an unknown path answers "is not registered". No POST was sent, so no generation ran and no customer plan was sent.
+
+**Rollback.** Unpublish `tZ8blRPhX7UiDxFo`, publish `Wn6ATzrXmDvKMwJk`. Files: `supervised/backups/`.
+
+**Not verified.** A real HTTP order through the published pipeline (it would be a second paid generation, not authorized). A run without the test baseline since the financial policy changes. The published pipeline has only run as v2 Test from pinned data.
+
+**Left as they are.** The old shared workflow `YECjOQHj4oQYVdVW` (inactive, nothing calls it). v2 Test (inactive; its pinned data still holds the webhook secret). The old save template `GQC5guFRViQrX0vJ` (archiving it did not take). The System Alert adds its delivery-specific advice only for workflow ID `YECjOQHj4oQYVdVW`, so an alert from `7MAQia1N6jV4bNnc` carries the general text.
