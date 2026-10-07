@@ -53,5 +53,6 @@ const user = [
 ].join('\n');
 
 return {
-  payload: JSON.stringify({ model: 'anthropic/claude-sonnet-4.6', max_tokens: 20000, temperature: 0.3, messages: [{ role: 'system', content: ctx.writer_system }, { role: 'user', content: user }] }),
+  // Writer: Sonnet 5.5 since 2026-10-07. It does not accept a temperature, and its thinking counts against max_tokens.
+  payload: JSON.stringify({ model: 'anthropic/claude-sonnet-5.5', max_tokens: 40000, messages: [{ role: 'system', content: ctx.writer_system }, { role: 'user', content: user }] }),
 };

@@ -32,9 +32,10 @@ const SECTION_ONLY = [
 ].join('\n');
 const writer = await runNode('build-growth-payload.js', { 'Founder Context': fx('exec-63260', 'Founder Context'), 'Build Evidence': fx('exec-63260', 'Build Evidence'), 'Compute Financials': fx('exec-63260', 'Compute Financials') });
 const wp = JSON.parse((Array.isArray(writer) ? writer[0] : writer).payload || (Array.isArray(writer) ? writer[0].json.payload : writer.json.payload));
-if (wp.model !== OLD_MODEL) throw new Error('the writer request names ' + wp.model);
+// The comparison was run when the writer still named Sonnet 4.6 at temperature 0.3. The writer has since been switched,
+// so the Sonnet 4.6 request is rebuilt here with the settings it had on the day of the test.
 wp.messages[1].content += '\n' + SECTION_ONLY;
-const draftOld = JSON.stringify({ ...wp, max_tokens: 6000 });
+const draftOld = JSON.stringify({ model: OLD_MODEL, max_tokens: 6000, temperature: 0.3, messages: wp.messages });
 
 export const REQUESTS = [
   { n: 0, label: 'review-1-sonnet-5.5', test: 'review', payload: forNew(sent[0].payload, 16000) },
