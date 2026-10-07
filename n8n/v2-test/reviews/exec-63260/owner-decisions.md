@@ -265,3 +265,18 @@ Basis given to her: the secret is in plain text only inside n8n (the pinned webh
 Do it later if n8n access is ever shared, a backup is restored elsewhere, or access to the instance is suspected. The sequence and rollback are written up above under "Webhook credential" and in the session notes: Vercel values first, redeploy both projects, save the n8n credential when the deployments are ready, verify through `site-alert-v1`, update `qylat-next/.env.local` last.
 
 Still for Liz: disable the four old OpenRouter keys (`Ideatoplan`, `N8N-Pipeline`, `May_N8N`, `N8N`). No active workflow depends on them.
+
+## Closed, with two operational items (2026-10-07)
+
+The workflow effort is closed by Liz. No further development round.
+
+**Operational items**
+
+1. Disable the four old OpenRouter keys: `Ideatoplan`, `N8N-Pipeline`, `May_N8N`, `N8N`. Liz's click; no active workflow depends on them.
+2. Exhausted-credit handling is UNTESTED. Read from the published pipeline's settings only: the first model nodes (search query, research, plan writer) stop the run, which raises the System Alert to Liz; the later ones (financial assumptions, QA, revision, claim checks) continue on error, and the pipeline is built to treat an incomplete check as HOLD with a held notice. No run has exercised either path with a credit failure. The safeguard that does not depend on this: no customer plan is delivered automatically; delivery needs a release record and the Approve click.
+
+**The $30 monthly cap** is on the one key shared by plans, the email responder and the quiz. It limits spend and is also a shared interruption point: when it is reached, all three stop until the 1st (UTC) or until the limit is raised. Liz monitors usage and raises the allowance deliberately if customer activity warrants it. A plan costs about $2.
+
+**Known gaps, deferred by Liz until real usage shows a need:** no queue or automatic recovery for a failed order (it stays pending or generated and is rerun by hand); the customer confirmation email goes out after the first draft, so a later failure leaves a customer told their plan is in production; no further paid test.
+
+**Also deferred:** the webhook secret rotation, the Sonnet 5.5 evaluation, claim-review tuning, cosmetics.
