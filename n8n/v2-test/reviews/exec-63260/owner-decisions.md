@@ -236,3 +236,22 @@ Authorized by Liz in her completion instructions of 2026-10-07. She signed in to
 **Not verified.** A real HTTP order through the published pipeline (it would be a second paid generation, not authorized). A run without the test baseline since the financial policy changes. The published pipeline has only run as v2 Test from pinned data.
 
 **Left as they are.** The old shared workflow `YECjOQHj4oQYVdVW` (inactive, nothing calls it). v2 Test (inactive; its pinned data still holds the webhook secret). The old save template `GQC5guFRViQrX0vJ` (archiving it did not take). The System Alert adds its delivery-specific advice only for workflow ID `YECjOQHj4oQYVdVW`, so an alert from `7MAQia1N6jV4bNnc` carries the general text.
+
+## Owner test through the staging website (2026-10-07)
+
+Authorized by Liz: exactly one owner test, no card charge, no rerun, no review record, no approval.
+
+- Liz paid once in Stripe test mode on the staging preview (`idea-to-plan2-git-staging-saltylizzard1s-projects.vercel.app`): test session, paid, 5000 (Growth), not live. The site removes the session ID from the address once the form opens, so Claude read the latest test session from Stripe's test API with the project's test key and opened the form with it.
+- Claude filled the form with the intake answers of the earlier test order (revenue model left blank, as stored) and submitted once. The site answered "Payment received and idea submitted." Session redeemed at 09:15:54 UTC.
+- Published pipeline `tZ8blRPhX7UiDxFo`, execution 63572, started by the webhook at 09:15:55 UTC, success, 12 minutes 24 seconds, measured model cost $2.0173 (28 calls; models Sonnet 4.6, Haiku 4.5 and Perplexity Sonar, unchanged).
+- No fixed test baseline: `Founder Context` shows no fixed price and no fixed assumptions, and the plan uses a launch price of $297, not $500.
+- Order `fc3ad60d-dcab-4e3a-b9ca-6f46cd902e59`, Growth, no TEST DATA note, status generated, not delivered. Plan version 1, `71750fa4-02b4-4dc8-aba4-de59ee276738`: generated, changes_requested, HOLD, not approved, not sent. Stored text 70,445 characters and stored PDF 177,996 bytes both match independent SHA-256 hashes. Sources stored as an array of 9.
+- Emails: the customer confirmation to the address on the form (Gmail `1a115aba55327c1e`), one held notice to liz@ideatoplan.to (Gmail `1a115b1394d62365`), and the site's own "New plan submission" alert (execution 63573). No approval request, no delivery.
+- OpenRouter: the new key `n8n-2026-10 (plan, email, quiz)` went from never used to used during the run. The old key `Ideatoplan` did not move.
+- No review record was written (still four) and nothing was approved.
+
+**What this verifies.** Runtime: the staging site, its webhook URL and secret, the published pipeline started by a real HTTP order, the pipeline without the test baseline, and the new OpenRouter key. Configuration only: production routing from `ideatoplan.to`. Production has its own Stripe key and environment values; they were not exercised. Both repositories point at `/webhook/idea-submission-v2`, which is registered to `tZ8blRPhX7UiDxFo`.
+
+**Old OpenRouter keys.** A read-only scan of all 54 workflows found no active workflow on an old key. One inactive workflow, `aBpk1zMORyuDuRTU` (Full Pipeline OLD), uses `Bearer Auth account 2`, which was not rotated. No plaintext key remains in any node.
+
+**Webhook credential.** `Header Auth account 2` is attached to five webhook nodes and nothing else: `idea-submission-v2`, `quiz-match-v2` (POST), `quiz-ranking-v1`, `quiz-detail-v1`, `site-alert-v1`. `N8N_WEBHOOK_SECRET` is set in the Vercel projects `idea-to-plan2` and `qylat-next`; `idea-to-plan` has no variables and `qylat-analytics` has none of these.
