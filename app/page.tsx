@@ -64,7 +64,7 @@ export default function Home() {
               className="cta-shimmer gold-border inline-flex items-center gap-s2 px-s6 py-s4 rounded-full font-sans font-semibold text-base cursor-pointer"
               style={{ color: "#2D1A00" }}
             >
-              Show me what fits me
+              Find My Business Matches
               <svg
                 width="18"
                 height="18"

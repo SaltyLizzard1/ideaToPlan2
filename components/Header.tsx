@@ -8,23 +8,22 @@ import AnimatedLogo from "@/components/AnimatedLogo";
 const NAV_LINKS = [
   { label: "How It Works", href: "/#how-it-works" },
   { label: "Sample Plans", href: "/sample-plan" },
-  { label: "Business Plans", href: "/#pricing" },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
 ];
 
+// The two entry paths: free assessment, or straight to the paid plan section.
+const ASSESSMENT_HREF = "/assessment";
+const PLAN_HREF = "/#pricing";
+
+const OUTLINE_CTA_STYLE = {
+  color: "#E8C84A",
+  border: "1.5px solid #C9A030",
+} as const;
+
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
-
-  const handleAssessment = () => {
-    if (pathname === "/") {
-      document.getElementById("assessment")?.scrollIntoView({ behavior: "smooth" });
-    } else {
-      window.location.href = "/#assessment";
-    }
-    setMenuOpen(false);
-  };
 
   return (
     <header
@@ -44,13 +43,13 @@ export default function Header() {
           </span>
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-s6">
+        {/* Desktop nav, from lg up: below that the links and both CTAs do not fit on one line */}
+        <nav className="hidden lg:flex items-center gap-s6">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="font-sans text-sm transition-colors"
+              className="font-sans text-sm transition-colors whitespace-nowrap"
               style={{ color: "#cfc9b8" }}
               onMouseEnter={e => (e.currentTarget.style.color = "#E8C84A")}
               onMouseLeave={e => (e.currentTarget.style.color = "#cfc9b8")}
@@ -60,22 +59,31 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Desktop CTA */}
-        <button
-          onClick={handleAssessment}
-          className="hidden md:inline-flex items-center gap-s2 rounded-full font-sans font-semibold text-sm cursor-pointer cta-shimmer gold-border shrink-0"
-          style={{
-            color: "#2D1A00",
-            padding: "0.5rem 1.4rem",
-            boxShadow: "0 8px 32px rgba(139,105,20,0.35)",
-          }}
-        >
-          Start My Assessment
-        </button>
+        {/* Desktop CTAs */}
+        <div className="hidden lg:flex items-center gap-s3 shrink-0">
+          <Link
+            href={ASSESSMENT_HREF}
+            className="inline-flex items-center rounded-full font-sans font-semibold text-sm cursor-pointer cta-shimmer gold-border whitespace-nowrap"
+            style={{
+              color: "#2D1A00",
+              padding: "0.5rem 1.4rem",
+              boxShadow: "0 8px 32px rgba(139,105,20,0.35)",
+            }}
+          >
+            Find Business Ideas
+          </Link>
+          <Link
+            href={PLAN_HREF}
+            className="inline-flex items-center rounded-full font-sans font-semibold text-sm cursor-pointer whitespace-nowrap transition-colors hover:bg-[rgba(201,160,48,0.12)]"
+            style={{ ...OUTLINE_CTA_STYLE, padding: "0.5rem 1.4rem" }}
+          >
+            Build a Plan
+          </Link>
+        </div>
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden flex flex-col justify-center gap-1.5 p-s2 cursor-pointer"
+          className="lg:hidden flex flex-col justify-center gap-1.5 p-s2 cursor-pointer"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
         >
@@ -116,7 +124,7 @@ export default function Header() {
       {/* Mobile menu */}
       {menuOpen && (
         <div
-          className="absolute top-[80px] left-0 right-0 flex flex-col items-center gap-5 py-s5 md:hidden"
+          className="absolute top-[80px] left-0 right-0 flex flex-col items-center gap-5 py-s5 lg:hidden"
           style={{
             background: "#0D1117",
           }}
@@ -142,8 +150,9 @@ export default function Header() {
               {link.label}
             </Link>
           ))}
-          <button
-            onClick={handleAssessment}
+          <Link
+            href={ASSESSMENT_HREF}
+            onClick={() => setMenuOpen(false)}
             className="cta-shimmer gold-border rounded-full font-sans font-semibold text-sm cursor-pointer"
             style={{
               color: "#2D1A00",
@@ -151,8 +160,16 @@ export default function Header() {
               boxShadow: "0 8px 32px rgba(139,105,20,0.35)",
             }}
           >
-            Start My Assessment
-          </button>
+            Find Business Ideas
+          </Link>
+          <Link
+            href={PLAN_HREF}
+            onClick={() => setMenuOpen(false)}
+            className="rounded-full font-sans font-semibold text-sm cursor-pointer"
+            style={{ ...OUTLINE_CTA_STYLE, padding: "0.6rem 1.75rem" }}
+          >
+            Build a Plan
+          </Link>
         </div>
       )}
     </header>

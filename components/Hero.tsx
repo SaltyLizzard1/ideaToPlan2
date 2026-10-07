@@ -1,10 +1,8 @@
 "use client";
 
-export default function Hero() {
-  const scrollToAssessment = () => {
-    window.location.href = "/assessment";
-  };
+import Link from "next/link";
 
+export default function Hero() {
   return (
     <section
       className="relative flex flex-col items-center justify-center text-center overflow-x-hidden min-h-[calc(100svh_-_80px)] section-y"
@@ -55,10 +53,10 @@ export default function Hero() {
             textShadow: "0 0 20px rgba(201,160,48,0.4)",
           }}
         >
-          A method in print since 1970
+          Free 5-minute skills assessment
         </p>
 
-        {/* Headline */}
+        {/* Headline: each sentence is inline-block so the line break falls between them */}
         <h1
           className="font-serif font-bold"
           style={{
@@ -67,7 +65,8 @@ export default function Hero() {
             lineHeight: 1.15,
           }}
         >
-          What Business Should You <span className="gold-gradient-text--animated">Start?</span>
+          <span className="inline-block">The Job Search Isn&rsquo;t Working.</span>{" "}
+          <span className="inline-block gold-gradient-text--animated">Your Skills Are.</span>
         </h1>
 
         {/* Subheadline */}
@@ -80,22 +79,24 @@ export default function Hero() {
             maxWidth: "620px",
           }}
         >
-          The skills-matching method behind What Color Is Your Parachute?, pointed at businesses instead of jobs. Answer five questions and see seven paths built on what you already know.
+          Discover business ideas that fit your skills, even if you have no idea where to start. Inspired by What Color Is Your Parachute?, this assessment matches what you already know to seven business opportunities.
         </p>
 
-        {/* CTA block */}
+        {/* Assessment CTA. The free-offer text stays in this block so it reads as
+            belonging to the assessment button, not to the paid plan below. */}
         <div className="flex flex-col items-center gap-s3">
-          <button
-            onClick={scrollToAssessment}
+          {/* Horizontal padding shrinks below ~380px so the label stays on one line at 320px */}
+          <Link
+            href="/assessment"
             className="cta-shimmer gold-border inline-flex items-center gap-s2 rounded-full font-sans font-semibold cursor-pointer"
             style={{
               color: "#2D1A00",
               fontSize: "clamp(1rem, 1.4vw, 1.1rem)",
-              padding: "0.9rem 2.75rem",
+              padding: "0.9rem clamp(1rem, calc((100vw - 290px) / 2), 2.75rem)",
               boxShadow: "0 0 28px rgba(197,152,28,0.25)",
             }}
           >
-            Start My Assessment
+            Find My Business Matches
             <svg
               width="18"
               height="18"
@@ -108,22 +109,35 @@ export default function Hero() {
             >
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
-          </button>
+          </Link>
 
+          {/* Three lines on mobile, two from sm up */}
           <p className="font-sans" style={{ color: "#a89f8a", fontSize: "0.85rem" }}>
-            Free&nbsp;&nbsp;•&nbsp;&nbsp;5 minutes&nbsp;&nbsp;•&nbsp;&nbsp;No sign-up required
+            Free&nbsp;&nbsp;•&nbsp;&nbsp;About 5 minutes
+            <span className="hidden sm:inline">&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+            <br className="sm:hidden" />
+            See your top match without signing up
+            <br />
+            Enter your email to unlock six more.
           </p>
         </div>
 
-        {/* Delivery line */}
-        <div
-          className="flex flex-row flex-wrap justify-center gap-x-s4 gap-y-s1 font-sans"
-          style={{ fontSize: "clamp(0.7rem, 1vw, 0.8rem)", color: "#C9A030", letterSpacing: "0.02em" }}
+        {/* Second entry path: straight to the paid plan section. Each phrase is
+            inline-block so a narrow screen breaks between them. */}
+        <Link
+          href="/#pricing"
+          className="inline-block rounded-full font-sans font-semibold cursor-pointer transition-colors hover:bg-[rgba(201,160,48,0.12)]"
+          style={{
+            color: "#E8C84A",
+            border: "1.5px solid #C9A030",
+            fontSize: "0.95rem",
+            lineHeight: 1.35,
+            padding: "0.7rem 1.5rem",
+          }}
         >
-          <span>⚡ 72-hour delivery guarantee</span>
-          <span style={{ color: "#374151" }}>·</span>
-          <span>✦ Human-reviewed plans</span>
-        </div>
+          <span className="inline-block">Already Have an Idea?</span>{" "}
+          <span className="inline-block">Build My Plan</span>
+        </Link>
         </div>
       </div>
     </section>

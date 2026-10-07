@@ -1,6 +1,26 @@
 "use client";
 
 import { useRef, useEffect, useState, CSSProperties } from "react";
+import Link from "next/link";
+
+// The two entry paths. The plan path goes to the pricing section, which is
+// where a plan is chosen and paid for before the intake form opens.
+const PATHS = [
+  {
+    title: "I’m exploring what to do next",
+    description:
+      "Find business opportunities that match your skills, each with an income range, competition level, and first steps. See your top match free, then unlock six more with your email.",
+    cta: "Find My Business Matches",
+    href: "/assessment",
+  },
+  {
+    title: "I know what I want to build",
+    description:
+      "Bring your business idea, choose and pay for a plan, then answer the intake questions. I personally review every plan before delivery.",
+    cta: "Build My Business Plan",
+    href: "/#pricing",
+  },
+];
 
 export default function HowItWorks() {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -46,7 +66,6 @@ export default function HowItWorks() {
   function getWrapperStyle(i: number): CSSProperties {
     const isHovered = hoveredIndex === i && revealed;
     const base: CSSProperties = {
-      cursor: "pointer",
       transition: "transform 150ms ease-out, box-shadow 150ms ease-out",
     };
     if (prefersReduced || !isHovered) return base;
@@ -57,80 +76,11 @@ export default function HowItWorks() {
     };
   }
 
-  const steps = [
-    {
-      icon: (
-        <svg
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M12 2a7 7 0 0 1 7 7c0 3.5-2.5 6-4 7.5V18a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-1.5C7.5 15 5 12.5 5 9a7 7 0 0 1 7-7z" />
-          <path d="M9 21h6M10 17h4" />
-        </svg>
-      ),
-      step: "01",
-      title: "Take the Free Skills Assessment",
-      description:
-        "Answer five quick sections about your hard skills, soft skills, work style, values, and time availability. Takes about 5 minutes.",
-    },
-    {
-      icon: (
-        <svg
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="11" cy="11" r="8" />
-          <path d="m21 21-4.35-4.35" />
-          <path d="M11 8v6M8 11h6" />
-        </svg>
-      ),
-      step: "02",
-      title: "Receive 7 Personalized Matches",
-      description:
-        "The method behind What Color Is Your Parachute?, in print since 1970, applied to businesses instead of jobs. Seven ideas, each with an income range, how crowded the market is, and first steps.",
-    },
-    {
-      icon: (
-        <svg
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
-          <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
-          <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
-          <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
-        </svg>
-      ),
-      step: "03",
-      title: "Get a Plan a Human Signed Off On",
-      description:
-        "Turn your top match into a plan, or ignore the matches and describe your own idea instead. Either way a real person reviews every page before it goes out, you get it within 72 hours, and you can email me questions any time.",
-    },
-  ];
-
   return (
     <section ref={sectionRef} className="section-y bg-[#FDFCF9]">
       <div className="page-container">
 
-        {/* Section heading — unchanged */}
+        {/* Section heading */}
         <div className="text-center mb-s6">
           <p
             className="text-xs font-sans tracking-[0.2em] uppercase mb-s3"
@@ -138,110 +88,77 @@ export default function HowItWorks() {
           >
             How It Works
           </p>
+          {/* Each sentence is inline-block so the line break falls between them */}
           <h2
-            className="font-serif text-4xl sm:text-5xl font-bold"
+            className="font-serif text-4xl sm:text-5xl font-bold mb-s4"
             style={{ color: "#0D1117" }}
           >
-            From Idea to Income
+            <span className="inline-block">Find your idea.</span>{" "}
+            <span className="inline-block">Or build the one you already have.</span>
           </h2>
+          <p
+            className="font-sans text-base leading-relaxed max-w-copy mx-auto"
+            style={{ color: "#4A4A45" }}
+          >
+            Discover business opportunities that fit your skills, or bring your own idea and turn it into a practical plan.
+          </p>
         </div>
 
-        {/* Relative wrapper: contains grid (with connectors) + button */}
-        <div className="relative">
-
-          {/* ── Cards grid — also the positioning context for connector lines ── */}
-          {/*
-            Connector lines live inside the grid so percentage-based top values
-            are relative to the grid height (number area + card area), not the
-            outer wrapper (which includes the button below).
-
-            H-line: top = 50% of grid + half of number-label height (≈20px)
-                        = card vertical midpoint
-            V-line: same top, height = remaining 50% of grid + drop to button center
-                        = calc(50% + 52px) where 52px ≈ mt-12(48px) + half-button(~24px) - line_start_offset(~20px)
-
-            z-index: -1 keeps lines behind grid items (normal-flow flex children
-            paint above z:-1 positioned siblings within the same stacking context).
-          */}
-          <div
-            className="grid grid-cols-1 md:grid-cols-3 grid-gap items-stretch"
-            style={{ position: "relative", zIndex: 1 }}
-          >
-
-            {/* ── Horizontal connector line (desktop only) ── */}
+        {/* The two paths, side by side from md up */}
+        <div className="grid grid-cols-1 md:grid-cols-2 grid-gap items-stretch">
+          {PATHS.map((path, i) => (
             <div
-              aria-hidden="true"
-              className="hidden md:block absolute"
-              style={{
-                top: "calc(50% + 20px)",
-                left: 0,
-                right: 0,
-                height: "1px",
-                background: "#C9A030",
-                zIndex: -1,
-                transformOrigin: "left center",
-                transform: revealed ? "scaleX(1)" : "scaleX(0)",
-                transition: prefersReduced ? "none" : "transform 800ms ease-out",
-              }}
-            />
-
-
-            {steps.map((s, i) => (
+              key={path.href}
+              className="flex flex-col rounded-2xl"
+              onMouseEnter={() => setHoveredIndex(i)}
+              onMouseLeave={() => setHoveredIndex(null)}
+              style={getWrapperStyle(i)}
+            >
+              {/* Card — flex-1 so both cards stretch to the taller one */}
               <div
-                key={i}
-                className="flex flex-col"
-                onMouseEnter={() => setHoveredIndex(i)}
-                onMouseLeave={() => setHoveredIndex(null)}
-                style={getWrapperStyle(i)}
+                className="flex flex-col items-start card-pad rounded-2xl border w-full flex-1"
+                style={{
+                  borderColor: "#E8E4DB",
+                  background: "white",
+                  ...getRevealStyle(i),
+                }}
               >
-                {/* Step number — above the card, outside the border */}
+                <h3
+                  className="font-serif text-2xl font-semibold mb-s3"
+                  style={{ color: "#0D1117" }}
+                >
+                  {path.title}
+                </h3>
                 <p
-                  className="font-serif font-bold mb-s3"
-                  style={{
-                    fontSize: "clamp(24px, 2.5vw, 30px)",
-                    color: "#0D1117",
-                    lineHeight: 1,
-                  }}
+                  className="font-sans text-sm leading-relaxed mb-s5"
+                  style={{ color: "#4B5563" }}
                 >
-                  {s.step}
+                  {path.description}
                 </p>
-
-                {/* Card — flex-1 so all cards stretch to the tallest */}
-                <div
-                  className="flex flex-col items-start card-pad rounded-2xl border w-full flex-1"
-                  style={{
-                    borderColor: "#E8E4DB",
-                    background: "white",
-                    ...getRevealStyle(i),
-                  }}
+                <Link
+                  href={path.href}
+                  className="cta-shimmer gold-border inline-flex items-center justify-center gap-s2 rounded-full font-sans font-semibold text-sm sm:text-base cursor-pointer mt-auto w-full sm:w-auto px-s4 sm:px-s5 py-s3 whitespace-nowrap"
+                  style={{ color: "#2D1A00" }}
                 >
-                  {/* icon version — kept for possible revert */}
-                  {/*
-                  <div
-                    className="mb-5 p-s3 rounded-xl"
-                    style={{ background: "#FBF6E4", color: "#8B6914" }}
+                  {path.cta}
+                  {/* Arrow drops out on the narrowest phones so the label stays on one line */}
+                  <svg
+                    className="hidden min-[360px]:block"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    {s.icon}
-                  </div>
-                  */}
-
-                  <h3
-                    className="font-serif text-xl font-semibold mb-s3"
-                    style={{ color: "#0D1117" }}
-                  >
-                    {s.title}
-                  </h3>
-                  <p
-                    className="font-sans text-sm leading-relaxed"
-                    style={{ color: "#4B5563" }}
-                  >
-                    {s.description}
-                  </p>
-                </div>
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </Link>
               </div>
-            ))}
-          </div>
-
+            </div>
+          ))}
         </div>
       </div>
     </section>
