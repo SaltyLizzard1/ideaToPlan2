@@ -5,6 +5,7 @@ import { notify } from "../../../lib/notify";
 import { checkRateLimit, clientIp } from "../../../lib/rateLimit";
 import { parseClientReferenceId } from "../../../lib/stripe";
 import { mergeMatches } from "../../../lib/quiz";
+import { normalizeStage, normalizeAssetsInPlace } from "../../../lib/intakeState";
 
 export const maxDuration = 180;
 
@@ -25,6 +26,10 @@ const ALLOWED_FIELDS = [
   "location",
   "revenueModel",
   "differentiation",
+  "businessStage",
+  "assetsInPlace",
+  "existingAssets",
+  "priorWork",
   "budget",
   "planGoal",
   "planType",
@@ -168,6 +173,11 @@ export async function POST(req: NextRequest) {
         allowlisted[field] = body[field];
       }
     }
+
+    // Current-state answers are validated here so the pipeline only ever sees a known stage and a
+    // well-formed checklist. A missing or malformed checklist is passed on as skipped (unknown).
+    allowlisted.businessStage = normalizeStage(body.businessStage);
+    allowlisted.assetsInPlace = normalizeAssetsInPlace(body.assetsInPlace);
 
     const secret = process.env.N8N_WEBHOOK_SECRET;
     if (!secret) {

@@ -13,6 +13,7 @@ import { PLANS } from "@/lib/plans";
 import AutoGrowTextarea from "@/components/AutoGrowTextarea";
 import { useCheckoutRedirect } from "@/components/useCheckoutRedirect";
 import VisaWaitlistModal from "./VisaWaitlistModal";
+import { STAGE_OPTIONS, ASSET_OPTIONS, toggleAsset, toggleNone, toAssetsInPlace } from "@/lib/intakeState";
 
 type FormData = {
   fullName: string;
@@ -24,6 +25,11 @@ type FormData = {
   location: string;
   revenueModel: string;
   differentiation: string;
+  businessStage: string;
+  assetsInPlace: string[];
+  assetsNone: boolean;
+  existingAssets: string;
+  priorWork: string;
   budget: string;
   planGoal: string;
   planType: string;
@@ -54,6 +60,11 @@ const initialForm: FormData = {
   location: "",
   revenueModel: "",
   differentiation: "",
+  businessStage: "",
+  assetsInPlace: [],
+  assetsNone: false,
+  existingAssets: "",
+  priorWork: "",
   budget: "",
   planGoal: "",
   planType: "",
@@ -244,16 +255,38 @@ const [paymentError, setPaymentError] = useState("");
     setForm((prev) => ({ ...prev, [t.name]: t.value }));
   };
 
+  // "None of these yet" and the individual items can never both be set.
+  const handleAssetToggle = (key: string) => {
+    setForm((prev) => {
+      const next = toggleAsset({ items: prev.assetsInPlace, none: prev.assetsNone }, key);
+      return { ...prev, assetsInPlace: next.items, assetsNone: next.none };
+    });
+  };
+
+  const handleAssetsNone = () => {
+    setForm((prev) => {
+      const next = toggleNone({ items: prev.assetsInPlace, none: prev.assetsNone });
+      return { ...prev, assetsInPlace: next.items, assetsNone: next.none };
+    });
+  };
+
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setStatus("loading");
     setErrorMsg("");
 
+    const { assetsInPlace, assetsNone, ...fields } = form;
+
     try {
       const res = await fetch("/api/submit-idea", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, stripeSessionId }),
+        // A skipped checklist is sent as not answered, so it stays unknown and never becomes "none".
+        body: JSON.stringify({
+          ...fields,
+          assetsInPlace: toAssetsInPlace({ items: assetsInPlace, none: assetsNone }),
+          stripeSessionId,
+        }),
       });
 
       if (res.ok) {
@@ -681,6 +714,26 @@ const [paymentError, setPaymentError] = useState("");
                       </div>
                     </div>
 
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-s1">
+                        Where are you today? <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="businessStage"
+                        value={form.businessStage}
+                        onChange={handleChange}
+                        required
+                        className={`${INPUT_CLASS} bg-white`}
+                      >
+                        <option value="">Select one...</option>
+                        {STAGE_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
                     <div className="grid sm:grid-cols-2 gap-s4">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-s1">
@@ -690,7 +743,7 @@ const [paymentError, setPaymentError] = useState("");
                           name="currentRevenue"
                           value={form.currentRevenue}
                           onChange={handleChange}
-                          placeholder="e.g. $150,000, leave blank if pre-revenue"
+                          placeholder="e.g. $150,000 or Pre-revenue"
                           className={INPUT_CLASS}
                         />
                       </div>
@@ -702,7 +755,7 @@ const [paymentError, setPaymentError] = useState("");
                           name="yearsInBusiness"
                           value={form.yearsInBusiness}
                           onChange={handleChange}
-                          placeholder="e.g. 5 years, leave blank if new"
+                          placeholder="e.g. 5 years or New business"
                           className={INPUT_CLASS}
                         />
                       </div>
@@ -749,6 +802,78 @@ const [paymentError, setPaymentError] = useState("");
                           placeholder="Your edge over competitors"
                           className={INPUT_CLASS}
                         />
+                      </div>
+                    </div>
+
+                    <fieldset>
+                      <legend className="block text-sm font-semibold text-gray-700 mb-s1">
+                        What do you already have in place? (optional)
+                      </legend>
+                      <p className="text-xs text-gray-500 mb-s2">Tick all that apply.</p>
+                      <div className="grid sm:grid-cols-2 gap-x-s4 gap-y-s2">
+                        {ASSET_OPTIONS.map((o) => (
+                          <label key={o.value} className="flex items-start gap-s2 text-sm text-gray-800">
+                            <input
+                              type="checkbox"
+                              className="mt-1"
+                              checked={form.assetsInPlace.includes(o.value)}
+                              onChange={() => handleAssetToggle(o.value)}
+                            />
+                            <span>{o.label}</span>
+                          </label>
+                        ))}
+                        <label className="flex items-start gap-s2 text-sm text-gray-800">
+                          <input
+                            type="checkbox"
+                            className="mt-1"
+                            checked={form.assetsNone}
+                            onChange={handleAssetsNone}
+                          />
+                          <span>None of these yet</span>
+                        </label>
+                      </div>
+                    </fieldset>
+
+                    <div className="grid sm:grid-cols-2 gap-s4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-s1">
+                          Add numbers or details if you can (optional)
+                        </label>
+                        <AutoGrowTextarea
+                          name="existingAssets"
+                          value={form.existingAssets}
+                          onChange={handleChange}
+                          rows={2}
+                          maxLength={5000}
+                          placeholder="e.g. 4,000 Instagram followers, 300 email subscribers, existing website, pays for Squarespace and Calendly"
+                          className={INPUT_CLASS}
+                        />
+                        <p
+                          className="text-xs text-right mt-s1"
+                          style={{ color: form.existingAssets.length > 4500 ? "#C9A030" : "#9CA3AF" }}
+                        >
+                          {form.existingAssets.length} / 5000
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-s1">
+                          What have you already done? (optional)
+                        </label>
+                        <AutoGrowTextarea
+                          name="priorWork"
+                          value={form.priorWork}
+                          onChange={handleChange}
+                          rows={2}
+                          maxLength={5000}
+                          placeholder="Research, customer interviews, prototype, website, sales, marketing tests, product development, etc."
+                          className={INPUT_CLASS}
+                        />
+                        <p
+                          className="text-xs text-right mt-s1"
+                          style={{ color: form.priorWork.length > 4500 ? "#C9A030" : "#9CA3AF" }}
+                        >
+                          {form.priorWork.length} / 5000
+                        </p>
                       </div>
                     </div>
 
