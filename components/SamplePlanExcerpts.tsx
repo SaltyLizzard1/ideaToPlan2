@@ -121,19 +121,10 @@ function CardFace({ page, showFade }: { page: SamplePage; showFade: boolean }) {
 
 export default function SamplePlanExcerpts() {
   const [focusedId, setFocusedId] = useState<string | null>(null);
-  const [isNarrow, setIsNarrow] = useState(false);
   const [prefersReduced, setPrefersReduced] = useState(false);
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    const rmq = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-    setIsNarrow(mq.matches);
-    setPrefersReduced(rmq.matches);
-
-    const onResize = (e: MediaQueryListEvent) => setIsNarrow(e.matches);
-    mq.addEventListener("change", onResize);
-    return () => mq.removeEventListener("change", onResize);
+    setPrefersReduced(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   }, []);
 
   const geo = DESKTOP;
@@ -210,12 +201,16 @@ export default function SamplePlanExcerpts() {
         </div>
 
         {/* Excerpts. A fan at 768 and up. Below that a swipeable row, because
-            four overlapping 118px cards left every title unreadable. */}
-        {isNarrow ? (
-          <div
-            className="bleed-row flex gap-s4 overflow-x-auto snap-x snap-mandatory"
-            style={{ scrollbarWidth: "none" }}
-          >
+            four overlapping 118px cards left every title unreadable.
+
+            Both layouts are rendered and CSS picks one. Choosing in an effect
+            meant a phone first painted the 551px-wide fan, which widened the
+            mobile viewport for a moment and made a hash scroll that ran in
+            that moment (a link to /#pricing from another page) land short. */}
+        <div
+          className="bleed-row flex gap-s4 overflow-x-auto snap-x snap-mandatory md:hidden"
+          style={{ scrollbarWidth: "none" }}
+        >
             {SAMPLE_PAGES.map((page) => (
               <Link
                 key={page.id}
@@ -236,13 +231,13 @@ export default function SamplePlanExcerpts() {
                 <CardFace page={page} showFade />
               </Link>
             ))}
-          </div>
-        ) : (
-          <div
-            className="relative mx-auto"
-            style={{ height: `${geo.containerH}px`, overflow: "visible" }}
-            onMouseLeave={() => setFocusedId(null)}
-          >
+        </div>
+
+        <div
+          className="relative mx-auto hidden md:block"
+          style={{ height: `${geo.containerH}px`, overflow: "visible" }}
+          onMouseLeave={() => setFocusedId(null)}
+        >
             {SAMPLE_PAGES.map((page, index) => {
               const isFocused = focusedId === page.id;
               const topPx = Math.round((geo.containerH - geo.cardH) / 2);
@@ -274,8 +269,7 @@ export default function SamplePlanExcerpts() {
                 </Link>
               );
             })}
-          </div>
-        )}
+        </div>
 
         {/* Caption */}
         <p className="text-center font-sans text-xs mt-s5" style={{ color: "#a89f8a" }}>
