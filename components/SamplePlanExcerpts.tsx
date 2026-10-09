@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, CSSProperties } from "react";
-import Link from "next/link";
-import { SAMPLE_PAGES, type Line, type SamplePage } from "@/lib/samplePlan";
+import { type Line, type SamplePage } from "@/lib/samplePlan";
+import { PLAN_CONTENTS } from "@/lib/planContents";
 
 // ── Fan geometry ───────────────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ function renderLine(line: Line, i: number) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-// The face of one excerpt card. Identical in the fan and in the narrow row, so
+// The face of one card. Identical in the fan and in the narrow row, so
 // the two layouts can never drift apart.
 function CardFace({ page, showFade }: { page: SamplePage; showFade: boolean }) {
   return (
@@ -185,22 +185,20 @@ export default function SamplePlanExcerpts() {
             className="font-sans text-xs uppercase tracking-[0.2em] mb-s3"
             style={{ color: "#C9A030" }}
           >
-            The Proof
+            What You Get
           </p>
           <h3
             className="font-serif font-bold text-3xl sm:text-4xl mb-s3"
             style={{ color: "#FBF6E3" }}
           >
-            Inside Every Plan
+            Inside Your Business Plan
           </h3>
           <p className="font-sans text-base mt-s5 mx-auto max-w-text" style={{ color: "#cfc9b8" }}>
-            Every tool in this category shows you samples written to be samples. This is an
-            actual plan IdeaToPlan produced, published exactly as it came out, with the real
-            numbers and the uncomfortable parts left in.
+            Four of the sections in your plan, and what each one is for.
           </p>
         </div>
 
-        {/* Excerpts. A fan at 768 and up. Below that a swipeable row, because
+        {/* The cards. They describe what a plan contains and link nowhere. A fan at 768 and up. Below that a swipeable row, because
             four overlapping 118px cards left every title unreadable.
 
             Both layouts are rendered and CSS picks one. Choosing in an effect
@@ -211,11 +209,9 @@ export default function SamplePlanExcerpts() {
           className="bleed-row flex gap-s4 overflow-x-auto snap-x snap-mandatory md:hidden"
           style={{ scrollbarWidth: "none" }}
         >
-            {SAMPLE_PAGES.map((page) => (
-              <Link
+            {PLAN_CONTENTS.map((page) => (
+              <div
                 key={page.id}
-                href={`/sample-plan#${page.id}`}
-                aria-label={`Read ${page.title} in full`}
                 className="snap-center shrink-0 relative p-s4 block"
                 style={{
                   width: "min(78vw, 260px)",
@@ -229,7 +225,7 @@ export default function SamplePlanExcerpts() {
                 }}
               >
                 <CardFace page={page} showFade />
-              </Link>
+              </div>
             ))}
         </div>
 
@@ -238,15 +234,13 @@ export default function SamplePlanExcerpts() {
           style={{ height: `${geo.containerH}px`, overflow: "visible" }}
           onMouseLeave={() => setFocusedId(null)}
         >
-            {SAMPLE_PAGES.map((page, index) => {
+            {PLAN_CONTENTS.map((page, index) => {
               const isFocused = focusedId === page.id;
               const topPx = Math.round((geo.containerH - geo.cardH) / 2);
 
               return (
-                <Link
+                <div
                   key={page.id}
-                  href={`/sample-plan#${page.id}`}
-                  aria-label={`Read ${page.title} in full`}
                   onMouseEnter={() => setFocusedId(page.id)}
                   className="p-s4 block"
                   style={{
@@ -255,7 +249,7 @@ export default function SamplePlanExcerpts() {
                     height: `${geo.cardH}px`,
                     left: `calc(50% + ${geo.xOffsets[index]}px - ${geo.cardW / 2}px)`,
                     top: `${topPx}px`,
-                    cursor: "pointer",
+                    cursor: "default",
                     borderRadius: "12px",
                     background: "white",
                     border: "1px solid var(--i2p-cream-border)",
@@ -266,24 +260,10 @@ export default function SamplePlanExcerpts() {
                   }}
                 >
                   <CardFace page={page} showFade={false} />
-                </Link>
+                </div>
               );
             })}
         </div>
-
-        {/* Caption */}
-        <p className="text-center font-sans text-xs mt-s5" style={{ color: "#a89f8a" }}>
-          Hover to preview, click to read in full
-        </p>
-
-        <p className="text-center font-sans text-sm mt-s3">
-          <a
-            href="/sample-plan"
-            style={{ color: "#C9A030", textDecoration: "underline", textUnderlineOffset: "3px" }}
-          >
-            Read the whole plan
-          </a>
-        </p>
 
       </div>
     </section>

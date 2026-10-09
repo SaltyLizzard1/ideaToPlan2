@@ -53,7 +53,7 @@ export default function Home() {
             </p>
 
             <div className="font-sans text-sm mb-s6" style={{ color: "#6B6B66" }}>
-              <p>The plan above is real and unedited. Nothing in it was written to be a sample.</p>
+              <p>I personally review every plan before delivery.</p>
               <p className="font-serif italic mt-s1" style={{ color: "#0D1117", fontSize: "0.95rem" }}>
                 Elizabeth, Founder
               </p>
