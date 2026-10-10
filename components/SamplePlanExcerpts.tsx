@@ -19,12 +19,15 @@ const DESKTOP = {
 
 // ── Line renderer ──────────────────────────────────────────────────────────
 
-function renderLine(line: Line, i: number) {
+// The fan's cards are small pages, so their text is small. The stacked cards on phones are
+// full width and are read, not glanced at, so they take a larger size.
+function renderLine(line: Line, i: number, fontSize: string, last: boolean) {
   const base: CSSProperties = {
-    fontSize: "11px",
+    fontSize,
     lineHeight: "1.6",
     color: "var(--i2p-ink-body)",
-    marginBottom: "7px",
+    // no gap under the last line, so a card sized to its text ends at its padding
+    marginBottom: last ? 0 : "7px",
   };
 
   switch (line.k) {
@@ -44,7 +47,7 @@ function renderLine(line: Line, i: number) {
         <p
           key={i}
           style={{
-            fontSize: "11px",
+            fontSize,
             fontWeight: 700,
             color: "var(--i2p-ink)",
             marginTop: "10px",
@@ -68,9 +71,9 @@ function renderLine(line: Line, i: number) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-// The face of one card. Identical in the fan and in the narrow row, so
-// the two layouts can never drift apart.
-function CardFace({ page, showFade }: { page: SamplePage; showFade: boolean }) {
+// The face of one card. The fan and the stacked cards share it, so the two layouts can never
+// drift apart in content. Only the text size differs.
+function CardFace({ page, stacked }: { page: SamplePage; stacked: boolean }) {
   return (
     <>
       {/* Gold top rule */}
@@ -88,33 +91,21 @@ function CardFace({ page, showFade }: { page: SamplePage; showFade: boolean }) {
       <h3
         className="font-serif font-bold"
         style={{
-          fontSize: "14px",
+          fontSize: stacked ? "17px" : "14px",
           lineHeight: 1.3,
           color: "var(--i2p-ink)",
-          marginBottom: "10px",
+          marginBottom: stacked ? "8px" : "10px",
         }}
       >
         {page.title}
       </h3>
 
       {/* Content lines */}
-      <div>{page.lines.map((line, i) => renderLine(line, i))}</div>
-
-      {/* Bottom fade where the full page can never fit */}
-      {showFade && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: "36px",
-            background: "linear-gradient(to bottom, transparent, white)",
-            borderRadius: "0 0 12px 12px",
-            pointerEvents: "none",
-          }}
-        />
-      )}
+      <div>
+        {page.lines.map((line, i) =>
+          renderLine(line, i, stacked ? "14px" : "11px", i === page.lines.length - 1),
+        )}
+      </div>
     </>
   );
 }
@@ -199,35 +190,30 @@ export default function SamplePlanExcerpts() {
           </p>
         </div>
 
-        {/* The cards. They describe what a plan contains and link nowhere. A fan at 768 and up. Below that a swipeable row, because
-            four overlapping 118px cards left every title unreadable.
+        {/* The cards. They describe what a plan contains and link nowhere. A fan at 768 and up.
+            Below that, four cards stacked in a column, each as tall as its text. A swipeable row
+            of page-shaped cards was tried first: it was taller than its content, hid three of
+            the four cards off screen and cut the text off at the bottom.
 
             Both layouts are rendered and CSS picks one. Choosing in an effect
             meant a phone first painted the 551px-wide fan, which widened the
             mobile viewport for a moment and made a hash scroll that ran in
             that moment (a link to /#pricing from another page) land short. */}
-        <div
-          className="bleed-row flex gap-s4 overflow-x-auto snap-x snap-mandatory md:hidden"
-          style={{ scrollbarWidth: "none" }}
-        >
-            {PLAN_CONTENTS.map((page) => (
-              <div
-                key={page.id}
-                className="snap-center shrink-0 relative p-s4 block"
-                style={{
-                  width: "min(78vw, 260px)",
-                  aspectRatio: "3 / 4",
-                  borderRadius: "12px",
-                  background: "white",
-                  border: "1px solid var(--i2p-cream-border)",
-                  overflow: "hidden",
-                  boxSizing: "border-box",
-                  boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
-                }}
-              >
-                <CardFace page={page} showFade />
-              </div>
-            ))}
+        <div className="flex flex-col gap-s3 mt-s5 md:hidden">
+          {PLAN_CONTENTS.map((page) => (
+            <div
+              key={page.id}
+              className="p-s4"
+              style={{
+                borderRadius: "12px",
+                background: "white",
+                border: "1px solid var(--i2p-cream-border)",
+                boxShadow: "0 6px 18px rgba(0,0,0,0.35)",
+              }}
+            >
+              <CardFace page={page} stacked />
+            </div>
+          ))}
         </div>
 
         <div
@@ -260,7 +246,7 @@ export default function SamplePlanExcerpts() {
                     ...getCardStyle(index, isFocused),
                   }}
                 >
-                  <CardFace page={page} showFade={false} />
+                  <CardFace page={page} stacked={false} />
                 </div>
               );
             })}
