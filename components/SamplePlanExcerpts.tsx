@@ -174,7 +174,7 @@ export default function SamplePlanExcerpts() {
         backgroundImage:
           "radial-gradient(circle, rgba(201,160,48,0.06) 1px, transparent 1px)",
         backgroundSize: "32px 32px",
-        scrollMarginTop: "80px",
+        scrollMarginTop: "var(--header-h)",
       }}
     >
       <div className="page-container">

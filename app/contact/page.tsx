@@ -4,7 +4,8 @@ export default function ContactPage() {
   return (
     <>
       <main style={{ background: "#0D1117" }}>
-        <section className="section-y">
+        {/* Less space above the intro than the shared section rhythm gives: 28px on phones, up to 48px on wide screens. Same as About. */}
+        <section className="section-y" style={{ paddingTop: "clamp(28px, 4vw, 48px)" }}>
           <div className="page-container">
             <div className="measure flex flex-col items-center text-center">
               <p

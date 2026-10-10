@@ -119,12 +119,6 @@ const PLAN_OPTIONS: PlanOption[] = [
 const GOLD_GRADIENT =
   "linear-gradient(135deg, #6B4C08 0%, #C9A030 35%, #F5D020 60%, #E8C84A 80%, #6B4C08 100%)";
 
-const GOLD_BUTTON_STYLE = {
-  background: GOLD_GRADIENT,
-  color: "#2D1A00",
-  border: "1.5px solid #7A5C0A",
-} as const;
-
 const GOLD_BUTTON_TEXT_STYLE = {
   color: "#2D1A00",
   border: "1.5px solid #7A5C0A",
@@ -377,25 +371,25 @@ const [paymentError, setPaymentError] = useState("");
   return (
     <section
       id="pricing"
-      className="section-y"
+      className="section-y scroll-mt-[var(--header-h)]"
       style={{
         background: "#0D1117",
-        scrollMarginTop: "80px",
+        paddingTop: "clamp(28px, 4vw, 48px)",
         backgroundImage:
           "radial-gradient(circle, rgba(201,160,48,0.06) 1px, transparent 1px)",
         backgroundSize: "32px 32px",
       }}
     >
       <div className="page-container">
-        <div className="text-center mb-s5">
-          <span
-            className="inline-block text-xs sm:text-sm font-bold px-s5 py-s2 rounded-full uppercase tracking-widest shadow-md mb-s3"
-            style={GOLD_BUTTON_STYLE}
+        <div className="text-center mb-s4">
+          <p
+            className="font-sans text-xs uppercase tracking-[0.2em] mb-s2"
+            style={{ color: "#C9A030" }}
           >
             Business Plans
-          </span>
+          </p>
           <h2
-            className="text-3xl md:text-4xl font-serif font-bold mb-s3"
+            className="text-3xl md:text-4xl font-serif font-bold mb-s2"
             style={{ color: "#F5E9C9" }}
           >
             Your business plan in 72 hours.

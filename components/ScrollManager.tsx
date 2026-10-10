@@ -2,14 +2,27 @@
 
 import { useEffect } from "react";
 
-const HEADER_HEIGHT = 80;
+// The sticky header's height is set by --header-h in globals.css, so it is measured, not assumed.
+const headerHeight = () => document.querySelector("header")?.getBoundingClientRect().height ?? 80;
+
+// Where the element sits in the page layout, ignoring transforms. A section that has not been
+// scrolled to yet is still shifted down by its fade-in (.scroll-reveal translates it 20px), and
+// getBoundingClientRect reports that shifted position, so a scroll aimed at it lands 20px high
+// once the fade finishes. offsetTop is the layout position and is not affected by the transform.
+function layoutTop(el: HTMLElement): number {
+  let top = 0;
+  for (let node: HTMLElement | null = el; node; node = node.offsetParent as HTMLElement | null) {
+    top += node.offsetTop;
+  }
+  return top;
+}
 
 function scrollToId(id: string) {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       const el = document.getElementById(id);
       if (!el) return;
-      const top = el.getBoundingClientRect().top + window.scrollY - HEADER_HEIGHT;
+      const top = layoutTop(el) - headerHeight();
       window.scrollTo({ top, behavior: "smooth" });
     });
   });

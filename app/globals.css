@@ -162,6 +162,19 @@ h1, h2, h3 {
   text-wrap: balance;
 }
 
+/* Height of the sticky header. The bar, the mobile menu under it, the full-screen
+   height of the hero and every anchor offset read this one value, so they
+   cannot drift apart. 72px gives the logo clear space above the gold rule.
+   From lg up the bar is 80px. */
+:root {
+  --header-h: 72px;
+}
+@media (min-width: 1024px) {
+  :root {
+    --header-h: 80px;
+  }
+}
+
 /* ===== IdeaToPlan design tokens ===== */
 :root {
   /* Backgrounds */

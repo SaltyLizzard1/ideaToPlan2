@@ -5,7 +5,7 @@ import Link from "next/link";
 export default function Hero() {
   return (
     <section
-      className="relative flex flex-col items-center justify-center text-center overflow-x-hidden min-h-[calc(100svh_-_80px)] section-y"
+      className="relative flex flex-col items-center justify-center text-center overflow-x-hidden min-h-[calc(100svh_-_var(--header-h))] section-y"
       style={{
         background: "#0D1117",
         backgroundImage:

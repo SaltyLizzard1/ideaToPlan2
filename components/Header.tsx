@@ -26,10 +26,9 @@ export default function Header() {
 
   return (
     <header
-      className="sticky top-0 z-50"
+      className="sticky top-0 z-50 h-[var(--header-h)]"
       style={{
         background: "#0D1117",
-        height: "80px",
       }}
     >
       {/* The bar is full bleed, its contents sit in the shared container so the
@@ -37,7 +36,7 @@ export default function Header() {
       <div className="page-container flex items-center justify-between h-full">
         {/* Logo, icon-only on homepage, wordmark on subpages */}
         <Link href="/" className="shrink-0">
-          <span style={{ display: "block", width: "clamp(130px, 13vw, 170px)" }}>
+          <span style={{ display: "block", width: "clamp(130px, 13vw, 170px)", transform: "translateY(-6%)" }}>
             <AnimatedLogo key={pathname} showTagline={false} animate={true} className="w-full h-auto" />
           </span>
         </Link>
@@ -69,7 +68,7 @@ export default function Header() {
               boxShadow: "0 8px 32px rgba(139,105,20,0.35)",
             }}
           >
-            Find Business Ideas
+            Find My Business Matches
           </Link>
           <Link
             href={PLAN_HREF}
@@ -82,7 +81,7 @@ export default function Header() {
 
         {/* Mobile hamburger */}
         <button
-          className="lg:hidden flex flex-col justify-center gap-1.5 p-s2 cursor-pointer"
+          className="lg:hidden flex flex-col justify-center gap-1.5 p-s3 -mr-s2 cursor-pointer"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
         >
@@ -123,7 +122,7 @@ export default function Header() {
       {/* Mobile menu */}
       {menuOpen && (
         <div
-          className="absolute top-[80px] left-0 right-0 flex flex-col items-center gap-5 py-s5 lg:hidden"
+          className="absolute top-[var(--header-h)] left-0 right-0 flex flex-col items-center gap-5 py-s5 lg:hidden"
           style={{
             background: "#0D1117",
           }}
@@ -159,7 +158,7 @@ export default function Header() {
               boxShadow: "0 8px 32px rgba(139,105,20,0.35)",
             }}
           >
-            Find Business Ideas
+            Find My Business Matches
           </Link>
           <Link
             href={PLAN_HREF}

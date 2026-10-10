@@ -12,7 +12,7 @@ export default function Home() {
     <main>
       <Hero />
 
-      <div id="how-it-works" style={{ scrollMarginTop: "80px" }}>
+      <div id="how-it-works" style={{ scrollMarginTop: "var(--header-h)" }}>
         <ScrollReveal><HowItWorks /></ScrollReveal>
       </div>
 
@@ -22,7 +22,7 @@ export default function Home() {
         <section
           id="assessment"
           className="section-y"
-          style={{ background: "#FDFCF9", scrollMarginTop: "80px" }}
+          style={{ background: "#FDFCF9", scrollMarginTop: "var(--header-h)" }}
         >
           <div className="page-container">
             <div className="measure text-center">
