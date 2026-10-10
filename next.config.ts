@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
         destination: "/assessment",
         permanent: true,
       },
+      // The sample plan page is retired for now, not removed: the page file stays in the repo
+      // and this sends every visit to the plans instead. Temporary, so it can come back.
+      {
+        source: "/sample-plan",
+        destination: "/#pricing",
+        permanent: false,
+      },
     ];
   },
   async headers() {

@@ -194,7 +194,8 @@ export default function SamplePlanExcerpts() {
             Inside Your Business Plan
           </h3>
           <p className="font-sans text-base mt-s5 mx-auto max-w-text" style={{ color: "#cfc9b8" }}>
-            Four of the sections in your plan, and what each one is for.
+            Explore the thinking behind your business plan, from the idea and its market to the
+            numbers and next steps.
           </p>
         </div>
 

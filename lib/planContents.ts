@@ -3,11 +3,12 @@
 // These describe sections of a plan in general terms. They are not taken from
 // any generated plan and must not be presented as a sample of one.
 //
-// Tiers: the Executive Summary, the market section, the financial model and
-// budget are written for both Starter and Growth. Research on competing offers,
-// with its sources, is Growth only, and the second card says so. The 90-day
-// action plan is part of roadmap and bank-loan plans; an investor pitch has a
-// go-to-market section in its place.
+// Checked against the paid formats (roadmap, bank loan, investor pitch) and
+// both tiers. Every format has an executive summary, a market section and a
+// financial model. Research on competing offers, with its sources, is Growth
+// only, and the second card says so. The last card promises next steps, not a
+// 90-day section: roadmap and bank-loan plans have a 90-day action plan, an
+// investor pitch has a go-to-market section and a next action in its place.
 
 import type { SamplePage } from "@/lib/samplePlan";
 
