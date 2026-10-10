@@ -37,7 +37,7 @@ export default function ResultsGate({ matches: initial, canonicalUrl, resultId }
       await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), resultId }),
       });
       setEmail(email.trim());
       setUnlocked(true);
