@@ -4,9 +4,15 @@ import Link from "next/link";
 
 export default function Hero() {
   return (
+    // The hero is as tall as its content. It used to be stretched to fill the screen with the
+    // content centred in it, which left a wide band above the eyebrow on tall screens and pushed
+    // the second button below the fold on short ones. Padding and gaps follow the screen height
+    // (svh) so both buttons stay on the first screen of a short laptop window.
     <section
-      className="relative flex flex-col items-center justify-center text-center overflow-x-hidden min-h-[calc(100svh_-_var(--header-h))] section-y"
+      className="relative flex flex-col items-center text-center overflow-x-hidden"
       style={{
+        paddingTop: "clamp(20px, 5svh, 56px)",
+        paddingBottom: "clamp(28px, 7svh, 72px)",
         background: "#0D1117",
         backgroundImage:
           "radial-gradient(circle, rgba(201,160,48,0.06) 1px, transparent 1px)",
@@ -35,13 +41,10 @@ export default function Hero() {
       />
 
       {/* Content stack */}
-      <div className="page-container relative flex flex-col items-center" style={{ flex: 1 }}>
+      <div className="page-container relative flex flex-col items-center">
         <div
-          className="flex flex-col items-center justify-center w-full max-w-hero"
-          style={{
-            gap: "clamp(24px, 3vw, 32px)",
-            flex: 1,
-          }}
+          className="flex flex-col items-center w-full max-w-hero"
+          style={{ gap: "clamp(14px, 2.6svh, 24px)" }}
         >
         {/* Eyebrow */}
         <p

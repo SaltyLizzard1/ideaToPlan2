@@ -12,6 +12,12 @@ export default function ScrollReveal({ children }: { children: ReactNode }) {
     // Skip animation when the user has requested reduced motion
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
+    // A section that already starts inside the first screen is left as it is. Hiding it would
+    // leave an empty band under the content above until the visitor scrolls, because the fade
+    // only starts once 15% of the section is in view and a tall section can show less than that.
+    // Sections that start below the screen still fade in as they arrive.
+    if (el.getBoundingClientRect().top < window.innerHeight) return;
+
     // Apply hidden state only on the client, after hydration, to avoid SSR FOUC.
     //
     // Careful: .scroll-reveal sets a transform, and a transformed element is
