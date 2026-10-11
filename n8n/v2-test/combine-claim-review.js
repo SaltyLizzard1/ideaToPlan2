@@ -29,6 +29,11 @@ const fin = $('Compute Financials').first().json;
 // Nothing here treats the missing research as evidence. A Growth plan still requires Build Evidence.
 const researched = ctx.tier === 'Growth';
 const ev = researched ? $('Build Evidence').first().json : {};
+// WHETHER RESEARCH RAN IS READ FROM THIS EXECUTION, not from the tier alone. It did not run only when all three agree:
+// the plan is not a Growth plan, Build Claim Review marked its claim map research: not_run, and the research node
+// Build Evidence has no output in this execution.
+const researchRan = (() => { try { $('Build Evidence').first(); return true; } catch (e) { return false; } })();
+const noResearchRun = !researched && !researchRan && map.research === 'not_run';
 const parse = (v, d) => { try { const p = typeof v === 'string' ? JSON.parse(v) : v; return p === null || p === undefined ? d : p; } catch (e) { return d; } };
 const ledger = parse(ev.research_ledger, []).filter((c) => c && c.claim_id);
 const sources = parse(ev.sources, []);
@@ -55,7 +60,7 @@ const quotedIn = (hay, quote, min, bySentence) => {
 // Figures that are the plan's own: the intake and the computed financial model. They need no ledger entry.
 const ownNumbers = new Set(numsIn([ctx.founder_context, fin.scenario_block, fin.forecast_block, fin.budget_block, fin.loan_block, JSON.stringify(fin.allowed_money || '')].join(' ')));
 // A LABEL SAYS THE STATEMENT IS NOT A FACT. These words label the sentence they are in.
-const LABEL = /\bhypothes|\bassum|\bnot (?:yet )?(?:been )?(?:established|known|verified|confirmed|shown|stated|captured|validated)\b|\bwhether\b|\buntested\b|\bunvalidated\b|\bto (?:be )?test(?:ed)?\b|\bIdeaToPlan(?:'s)? (?:reads?|recommends?|hypothesis|assumes?|inference|reading|notes|suggests)\b|\bscenario\b|\bmodel(?:s|ed)?\b|\bforecast\b|\bprojection\b|\bplanning (?:assumption|threshold|figure)s?\b|\btest criteri(?:on|a)\b|\bproposed\b|\bestimate[ds]?\b|\bIdeaToPlan(?:'s)? reasoning\b|\b(?:based on|on) (?:the )?reasoning\b|\breasoning-based\b|\brequires? (?:testing|validation)\b/i;
+const LABEL = /\bhypothes|\bassum|\bnot (?:yet )?(?:been )?(?:established|known|verified|confirmed|shown|stated|captured|validated)\b|\bwhether\b|\buntested\b|\bunvalidated\b|\bto (?:be )?test(?:ed)?\b|\bIdeaToPlan(?:'s)? (?:reads?|recommends?|hypothesis|assumes?|inference|reading|notes|suggests)\b|\bscenario\b|\bmodel(?:s|ed|led)?\b|\bforecast\b|\bprojection\b|\bplanning (?:assumption|threshold|figure)s?\b|\btest criteri(?:on|a)\b|\bproposed\b|\bestimate[ds]?\b|\bIdeaToPlan(?:'s)? reasoning\b|\b(?:based on|on) (?:the )?reasoning\b|\breasoning-based\b|\brequires? (?:testing|validation)\b/i;
 // A MODAL LABELS ONLY THE CLAUSE IT GOVERNS. "A positioning could win customers from the three established paid
 // providers" is a hypothesis about the positioning, and it still states as fact that there are three providers, that
 // they are established, and that they charge. With no other label, a modal covers the sentence only when the sentence
@@ -113,13 +118,21 @@ const unlabelledClause = (text) => {
 // not captured in the intake": each says what is not known. No ledger entry can state that, and asking for one turns an
 // honest sentence into a defect. These words are about evidence, tests, and the intake only. A sentence that denies
 // something about the world ("no competitor offers this") is not one of them and is judged as a claim.
-const ABSENCE = /\b(?:is|are|remains?|was|were) (?:unknown|unresolved|unvalidated|untested|unconfirmed|not resolved|not (?:yet )?(?:tested|demonstrated|modeled|proven))\b|\bnot (?:been )?(?:tested|demonstrated|captured|provided|supplied)\b|\bnot (?:a prediction|proof|evidence|a guarantee|a finding)\b|\bno (?:verified |external |customer )?(?:research|evidence|amount|result|validation|data|price|pricing)\b[^.;]{0,90}\b(?:found|established|confirm\w*|shows?|captured)\b|\b(?:does|do|did) not (?:establish|show|confirm|prove|demonstrate)\b|\bneither of which has been\b|\bnone of these has been tested\b|\bnot captured in the intake\b|\bwere not captured\b|\bwas not captured\b/i;
+const ABSENCE = /\b(?:is|are|remains?|was|were) (?:unknown|unresolved|unvalidated|untested|unconfirmed|not resolved|not (?:yet )?(?:tested|demonstrated|modeled|modelled|proven))\b|\bnot (?:been )?(?:tested|demonstrated|captured|provided|supplied)\b|\bnot (?:a prediction|proof|evidence|a guarantee|a finding)\b|\bno (?:verified |external |customer )?(?:research|evidence|amount|result|validation|data|price|pricing)\b[^.;]{0,90}\b(?:found|established|confirm\w*|shows?|captured)\b|\b(?:does|do|did) not (?:establish|show|confirm|prove|demonstrate)\b|\bneither of which has been\b|\bnone of these has been tested\b|\bnot captured in the intake\b|\bwere not captured\b|\bwas not captured\b/i;
 // A SHORT SENTENCE ABOUT THE RESEARCH ITSELF ("Five competitors were reviewed for this plan", "Only one direct
 // competitor with verified pricing was found") describes the evidence set. No ledger entry states it, and none could.
 // It is accepted on the same footing as a statement of what is missing. A count in such a sentence is tested where it
 // can be: Citation Check compares a stated number with the names listed after it.
 const RESEARCH_NOTE = /\b(?:reviewed for this plan|(?:sources|providers|competitors) reviewed|verified (?:ledger )?entr(?:y|ies)|verified pric(?:e|ing)|(?:was|were) (?:found|researched)|could not be verified)\b/i;
 const researchNote = (text) => RESEARCH_NOTE.test(text) && text.split(/\s+/).length <= 26;
+// "NO COMPETITOR RESEARCH WAS DONE FOR THIS PLAN" AND "MARKET RESEARCH WAS NOT PART OF THIS PLAN". The Starter writer is
+// told to say each once. It is a statement about this run, and the run can confirm it: the research nodes did not
+// execute. Nothing in the intake or a ledger could state it, and the reviewer, rightly, finds none that does. It is
+// accepted only when the run confirms it (noResearchRun), and only when it is the whole of the sentence or of the part
+// being judged: anything joined to it ("..., and competitors charge more") does not match and is judged as a claim.
+// In a plan whose research did run, the same words are false, and they are judged like any other sentence.
+const NO_RESEARCH = /^(?:no (?:(?:competitor|market|external|outside)(?: (?:or|and) (?:competitor|market))? )?research was (?:done|run|carried out|conducted|performed) for this plan|(?:competitor|market)(?: (?:or|and) (?:competitor|market))? research was not (?:part of|done for|run for|carried out for|conducted for|performed for) this plan)\.?$/i;
+const noResearchStatement = (text) => !/\[[SW]\d+\]/.test(text) && NO_RESEARCH.test(bare(text));
 // A STATEMENT OF THE PLAN'S OWN ARITHMETIC IS CHECKED BY THE FINANCIAL RECONCILIATION, NOT BY THE CLAIM REVIEW.
 // "1 paying customer = $500 revenue", "At Base (3 sessions per month), that is 6 founder hours": every figure is the
 // model's or the intake's, and nothing in the sentence is about anyone else. Citation Check and Compute Financials
@@ -204,6 +217,7 @@ const judge = (c, a, text) => {
     if (dated.length) return defect('SOURCE DATE NOTE IS WRONG', 'The sentence calls ' + dated.join(', ') + ' undated, and the source record shows "' + srcById[dated[0]].published + '".', {});
     if (said.length && said.every((id) => srcById[id])) return { status: 'settled', cls: 'DATE NOTE', links: { sources: said }, by_code: 'a date note, checked against the source records' };
   }
+  if (noResearchRun && noResearchStatement(text)) return { status: 'settled', cls: 'RESEARCH NOT RUN', links: {}, by_code: 'a statement that no research was done for this plan, confirmed by this run: the research nodes did not execute' };
   if (modelStatement(c, text)) return { status: 'settled', cls: 'MODEL', links: { figures: numsIn(text) }, by_code: 'a statement of the plan\'s own figures, left to the financial reconciliation checks' };
   // A sentence that says evidence or intake information is missing. The reviewer finds, rightly, that no entry and no
   // intake passage states it. That is what the sentence says, so it is not a defect.

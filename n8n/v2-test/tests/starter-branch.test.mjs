@@ -152,5 +152,107 @@ test('branch dependency: no node on the Starter path reads a Growth-only node ou
   assert.deepEqual(problems, []);
 });
 
+// ---------------- Two false positives found in execution 65050 (2026-10-11) ----------------
+// 1. "modelled" was not read as a label where "modeled" is. 2. The Starter writer is told to say that no research was
+// done, and the review then called that sentence a founder detail missing from the intake.
+
+const NO_COMPETITOR = 'No competitor research was done for this plan.';
+const NO_MARKET = 'Market research was not part of this plan.';
+const OTHERS_CHARGE = 'Other bookkeeping services charge about $300 a month.';
+const JOINED = 'No competitor research was done for this plan, and other bookkeeping services charge about $300 a month.';
+const withLines = (rev, lines) => ({ ...clone(rev), text: rev.text + '\n\n' + lines.join('\n\n') + '\n' });
+const byText = (items, text) => { const c = items[0].claim_map.claims.find((x) => x.text === text); if (!c) throw new Error('no claim with the text: ' + text); return c; };
+const recOf = (cr, id) => cr.records.find((r) => r.id === id);
+const FOUNDER_NO = { class: 'FOUNDER', supported: false, missing: 'the intake does not state this' };
+const EXTERNAL_NO = { class: 'EXTERNAL', supported: false, missing: 'no ledger entry states this' };
+// A Starter run over a plan with extra lines at its end. stubs adds to, or replaces, what the combine node can read.
+const sRun = async (lines, answers, { stubs = {}, editItems = (x) => x } = {}) => {
+  const rev = withLines(S_REV, lines);
+  const cc = await runNode('citation-check.js', { 'Founder Context': STARTER, 'Compute Financials': FIN, 'Assemble Plan': S_ASM, 'Apply Revisions': rev });
+  const items = editItems((await runNode('build-claim-review.js', { 'Founder Context': STARTER, 'Citation Check': cc, 'Apply Revisions': rev }, VERIFIER)).map((i) => i.json));
+  const over = {}; for (const [text, a] of Object.entries(answers)) over[byText(items, text).id] = a;
+  const combined = (await runNode('combine-claim-review.js', { 'Build Claim Review': items, 'Founder Context': STARTER, 'Compute Financials': FIN, ...stubs }, { __items: respond(items, over) }))[0].json;
+  const out = await runNode('plan-revision-request.js', { 'Founder Context': STARTER, 'Compute Financials': FIN, 'Citation Check': cc, 'Apply Revisions': rev }, combined);
+  return { items, cr: combined.claim_review, out, gate: await sGate(out), rec: (text) => recOf(combined.claim_review, byText(items, text).id) };
+};
+
+test('modelled: it labels an assumption wherever "modeled" does, and nothing else changes', async () => {
+  const UK = 'No paid acquisition is modelled.', US = 'No paid acquisition is modeled.', PLAIN = 'No paid acquisition is planned.';
+  const label = (w) => ({ class: 'ASSUMPTION', label: w });
+  const r = await sRun([UK, US, PLAIN], { [UK]: label('modelled'), [US]: label('modeled'), [PLAIN]: label('planned') });
+  assert.equal(r.rec(US).status, 'settled');
+  assert.equal(r.rec(UK).status, 'settled');
+  assert.deepEqual([r.rec(UK).cls, r.rec(UK).status], [r.rec(US).cls, r.rec(US).status]);
+  // A sentence with no label word is still a defect: the spelling is all that was added.
+  assert.deepEqual([r.rec(PLAIN).status, r.rec(PLAIN).check], ['defect', 'ASSUMPTION NOT LABELLED IN THE TEXT']);
+  // The words that say something is not established: "not yet modelled" is read as "not yet modeled" is.
+  const A_UK = 'Referral volume is not yet modelled.', A_US = 'Referral volume is not yet modeled.';
+  const a = await sRun([A_UK, A_US], { [A_UK]: EXTERNAL_NO, [A_US]: EXTERNAL_NO });
+  assert.deepEqual([a.rec(A_UK).status, a.rec(A_UK).check || ''], [a.rec(A_US).status, a.rec(A_US).check || '']);
+  assert.notEqual(a.rec(A_UK).status, 'defect');
+});
+
+test('no research: in a Starter run the two statements are settled by code, on the evidence of the run', async () => {
+  const r = await sRun([NO_COMPETITOR, NO_MARKET], { [NO_COMPETITOR]: FOUNDER_NO, [NO_MARKET]: FOUNDER_NO });
+  for (const t of [NO_COMPETITOR, NO_MARKET]) {
+    const rec = r.rec(t);
+    assert.deepEqual([rec.status, rec.cls], ['settled', 'RESEARCH NOT RUN'], t);
+    assert.match(rec.by_code, /confirmed by this run: the research nodes did not execute/);
+  }
+  assert.equal(r.cr.by_code['RESEARCH NOT RUN'], 2);
+  // It is settled whatever class the reviewer gave it, and it is never counted as an external claim with support.
+  const again = await sRun([NO_COMPETITOR], { [NO_COMPETITOR]: { class: 'EXTERNAL', supported: false, missing: 'no entry' } });
+  assert.equal(again.rec(NO_COMPETITOR).cls, 'RESEARCH NOT RUN');
+  assert.deepEqual(flatRecords(again.cr).filter((x) => x.status === 'settled' && x.cls === 'EXTERNAL'), []);
+});
+
+test('no research: nothing else in the sentence or the paragraph is excused', async () => {
+  // The next sentence of the same paragraph is an external claim with no evidence. It stays a blocking defect.
+  const para = await sRun([NO_COMPETITOR + ' ' + OTHERS_CHARGE], { [NO_COMPETITOR]: FOUNDER_NO, [OTHERS_CHARGE]: EXTERNAL_NO });
+  assert.equal(para.rec(NO_COMPETITOR).status, 'settled');
+  assert.deepEqual([para.rec(OTHERS_CHARGE).status, para.rec(OTHERS_CHARGE).check], ['defect', 'EXTERNAL CLAIM WITHOUT A SUPPORTING ENTRY']);
+  assert.ok(para.out.findings.some((f) => f.severity === 'BLOCKING' && f.check === 'EXTERNAL CLAIM WITHOUT A SUPPORTING ENTRY' && f.line === byText(para.items, OTHERS_CHARGE).line));
+  assert.equal(para.gate.blocked, true);
+  // Joined into one sentence, the statement does not cover the rest: the whole sentence is judged, and is a defect.
+  const joined = await sRun([JOINED], { [JOINED]: FOUNDER_NO });
+  assert.deepEqual([joined.rec(JOINED).status, joined.rec(JOINED).check], ['defect', 'FOUNDER DETAIL NOT IN THE INTAKE']);
+  // Split by the reviewer, each part is judged on its own: the statement is settled and the claim beside it is not.
+  const first = 'No competitor research was done for this plan,', second = 'and other bookkeeping services charge about $300 a month.';
+  const split = await sRun([JOINED], { [JOINED]: { split: [{ text: first, ...FOUNDER_NO }, { text: second, ...EXTERNAL_NO }] } });
+  const parts = split.rec(JOINED).parts || [];
+  if (parts.length === 2) {
+    assert.equal(parts[1].status, 'defect');
+    assert.equal(parts[1].check, 'EXTERNAL CLAIM WITHOUT A SUPPORTING ENTRY');
+  } else assert.notEqual(split.rec(JOINED).status, 'settled');
+  assert.equal(split.gate.blocked, true);
+  // A citation on the statement, or words added to it, and it is no longer the statement.
+  const more = 'No competitor research was done for this plan because competitors are few.';
+  const extra = await sRun([more], { [more]: FOUNDER_NO });
+  assert.equal(extra.rec(more).status, 'defect');
+});
+
+test('no research: the statement is not accepted unless the run itself shows that research did not run', async () => {
+  // A Starter plan in an execution where Build Evidence has output: research ran, so the sentence is false.
+  const ran = await sRun([NO_COMPETITOR], { [NO_COMPETITOR]: FOUNDER_NO }, { stubs: { 'Build Evidence': EV } });
+  assert.deepEqual([ran.rec(NO_COMPETITOR).status, ran.rec(NO_COMPETITOR).check], ['defect', 'FOUNDER DETAIL NOT IN THE INTAKE']);
+  // Build Claim Review did not mark the claim map as unresearched.
+  const unmarked = await sRun([NO_COMPETITOR], { [NO_COMPETITOR]: FOUNDER_NO }, { editItems: (items) => { delete items[0].claim_map.research; return items; } });
+  assert.equal(unmarked.rec(NO_COMPETITOR).status, 'defect');
+});
+
+test('no research: in a researched Growth plan the same sentences are judged as before, and unsupported claims stay blocked', async () => {
+  const rev = withLines(REV, [NO_COMPETITOR, NO_MARKET, OTHERS_CHARGE]);
+  const { cc, items } = await buildBatches(rev);
+  const id = (t) => byText(items, t).id;
+  const combined = await combine(items, respond(items, { [id(NO_COMPETITOR)]: FOUNDER_NO, [id(NO_MARKET)]: FOUNDER_NO, [id(OTHERS_CHARGE)]: EXTERNAL_NO }));
+  const cr = combined.claim_review;
+  assert.deepEqual([recOf(cr, id(NO_COMPETITOR)).status, recOf(cr, id(NO_COMPETITOR)).check], ['defect', 'FOUNDER DETAIL NOT IN THE INTAKE']);
+  assert.deepEqual([recOf(cr, id(NO_MARKET)).status, recOf(cr, id(NO_MARKET)).check], ['defect', 'FOUNDER DETAIL NOT IN THE INTAKE']);
+  assert.deepEqual([recOf(cr, id(OTHERS_CHARGE)).status, recOf(cr, id(OTHERS_CHARGE)).check], ['defect', 'EXTERNAL CLAIM WITHOUT A SUPPORTING ENTRY']);
+  assert.ok(!cr.by_code || !('RESEARCH NOT RUN' in cr.by_code));
+  const out = await runNode('plan-revision-request.js', { 'Founder Context': FOUNDER, 'Compute Financials': FIN, 'Citation Check': cc, 'Apply Revisions': rev, 'Build Evidence': EV }, combined);
+  assert.equal((await runNode('delivery-gate.js', { 'Finalize Plan': { status: 'REVIEW', final_findings: [] }, 'Plan Revision Request': out })).blocked, true);
+});
+
 const GROWTH_ITEMS_SHA = '739084b778ae386098939dc2b5d775b06f7042d8d91c096a8eb79ce45c277f9d';
 const GROWTH_COMBINED_SHA = 'f4ff5d149396503992058d588306fd795e17af8f931e7de462a7fe47bb3139da';
