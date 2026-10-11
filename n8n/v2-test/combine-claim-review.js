@@ -24,7 +24,11 @@ const map = first.claim_map || { claims: [], coverage: {} };
 const qaResponse = first.qa_response || {};
 const ctx = $('Founder Context').first().json;
 const fin = $('Compute Financials').first().json;
-const ev = $('Build Evidence').first().json;
+// Build Evidence runs only for a Growth plan. A Starter plan has no research and so no ledger: every reference to a
+// ledger entry in an answer is then a reference code cannot find, which leaves the claim open and holds the plan.
+// Nothing here treats the missing research as evidence. A Growth plan still requires Build Evidence.
+const researched = ctx.tier === 'Growth';
+const ev = researched ? $('Build Evidence').first().json : {};
 const parse = (v, d) => { try { const p = typeof v === 'string' ? JSON.parse(v) : v; return p === null || p === undefined ? d : p; } catch (e) { return d; } };
 const ledger = parse(ev.research_ledger, []).filter((c) => c && c.claim_id);
 const sources = parse(ev.sources, []);
@@ -379,6 +383,7 @@ const claim_review = {
   rejected_responses: rejected,
   repeated_batches: repeated,
   review: expected,
+  ...(researched ? {} : { research: 'not_run' }),
   // Settled by code, with no judgment asked of the reviewer: date notes and statements of the plan's own figures.
   by_code: records.flatMap((r) => (r.parts ? r.parts : [r])).filter((x) => x.status === 'settled' && x.by_code).reduce((m, x) => { m[x.cls] = (m[x.cls] || 0) + 1; return m; }, {}),
   // Settled with nothing for code to check: the reviewer's judgment alone. A well-formed and wrong answer passes here.

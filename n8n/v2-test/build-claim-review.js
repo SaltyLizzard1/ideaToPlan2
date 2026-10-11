@@ -18,7 +18,12 @@ const attempt = cc.attempt || 0;
 if (!attempt || cc.claim_contract !== true) return [{ json: { ...qaIn, claim_skip: true } }];
 
 const ctx = $('Founder Context').first().json;
-const ev = $('Build Evidence').first().json;
+// MARKET RESEARCH RUNS ONLY FOR A GROWTH PLAN. On the Starter path the research nodes, Build Evidence among them, never
+// run, and reading a node that has not run stops the workflow. A Starter plan is reviewed with no ledger at all: it is
+// unresearched, which is not the same as verified. With an empty ledger no EXTERNAL claim can name a supporting entry,
+// so none can be settled as supported. A Growth plan still requires Build Evidence, and still stops without it.
+const researched = ctx.tier === 'Growth';
+const ev = researched ? $('Build Evidence').first().json : {};
 const rev = $('Apply Revisions').first().json;
 const parse = (v, d) => { try { const p = typeof v === 'string' ? JSON.parse(v) : v; return p === null || p === undefined ? d : p; } catch (e) { return d; } };
 const ledger = parse(ev.research_ledger, []).filter((c) => c && c.claim_id);
@@ -209,7 +214,7 @@ const payloadOf = (list, k) => JSON.stringify({
     { role: 'user', content: [
       runDate,
       '', String(ctx.founder_context || 'FOUNDER CONTEXT: none captured.'),
-      '', 'LEDGER (every verified entry; the only external evidence there is)', ledger.map(entryText).join('\n') || 'None.',
+      '', 'LEDGER (every verified entry; the only external evidence there is)', researched ? (ledger.map(entryText).join('\n') || 'None.') : 'None. No market research was run for this plan, so there is no external evidence. No EXTERNAL claim can be supported: answer "supported": false for each one.',
       '', 'REVIEW TOKEN: ' + review + '   BATCH: ' + (k + 1),
       'CLAIMS: batch ' + (k + 1) + ' of ' + batches.length + ', ' + list.length + ' claims. Answer each ID once.',
       list.map(describe).join('\n\n'),
@@ -226,5 +231,5 @@ return batches.map((list, k) => ({ json: {
   ids: list.map((c) => c.id),
   payload: payloadOf(list, k),
   // The map and the verifier's answer ride on the first item only. Combine Claim Review reads them from there.
-  ...(k === 0 ? { claim_map: { review, claims, not_sent: notSent, coverage, model: MODEL }, qa_response: qaIn } : {}),
+  ...(k === 0 ? { claim_map: { review, claims, not_sent: notSent, coverage, model: MODEL, ...(researched ? {} : { research: 'not_run' }) }, qa_response: qaIn } : {}),
 } }));
