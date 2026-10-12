@@ -162,6 +162,45 @@ const CLASSES = ['FOUNDER', 'EXTERNAL', 'ASSUMPTION', 'RECOMMENDATION', 'NONE'];
 // and changes no result. A response with another token was made for another text or another ledger and settles
 // nothing. A batch that no accepted response names is unreviewed.
 const expected = s(map.review);
+// AN ANSWER MAY HOLD MORE THAN ONE JSON OBJECT. The reviewer sometimes answers, writes that it has to re-examine, and
+// answers again. Reading from the first "{" to the last "}" then reads no JSON at all, and the whole batch was thrown
+// away (execution 63260 answer 10; execution 63572 answers 6 and 9). The text is read object by object instead.
+// jsonObjects walks the text once. It counts braces only outside strings, so a brace inside a quoted sentence does not
+// open or close anything, and it returns every top-level object that is complete and parses. "open" is true when the
+// text ends inside an object that was never closed: the answer stopped part-way through writing one.
+const jsonObjects = (text) => {
+  const found = [];
+  let depth = 0, start = -1, inString = false, escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) { if (escaped) escaped = false; else if (ch === '\\') escaped = true; else if (ch === '"') inString = false; continue; }
+    if (depth === 0 && ch !== '{') continue;   // outside an object, nothing but "{" matters: prose may hold stray quotes
+    if (ch === '"') { inString = true; continue; }
+    if (ch === '{') { if (depth === 0) start = i; depth++; }
+    else if (ch === '}') { depth--; if (depth === 0) { try { const o = JSON.parse(text.slice(start, i + 1)); if (o && typeof o === 'object' && !Array.isArray(o)) found.push(o); } catch (e) {} start = -1; } }
+  }
+  return { found, open: depth > 0 };
+};
+// The shape an answer has to have: the token, a batch number, and its verdicts in lists.
+const LISTS = ['claims', 'recommendation', 'none'];
+const answerShaped = (o) => typeof o.review === 'string' && Number.isInteger(Number(o.batch)) && Number(o.batch) > 0
+  && LISTS.every((k) => o[k] === undefined || Array.isArray(o[k])) && LISTS.some((k) => Array.isArray(o[k]));
+// THE ANSWER THAT COUNTS is the last complete object that has that shape, gives back the token of this run, and names
+// a batch of this run. An earlier object in the same text is the reviewer's own superseded attempt and is not used.
+// When the text ends inside an unfinished object, the reviewer was still correcting itself when it was cut off: the
+// earlier object is one it had set aside and the later one cannot be read, so nothing qualifies and the batch stays
+// unreviewed. Nothing here settles a claim: the verdicts of the chosen object go through every check below, as before.
+const readAnswer = (raw) => {
+  const { found, open } = jsonObjects(raw);
+  const shaped = found.filter(answerShaped);
+  const matching = shaped.filter((o) => s(o.review) === expected && idsOf[Number(o.batch)]);
+  if (matching.length && !(open && found.length)) return { o: matching[matching.length - 1], objects: found.length, superseded: matching.length - 1 };
+  // Nothing qualifies. What is passed on is only for naming the reason: an object with the wrong token or batch is
+  // reported as that, and anything else as unreadable.
+  if (open && found.length) return { o: null, objects: found.length, unfinished: true };
+  return { o: shaped.length ? shaped[shaped.length - 1] : null, objects: found.length };
+};
+const reread = [];          // answers that held more than one object, and which one was used
 const usage = { requests: batchItems.length, responses: responses.length, answered: 0, prompt_tokens: 0, completion_tokens: 0, cost: 0, cost_known: true, model: map.model || '' };
 const failed = [];          // batches with no usable answer
 const rejected = [];        // responses that could not be used, each with the reason
@@ -179,14 +218,15 @@ responses.forEach((r, pos) => {
   const choice = r.choices[0] || {};
   const raw = s(choice.message && choice.message.content);
   const cut = choice.finish_reason === 'length';
-  let o = null;
-  try { o = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch (e) {}
+  const read = readAnswer(raw);
+  const o = read.o;
+  if (read.objects > 1) reread.push({ arrived: pos + 1, batch: o ? Number(o.batch) : null, objects: read.objects, used: read.unfinished ? 'none: the answer ends inside an unfinished correction' : o ? 'the last complete object that matches this run' : 'none' });
   // A cut-off answer may not parse. The token and the batch come first in it, so they can still be read.
   const said = o && typeof o === 'object' ? { review: s(o.review), batch: Number(o.batch) } : { review: s((raw.match(/"review"\s*:\s*"([^"]+)"/) || [])[1]), batch: Number((raw.match(/"batch"\s*:\s*(\d+)/) || [])[1]) };
   if (!said.review) { rejected.push({ arrived: pos + 1, batch: said.batch || null, why: 'the answer does not give the review token' + (o ? '' : ' and is not readable JSON') }); return; }
   if (said.review !== expected) { rejected.push({ arrived: pos + 1, batch: said.batch || null, stale: true, why: 'the answer carries the review token ' + said.review + ', and this run is ' + expected + ': it was made for another text, another ledger, or another pass' }); return; }
   if (!idsOf[said.batch]) { rejected.push({ arrived: pos + 1, batch: said.batch || null, why: 'the answer names batch ' + (said.batch || 'none') + ', which is not a batch of this run' }); return; }
-  if (!o || typeof o !== 'object') { cutOff[said.batch] = cut ? 'the answer was cut off at the output limit and cannot be read' : 'the answer is not readable JSON'; rejected.push({ arrived: pos + 1, batch: said.batch, why: cutOff[said.batch] }); return; }
+  if (!o || typeof o !== 'object') { cutOff[said.batch] = read.unfinished ? 'the answer ends inside an unfinished correction of itself, so neither attempt is used' : cut ? 'the answer was cut off at the output limit and cannot be read' : 'the answer is not readable JSON'; rejected.push({ arrived: pos + 1, batch: said.batch, why: cutOff[said.batch] }); return; }
   usage.answered++;
   accepted[said.batch] = (accepted[said.batch] || 0) + 1;
   const list = [];
@@ -395,6 +435,7 @@ const claim_review = {
   stray,
   failed_batches: failed,
   rejected_responses: rejected,
+  ...(reread.length ? { reread_answers: reread } : {}),
   repeated_batches: repeated,
   review: expected,
   ...(researched ? {} : { research: 'not_run' }),
