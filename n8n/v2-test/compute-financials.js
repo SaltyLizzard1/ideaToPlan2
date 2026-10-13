@@ -18,11 +18,16 @@ const fin_issues = [];
 const fin_reviews = [];
 const usd = (n) => '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 let a = null;
-try { a = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch (e) {}
+// AN ANSWER CUT OFF AT THE OUTPUT LIMIT IS NOT USED. It is incomplete by definition: figures, cost items or whole keys
+// are missing from it even when what arrived can be parsed. No part of it is kept.
+let finCut = null;
+try { const ch = $input.first().json.choices[0]; if (ch && ch.finish_reason === 'length') finCut = { tokens: Number(($input.first().json.usage || {}).completion_tokens) || null }; } catch (e) {}
+if (!finCut) { try { a = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch (e) {} }
+if (finCut) fin_issues.push('The financial assumptions answer was cut off at its output limit' + (finCut.tokens ? ' (' + finCut.tokens + ' tokens)' : '') + ', so no part of it is used and the financial tables are incomplete. This is a technical failure of the run, not a finding about the business.');
 // Fixed inputs for a regression comparison (test workflows only, set in Founder Context). They replace the model's answer whole.
 const inputsFixed = !!(ctx.fixed_financial_assumptions && typeof ctx.fixed_financial_assumptions === 'object');
 if (inputsFixed) a = JSON.parse(JSON.stringify(ctx.fixed_financial_assumptions));
-if (!a || typeof a !== 'object') { a = {}; fin_issues.push('The financial assumptions could not be read, so the financial tables are incomplete.'); }
+if (!a || typeof a !== 'object') { a = {}; if (!finCut) fin_issues.push('The financial assumptions could not be read, so the financial tables are incomplete.'); }
 
 // A value is a number or it is null. Unknown never becomes zero.
 const num = (v) => {

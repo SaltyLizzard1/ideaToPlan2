@@ -130,7 +130,11 @@ test('growth: with Build Evidence the requests and the combined review are exact
   const combined = await combine(items, respond(items));
   assert.ok(!('research' in combined.claim_review));
   // Digests of the output of the unpatched nodes on this fixture, taken at commit ba7d201 before the change.
-  assert.equal(sha(items), GROWTH_ITEMS_SHA);
+  // The output limit was raised from 8,000 to 16,000 on 2026-10-12 (see output-limits.test.mjs). Every request must
+  // carry the new limit, and apart from that one number be exactly what it was: the old digest proves the second.
+  assert.ok(items.every((b) => b.payload.includes('"max_tokens":16000')));
+  const withOldLimit = items.map((b) => ({ ...b, payload: b.payload.replace('"max_tokens":16000', '"max_tokens":8000') }));
+  assert.equal(sha(withOldLimit), GROWTH_ITEMS_SHA);
   assert.equal(sha(combined), GROWTH_COMBINED_SHA);
 });
 

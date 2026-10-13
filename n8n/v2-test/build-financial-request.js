@@ -75,4 +75,6 @@ const user = [
   ledger || 'None. No research was done for this plan.',
 ].join('\n');
 
-return { payload: JSON.stringify({ model: 'anthropic/claude-sonnet-4.6', max_tokens: 4000, temperature: 0, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) };
+// OUTPUT LIMIT. 4,000 was too low: execution 65701 (Growth, 11 cost items) was cut off there, and two Starter answers
+// used 3,196 and 3,650. An answer that still reaches the limit is not used at all (see Compute Financials).
+return { payload: JSON.stringify({ model: 'anthropic/claude-sonnet-4.6', max_tokens: 8000, temperature: 0, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) };

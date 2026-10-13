@@ -208,7 +208,9 @@ const describe = (c) => {
   return '[' + c.id + '] L' + c.line + (c.cell ? ', cell ' + c.cell : '') + ' | ' + where + ' | ' + about + '\n  TEXT: ' + c.text + '\n  ENTRIES BESIDE IT (exact text):\n' + beside;
 };
 const payloadOf = (list, k) => JSON.stringify({
-  model: MODEL, max_tokens: 8000, temperature: 0,
+  // OUTPUT LIMIT. 8,000 was too low for an answer that reasons at length before its JSON: execution 65701, batch 3,
+  // spent about half of it on reasoning and was cut off inside the JSON. Complete answers used at most 4,499.
+  model: MODEL, max_tokens: 16000, temperature: 0,
   messages: [
     { role: 'system', content: system },
     { role: 'user', content: [

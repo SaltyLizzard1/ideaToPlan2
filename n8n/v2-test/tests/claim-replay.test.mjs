@@ -74,9 +74,17 @@ test('replay: requests go one at a time, and a stop is final', async () => {
   assert.ok(Math.abs(s1.spent_recorded - s1.usage.cost) < 1e-6);
   const s2 = (await simulate('sequential_dry', 'S2 sequential, ceiling reached')).runs[0];
   assert.deepEqual(s2.budget_log.map((l) => l.go), Array(11).fill(true).concat([false, false]));
-  assert.match(s2.budget_log[11].stop_reason, /over the ceiling of USD 0\.60/);
+  // The scenario's ceiling is 0.72: the 0.60 it had with an 8,000-token limit, plus the 0.12 the worst case rose by.
+  // The stop therefore falls on the same request as before, the twelfth.
+  assert.match(s2.budget_log[11].stop_reason, /over the ceiling of USD 0\.72/);
   assert.match(s2.budget_log[12].stop_reason, /^stopped earlier, and nothing is sent after a stop \(spent USD 0\.\d{4} and the next request could cost up to/);
-  assert.ok(s2.spent_recorded <= 0.6);
+  assert.ok(s2.spent_recorded <= 0.6, 'what was actually spent stays under the old ceiling: only the estimate grew');
+  // The worst case reckons with input, the whole output limit, and one request at a time.
+  s1.budget_log.forEach((l) => assert.ok(l.worst_case_usd > 16000 * CONFIG.usd_per_m_out / 1e6 && l.worst_case_usd < 0.40, 'worst case of one request: ' + l.worst_case_usd));
+  assert.equal(CONFIG.ceiling_usd, 4.5);
+  assert.equal(CONFIG.max_requests, 13);
+  assert.ok(s1.budget_log.reduce((a, l) => a + l.worst_case_usd, 0) <= CONFIG.ceiling_usd, 'thirteen worst-case requests fit under the ceiling');
+  assert.ok(s1.spent_recorded < 1, 'the replay itself spends far less than its ceiling: ' + s1.spent_recorded);
   const s3 = (await simulate('sequential_dry', 'S3 sequential, a response without its cost')).runs[0];
   assert.deepEqual(s3.budget_log.map((l) => l.go), [true, true, true].concat(Array(10).fill(false)));
   assert.match(s3.budget_log[3].stop_reason, /the cost of an earlier request was not reported/);

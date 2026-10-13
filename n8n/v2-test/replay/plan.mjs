@@ -115,11 +115,18 @@ export const scenarioList = (tokenA, stageIds) => [
   { mode: 'scenarios', name: 'B2 second pass, own answers and five old ones', plan: 'B', evidence: 'B', faults: { prepend_stale: 5, prepend_stale_token: tokenA } },
   { mode: 'scenarios', name: 'A8 first text again after the second', plan: 'A' },
   { mode: 'sequential_dry', name: 'S1 sequential, every request', plan: 'A', sequential: true },
-  { mode: 'sequential_dry', name: 'S2 sequential, ceiling reached', plan: 'A', sequential: true, ceiling_usd: 0.6 },
+  { mode: 'sequential_dry', name: 'S2 sequential, ceiling reached', plan: 'A', sequential: true, ceiling_usd: 0.72 },
   { mode: 'sequential_dry', name: 'S3 sequential, a response without its cost', plan: 'A', sequential: true, faults: { no_cost_batches: [3] } },
   { mode: 'sequential_dry', name: 'S4 sequential, a failed request', plan: 'A', sequential: true, faults: { fail_batches: [2] } },
   { mode: 'sequential_dry', name: 'S5 sequential, a cut-off answer', plan: 'A', sequential: true, faults: { cut_unreadable: [1] } },
   { mode: 'sequential_dry', name: 'S6 sequential, an answer for another review', plan: 'A', sequential: true, faults: { stale_token: 'R0000000' } },
   { mode: 'stage_one', name: 'stage one', plan: 'A', sequential: true, selection: stageIds },
 ];
-export const CONFIG = { dry_run: true, mode: 'scenarios', only: '', ceiling_usd: 2.25, max_requests: 13, usd_per_m_in: 3, usd_per_m_out: 15 };
+// THE REPLAY CEILING IS AN ESTIMATE GUARD FOR THIS OFFLINE TOOL ONLY. It is not what a replay costs, and it is not a
+// cap on the production pipeline, which has no such gate. Before each request the gate adds up what the requests so
+// far actually cost and what the next one could cost at most: its input (estimated from the length of the prompt, at
+// usd_per_m_in) plus its whole output limit (max_tokens, at usd_per_m_out). If that sum is over the ceiling, the
+// request is not sent and nothing is sent after it. max_requests limits the number of requests separately.
+// Raised from 2.25 to 4.50 on 2026-10-12, when the review output limit went from 8,000 to 16,000 tokens: the worst
+// case of one request rose by 8,000 x $15 per million = $0.12, and real answers used at most 4,499 tokens.
+export const CONFIG = { dry_run: true, mode: 'scenarios', only: '', ceiling_usd: 4.5, max_requests: 13, usd_per_m_in: 3, usd_per_m_out: 15 };

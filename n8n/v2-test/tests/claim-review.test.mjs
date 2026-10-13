@@ -112,7 +112,7 @@ test('batches: every claim is in exactly one bounded request, and no request dep
   assert.deepEqual(items.map((b) => [b.batch, b.of]), items.map((_, k) => [k + 1, 13]));
   items.forEach((b) => {
     const p = JSON.parse(b.payload);
-    assert.deepEqual([p.model, p.temperature, p.max_tokens], ['anthropic/claude-sonnet-4.6', 0, 8000]);
+    assert.deepEqual([p.model, p.temperature, p.max_tokens], ['anthropic/claude-sonnet-4.6', 0, 16000]);
     const user = p.messages[1].content;
     assert.ok(user.includes(FOUNDER.founder_context.slice(0, 300)), 'the intake is in every request');
     LEDGER.forEach((e) => assert.ok(user.includes(e.claim_id + ' | about: '), 'every entry is in every request'));
