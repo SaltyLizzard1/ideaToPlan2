@@ -797,7 +797,7 @@ test('63226 recheck: the reviewer\'s gap finding at L139 is still a confirmed bl
 test('63226 recheck: the baseline is the $500 scenario, unchanged', () => {
   assert.equal(FIN.price_record.amount, 500);
   assert.match(FIN.price_record.label, /untested scenario assumption/);
-  assert.match(src('test-financial-baseline.js'), /500/);
+  assert.match(src('replay-fixtures/financial-inputs-63222.historical.js'), /500/);
 });
 
 test('date notes: a note that names its sources is not a claim about every source of the section', async () => {

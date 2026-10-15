@@ -458,5 +458,5 @@ test('63225 recheck: seven confirmed defects, no unresolved required check, and 
 test('63225 recheck: the $500 baseline is unchanged', async () => {
   assert.equal(FIN.price_record.amount, 500);
   assert.equal(FIN.cost_headroom.available_usd, 12100);
-  assert.equal((await runNode('test-financial-baseline.js', {})).fixedScenarioPrice, 500);
+  assert.equal((await runNode('replay-fixtures/financial-inputs-63222.historical.js', {})).fixedScenarioPrice, 500);
 });

@@ -27,6 +27,9 @@ if (finCut) fin_issues.push('The financial assumptions answer was cut off at its
 // Fixed inputs for a regression comparison (test workflows only, set in Founder Context). They replace the model's answer whole.
 const inputsFixed = !!(ctx.fixed_financial_assumptions && typeof ctx.fixed_financial_assumptions === 'object');
 if (inputsFixed) a = JSON.parse(JSON.stringify(ctx.fixed_financial_assumptions));
+// A replayed answer is never an independent model result, and a run that uses one says so where its figures are reported.
+const replayLabel = inputsFixed || Number(ctx.fixed_scenario_price) > 0 ? String(ctx.financial_inputs_replayed || 'unlabelled replay') : '';
+if (replayLabel) fin_issues.push('REPLAYED FINANCIAL INPUTS: ' + replayLabel + '. These figures were not produced by the financial model for this order and are not an independent result.');
 if (!a || typeof a !== 'object') { a = {}; if (!finCut) fin_issues.push('The financial assumptions could not be read, so the financial tables are incomplete.'); }
 
 // A value is a number or it is null. Unknown never becomes zero.
@@ -659,6 +662,7 @@ return {
   scenario_block, forecast_block, budget_block, loan_block,
   financial_model,
   fin_issues,
+  ...(replayLabel ? { financial_inputs_replayed: replayLabel } : {}),
   fin_reviews,
   cost_review: cost_review.map((r) => ({ area: r.area, category: r.label, applies: r.applies, material: r.material, reason: r.reason, budget_items: r.linked.map((b) => b.item), noted_in_plan: r.note })),
   unknown_costs: uncosted.concat(legalUnknown).map((b) => ({ item: b.item, stage: b.legal ? 'Conditional' : b.category, recurrence: b.kind, material: b.material, reason: b.unknownReason })),

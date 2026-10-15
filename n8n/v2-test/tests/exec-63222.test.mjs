@@ -360,7 +360,7 @@ test('price: the request to the model carries a founder or fixed price, and no l
 });
 
 const V2_TEST = { id: 'mLyKvFeYmJHuwXQ9', name: 'IdeaToPlan - Full Pipeline (Rebuilt) v2 Test' };
-const BASELINE = async () => runNode('test-financial-baseline.js', {});
+const BASELINE = async () => runNode('replay-fixtures/financial-inputs-63222.historical.js', {});
 const context = async (workflow, { baseline, body = {}, d = {} } = {}) => {
   const stubs = { 'Prepare Client Data': { ...FOUNDER, fixed_scenario_price: undefined, fixed_financial_assumptions: undefined, ...d }, Webhook: { body } };
   if (baseline) stubs['Test Financial Baseline'] = baseline;

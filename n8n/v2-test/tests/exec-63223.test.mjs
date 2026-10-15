@@ -327,7 +327,7 @@ test('63223 recheck: the baseline is the $500 scenario, unchanged', async () => 
   assert.equal(FIN.price_record.amount, 500);
   assert.equal(FIN.price_record.label, 'untested scenario assumption');
   assert.equal(FIN.cost_headroom.available_usd, 12100);
-  const baseline = await runNode('test-financial-baseline.js', {});
+  const baseline = await runNode('replay-fixtures/financial-inputs-63222.historical.js', {});
   assert.equal(baseline.fixedScenarioPrice, 500);
   assert.equal(baseline.fixedFinancialAssumptions.price.value, 500);
 });

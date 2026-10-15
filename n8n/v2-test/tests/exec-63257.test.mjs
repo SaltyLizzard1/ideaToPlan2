@@ -87,9 +87,9 @@ test('63257 recheck: the genuine defects still hold', async () => {
 test('63257: the writer rule, the baseline wording and the printed page', async () => {
   const fc = await runNode('founder-context.js', { 'Prepare Client Data': one(j('Founder Context')), 'Test Financial Baseline': one(j('Test Financial Baseline')) });
   assert.match(fc.writer_system, /RULE 20\. KEEP THE PLAN CONSISTENT WITH ITS OWN MODEL AND ITS OWN EVIDENCE\./);
-  const tb = JSON.stringify(await runNode('test-financial-baseline.js', {}));
+  const tb = JSON.stringify(await runNode('replay-fixtures/financial-inputs-63222.historical.js', {}));
   assert.ok(!/earlier test run|Held fixed for comparison/.test(tb));
-  assert.equal((await runNode('test-financial-baseline.js', {})).fixedScenarioPrice, 500);
+  assert.equal((await runNode('replay-fixtures/financial-inputs-63222.historical.js', {})).fixedScenarioPrice, 500);
   // The saved page carried thirteen printed separators and a rule number as a heading.
   const saved = one(j('Format Plan as HTML')).html;
   assert.ok(/Rule 7/.test(saved) && /<p>---<\/p>|>---</.test(saved));

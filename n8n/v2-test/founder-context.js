@@ -262,13 +262,16 @@ Write every section in SECTIONS, in order, with the exact numbered headers given
 const V2_TEST_WORKFLOW_ID = 'mLyKvFeYmJHuwXQ9';
 const amountOf = (v) => { const n = typeof v === 'number' ? v : parseFloat(String(v === undefined || v === null ? '' : v).replace(/[$,\s]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; };
 let testInputs = {};
-try { if ($workflow.id === V2_TEST_WORKFLOW_ID) { const b = $('Test Financial Baseline').first().json || {}; testInputs = { fixed_scenario_price: amountOf(b.fixedScenarioPrice), fixed_financial_assumptions: b.fixedFinancialAssumptions && typeof b.fixedFinancialAssumptions === 'object' ? b.fixedFinancialAssumptions : null }; } } catch (e) {}
+// A REPLAY IS NEVER APPLIED BY DEFAULT. Fixed inputs are used only when the node also carries a replay_label naming
+// where they came from. Without a label they are ignored. The label travels with the run, so its output says it was replayed.
+try { if ($workflow.id === V2_TEST_WORKFLOW_ID) { const b = $('Test Financial Baseline').first().json || {}; const label = typeof b.replay_label === 'string' && b.replay_label.trim() ? b.replay_label.trim() : ''; if (label) testInputs = { fixed_scenario_price: amountOf(b.fixedScenarioPrice), fixed_financial_assumptions: b.fixedFinancialAssumptions && typeof b.fixedFinancialAssumptions === 'object' ? b.fixedFinancialAssumptions : null, replay_label: label }; } } catch (e) {}
 
 return {
   ...d,
   founder_price: amountOf(d.founder_price),
   fixed_scenario_price: testInputs.fixed_scenario_price || null,
   fixed_financial_assumptions: testInputs.fixed_financial_assumptions || null,
+  ...(testInputs.replay_label ? { financial_inputs_replayed: testInputs.replay_label } : {}),
   run_started_ms: Date.now(),
   tier: G ? 'Growth' : 'Starter',
   goal,
