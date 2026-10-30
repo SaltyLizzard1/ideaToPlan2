@@ -4,12 +4,13 @@ import Link from "next/link";
 
 export default function Hero() {
   return (
-    // The hero is as tall as its content. It used to be stretched to fill the screen with the
-    // content centred in it, which left a wide band above the eyebrow on tall screens and pushed
-    // the second button below the fold on short ones. Padding and gaps follow the screen height
-    // (svh) so both buttons stay on the first screen of a short laptop window.
+    // From sm up the hero fills at least the first screen below the header, so the next section
+    // never shows on first load. Content stays pinned to the top (not centred), so any extra
+    // height falls below the second button instead of opening a band above the eyebrow. Below sm
+    // the hero stays as tall as its content, so portrait phones are unaffected. Padding and gaps
+    // follow the screen height (svh) so both buttons stay on the first screen of a short laptop window.
     <section
-      className="relative flex flex-col items-center text-center overflow-x-hidden"
+      className="relative flex flex-col items-center text-center overflow-x-hidden sm:min-h-[calc(100svh-var(--header-h))]"
       style={{
         paddingTop: "clamp(20px, 5svh, 56px)",
         paddingBottom: "clamp(28px, 7svh, 72px)",
