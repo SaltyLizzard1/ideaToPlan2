@@ -77,7 +77,7 @@ export default function HowItWorks() {
   }
 
   return (
-    <section ref={sectionRef} className="section-y bg-[#FDFCF9]">
+    <section ref={sectionRef} className="section-y section-fill section-snap bg-[#FDFCF9]">
       <div className="page-container">
 
         {/* Section heading */}

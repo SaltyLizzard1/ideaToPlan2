@@ -87,6 +87,30 @@
 .section-y { padding-block: var(--spacing-section); }
 .section-y-lg { padding-block: var(--spacing-section-lg); }
 
+/* Homepage sections below the hero. From 640px up each one is at least one screen tall below
+   the sticky header, with its content centred, so when a section reaches the header the next
+   one does not show beneath it. Below 640px (portrait phones) sections stay as tall as their
+   content. Do not swap this for a content-height section: that is what made the next section
+   show through. The hero has its own rule in Hero.tsx (content pinned to the top). Not used on
+   the About and Contact pages: a full-screen height there broke the scroll reset (c4e3f1e).
+   Scroll snapping (proximity, not mandatory) settles the page on a section's top edge when a
+   scroll stops near one, so a sliver of the neighbouring section is not left showing. Sections
+   taller than the screen still scroll freely. scroll-margin-top keeps the snap point and anchor
+   links below the sticky header; do not also add scroll-padding to html, the two would add up. */
+@media (min-width: 640px) {
+  html { scroll-snap-type: y proximity; }
+  .section-snap {
+    scroll-snap-align: start;
+    scroll-margin-top: var(--header-h);
+  }
+  .section-fill {
+    min-height: calc(100svh - var(--header-h));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
 /* Card padding and grid gap. */
 .card-pad { padding: var(--spacing-card); }
 .grid-gap { gap: var(--spacing-grid); }

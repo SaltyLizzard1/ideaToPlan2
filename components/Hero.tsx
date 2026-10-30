@@ -10,7 +10,7 @@ export default function Hero() {
     // the hero stays as tall as its content, so portrait phones are unaffected. Padding and gaps
     // follow the screen height (svh) so both buttons stay on the first screen of a short laptop window.
     <section
-      className="relative flex flex-col items-center text-center overflow-x-hidden sm:min-h-[calc(100svh-var(--header-h))]"
+      className="relative flex flex-col items-center text-center overflow-x-hidden section-snap sm:min-h-[calc(100svh-var(--header-h))]"
       style={{
         paddingTop: "clamp(20px, 5svh, 56px)",
         paddingBottom: "clamp(28px, 7svh, 72px)",

@@ -371,7 +371,7 @@ const [paymentError, setPaymentError] = useState("");
   return (
     <section
       id="pricing"
-      className="section-y scroll-mt-[var(--header-h)]"
+      className="section-y section-fill section-snap scroll-mt-[var(--header-h)]"
       style={{
         background: "#0D1117",
         paddingTop: "clamp(28px, 4vw, 48px)",

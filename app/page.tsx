@@ -21,7 +21,7 @@ export default function Home() {
       <ScrollReveal>
         <section
           id="assessment"
-          className="section-y"
+          className="section-y section-fill section-snap"
           style={{ background: "#FDFCF9", scrollMarginTop: "var(--header-h)" }}
         >
           <div className="page-container">
@@ -61,7 +61,7 @@ export default function Home() {
 
             <a
               href="/assessment"
-              className="cta-shimmer gold-border inline-flex items-center gap-s2 px-s6 py-s4 rounded-full font-sans font-semibold text-base cursor-pointer"
+              className="cta-shimmer gold-border inline-flex items-center gap-s2 px-s5 py-s3 sm:px-s6 sm:py-s4 rounded-full font-sans font-semibold text-base cursor-pointer"
               style={{ color: "#2D1A00" }}
             >
               Find My Business Matches

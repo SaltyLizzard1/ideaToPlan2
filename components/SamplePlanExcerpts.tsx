@@ -159,7 +159,7 @@ export default function SamplePlanExcerpts() {
   return (
     <section
       id="sample-plan"
-      className="section-y"
+      className="section-y section-fill section-snap"
       style={{
         background: "#0D1117",
         backgroundImage:
